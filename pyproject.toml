@@ -1,0 +1,102 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ci-framework-tools"
+version = "0.0.1"
+description = "Internal tools and scripts for the CI Framework."
+authors = [
+    { name = "MementoRC", email = "your-email@example.com" }
+]
+dependencies = [
+    "pytest",
+    "psutil",
+    "pandas",
+    "pyyaml",
+    "requests",
+]
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "black",
+    "yamllint",
+    "actionlint",
+    "pip-audit",
+    "bandit",
+    "detect-secrets",
+    "twine",
+    "build",
+    "cyclonedx-bom",
+]
+
+[tool.hatch.envs.default]
+dependencies = [
+    "pytest",
+    "psutil",
+    "pandas",
+    "pyyaml",
+    "requests",
+]
+
+[tool.hatch.envs.dev]
+dependencies = [
+    "ruff",
+    "black",
+    "yamllint",
+    "actionlint",
+    "pip-audit",
+    "bandit",
+    "detect-secrets",
+    "twine",
+    "build",
+    "cyclonedx-bom",
+]
+
+[tool.hatch.envs.test]
+dependencies = [
+    "pytest",
+]
+
+[tool.pixi]
+project_name = "ci-framework-tools"
+project_version = "0.0.1"
+
+[tool.pixi.environments]
+default = {
+    python = "3.12",
+    dependencies = [
+        "pytest",
+        "psutil",
+        "pandas",
+        "pyyaml",
+        "requests",
+    ]
+}
+dev = {
+    python = "3.12",
+    dependencies = [
+        "ruff",
+        "black",
+        "yamllint",
+        "actionlint",
+        "pip-audit",
+        "bandit",
+        "detect-secrets",
+        "twine",
+        "build",
+        "cyclonedx-bom",
+    ]
+}
+
+[tool.pixi.tasks]
+lint = "ruff check framework/"
+format = "black --check framework/"
+yaml-lint = "yamllint .github/workflows/"
+action-lint = "actionlint"
+security-audit = "pip-audit --verbose"
+bandit-scan = "bandit -r framework/"
+detect-secrets = "detect-secrets scan --all-files"
+unit-test = "pytest framework/tests/"
