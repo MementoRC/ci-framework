@@ -25,16 +25,16 @@ jobs:
           pixi install -e dev
       - name: "Run Ruff (linting)"
         run: |
-          pixi run lint
+          pixi run -e dev lint
       - name: "Run Black (formatting)"
         run: |
-          pixi run format
+          pixi run -e dev format
       - name: "Run Yamllint (workflow YAMLs)"
         run: |
-          pixi run yaml-lint
+          pixi run -e dev yaml-lint
       - name: "Run Actionlint (workflow syntax)"
         run: |
-          pixi run action-lint
+          pixi run -e dev action-lint
 
   security-scan:
     name: "🛡️ Security Scan"
@@ -51,15 +51,15 @@ jobs:
           pixi install -e dev
       - name: "Run pip-audit (dependency vulnerabilities)"
         run: |
-          pixi run security-audit
+          pixi run -e dev security-audit
         continue-on-error: true
       - name: "Run Bandit (static analysis)"
         run: |
-          pixi run bandit-scan
+          pixi run -e dev bandit-scan
         continue-on-error: true
       - name: "Run detect-secrets"
         run: |
-          pixi run detect-secrets
+          pixi run -e dev detect-secrets
         continue-on-error: true
       - name: "Initialize CodeQL"
         uses: github/codeql-action/init@v3
@@ -83,7 +83,7 @@ jobs:
           pixi install -e default
       - name: "Run Unit Tests for Framework Scripts"
         run: |
-          pixi run unit-test
+          pixi run -e default unit-test
 
   # Placeholder for more advanced integration tests of reusable workflows
   # This would involve creating a dummy repository and calling the reusable workflows
