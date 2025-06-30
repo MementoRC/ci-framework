@@ -1,0 +1,25 @@
+
+# Configuration for the PR Labeler action.
+# Defines which labels to apply based on file paths.
+
+# Add 'ci' label to any changes within the .github directory
+ci:
+  - '.github/**'
+
+# Add 'documentation' label to any changes in docs or markdown files
+documentation:
+  - 'docs/**'
+  - '*.md'
+
+# Add 'feature' label to changes in the source directory
+feature:
+  - 'src/**'
+
+# Add 'tests' label to changes in the tests directory
+tests:
+  - 'tests/**'
+
+# Add 'performance' label to performance-related files
+performance:
+  - 'tests/performance/**'
+  - 'benchmarks/**'

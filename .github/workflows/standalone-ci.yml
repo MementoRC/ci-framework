@@ -1,0 +1,34 @@
+name: Standalone Package CI
+
+on:
+  workflow_call:
+    inputs:
+      package-manager:
+        description: "The package manager to use: pixi or hatch"
+        required: true
+        type: string
+      python-versions:
+        description: "JSON array of Python versions for the test matrix"
+        required: false
+        type: string
+        default: '["3.10", "3.11", "3.12"]'
+      os-matrix:
+        description: "JSON array of OS for the test matrix"
+        required: false
+        type: string
+        default: '["ubuntu-latest", "macos-latest"]'
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+      PYPI_API_TOKEN:
+        required: false
+
+jobs:
+  call-reusable-workflow:
+    uses: ./.github/workflows/reusable-ci.yml
+    with:
+      package-manager: ${{ inputs.package-manager }}
+      python-versions: ${{ inputs.python-versions }}
+      os-matrix: ${{ inputs.os-matrix }}
+      package-path: '.'
+    secrets: inherit

@@ -1,0 +1,144 @@
+# Maintenance Configuration for CI Pipeline Health Monitoring
+# This file defines retention policies, health thresholds, and maintenance schedules
+
+# Data retention policies (in days)
+data_retention:
+  performance_data: 90      # Keep performance history for 90 days
+  security_scans: 30        # Keep security scan results for 30 days
+  reports: 60              # Keep generated reports for 60 days
+  artifacts: 45            # Keep build artifacts for 45 days
+  logs: 14                 # Keep log files for 14 days
+
+# Health monitoring thresholds
+health_thresholds:
+  # System resource thresholds
+  max_execution_time: 3600   # Maximum CI pipeline execution time (seconds)
+  max_storage_usage: 5       # Maximum storage usage per component (GB)
+  min_disk_space: 10         # Minimum free disk space required (GB)
+
+  # Performance thresholds
+  max_cpu_usage: 85          # Maximum CPU usage percentage
+  max_memory_usage: 80       # Maximum memory usage percentage
+  max_regression_percent: 20 # Maximum acceptable performance regression (%)
+
+  # Security thresholds
+  max_critical_vulnerabilities: 0   # Maximum critical vulnerabilities allowed
+  max_high_vulnerabilities: 5       # Maximum high severity vulnerabilities
+  max_total_vulnerabilities: 20     # Maximum total vulnerabilities
+
+# Automated update and maintenance schedules
+update_schedule:
+  security_databases: "daily"        # Update security vulnerability databases
+  dependency_scan: "daily"           # Run dependency vulnerability scans
+  performance_baseline: "weekly"     # Update performance baselines
+  cleanup_old_data: "weekly"         # Clean up old data based on retention policies
+  health_check: "hourly"             # Run comprehensive health checks
+
+# Monitoring configuration
+monitoring:
+  check_interval: 300        # Health check interval (seconds)
+  alert_threshold: 0.8       # Alert when metrics exceed this percentage of thresholds
+  cooldown_period: 3600      # Minimum time between similar alerts (seconds)
+  max_alerts_per_day: 10     # Maximum alerts to send per day
+
+# Maintenance task configuration
+maintenance_tasks:
+  # Data cleanup configuration
+  cleanup:
+    enabled: true
+    dry_run: false           # Set to true to preview cleanup without deletion
+    batch_size: 100          # Number of files to process in each batch
+
+  # Performance optimization
+  optimization:
+    enabled: true
+    auto_baseline_update: true     # Automatically update baselines
+    performance_analysis: true     # Run performance trend analysis
+
+  # Security maintenance
+  security:
+    enabled: true
+    auto_update_databases: true    # Automatically update security databases
+    generate_sbom: true           # Generate Software Bill of Materials
+
+  # Reporting and analytics
+  reporting:
+    enabled: true
+    generate_health_reports: true  # Generate regular health reports
+    trend_analysis: true          # Perform trend analysis
+    usage_analytics: true         # Track usage patterns
+
+# Alert configuration
+alerts:
+  enabled: true
+
+  # Alert channels (configure as needed)
+  channels:
+    console: true              # Log alerts to console
+    file: true                # Write alerts to file
+    github_issues: false      # Create GitHub issues for critical alerts
+
+  # Alert severity levels
+  severity_levels:
+    critical:
+      immediate: true          # Send immediately
+      escalation_time: 300     # Escalate if not acknowledged (seconds)
+
+    warning:
+      immediate: false         # Can be batched
+      batch_interval: 1800     # Send batched alerts every 30 minutes
+
+    info:
+      immediate: false
+      batch_interval: 3600     # Send batched alerts every hour
+
+# Storage management
+storage:
+  # Automatic cleanup rules
+  auto_cleanup:
+    enabled: true
+
+    # File age thresholds for cleanup
+    cleanup_rules:
+      temp_files: 1            # Clean temp files older than 1 day
+      test_artifacts: 7        # Clean test artifacts older than 7 days
+      old_reports: 60          # Clean reports older than 60 days
+      cache_files: 30          # Clean cache files older than 30 days
+
+  # Compression settings
+  compression:
+    enabled: true
+    compress_after_days: 7     # Compress files older than 7 days
+    compression_format: "gzip" # Compression format to use
+
+# Performance tuning
+performance:
+  # Concurrent operation limits
+  max_concurrent_scans: 2      # Maximum concurrent security scans
+  max_concurrent_benchmarks: 1 # Maximum concurrent performance benchmarks
+
+  # Timeout settings
+  scan_timeout: 600           # Security scan timeout (seconds)
+  benchmark_timeout: 1800     # Performance benchmark timeout (seconds)
+
+  # Resource usage limits
+  memory_limit_mb: 2048       # Maximum memory usage for maintenance tasks
+  cpu_limit_percent: 50       # Maximum CPU usage for maintenance tasks
+
+# Logging configuration
+logging:
+  level: "INFO"               # Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+  # Log file configuration
+  file_logging:
+    enabled: true
+    log_file: "artifacts/logs/maintenance.log"
+    max_size_mb: 50           # Maximum log file size
+    backup_count: 5           # Number of backup log files to keep
+
+  # Component-specific logging
+  components:
+    health_monitor: "INFO"
+    scheduler: "INFO"
+    maintenance_tasks: "DEBUG"

@@ -1,0 +1,305 @@
+name: Reusable CI/CD Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      package-manager:
+        description: "The package manager to use: pixi or hatch"
+        required: true
+        type: string
+      python-versions:
+        description: "JSON array of Python versions for the test matrix"
+        required: false
+        type: string
+        default: '["3.10", "3.11", "3.12"]'
+      os-matrix:
+        description: "JSON array of OS for the test matrix"
+        required: false
+        type: string
+        default: '["ubuntu-latest", "macos-latest"]'
+      enable-performance:
+        description: "Enable performance benchmarks and regression analysis"
+        required: false
+        type: boolean
+        default: true
+      enable-release:
+        description: "Enable automated releases to PyPI on main branch pushes"
+        required: false
+        type: boolean
+        default: true
+      allowed-licenses:
+        description: "Comma-separated list of allowed licenses for dependency review"
+        required: false
+        type: string
+        default: 'MIT, Apache-2.0, BSD-3-Clause'
+      package-path:
+        description: "Relative path to the package directory within the monorepo"
+        required: false
+        type: string
+        default: '.'
+    secrets:
+      CODECOV_TOKEN:
+        description: "Token for uploading coverage reports to Codecov"
+        required: false
+      PYPI_API_TOKEN:
+        description: "Token for publishing packages to PyPI"
+        required: false
+      GH_PAT:
+        description: "Personal Access Token for actions requiring it (like PR comments)"
+        required: false
+      SOURCERY_TOKEN:
+        description: "Token for Sourcery AI code reviewer"
+        required: false
+
+jobs:
+  detect-changes:
+    name: "🔍 Detect Changes"
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.changes.outputs.src }}
+      docs: ${{ steps.changes.outputs.docs }}
+      tests: ${{ steps.changes.outputs.tests }}
+      ci: ${{ steps.changes.outputs.ci }}
+      performance: ${{ steps.changes.outputs.performance }}
+      security: ${{ steps.changes.outputs.security }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            src:
+              - '${{ inputs.package-path }}/src/**'
+              - '${{ inputs.package-path }}/pyproject.toml'
+              - '${{ inputs.package-path }}/pixi.lock'
+              - '${{ inputs.package-path }}/hatch.lock'
+            docs:
+              - '${{ inputs.package-path }}/docs/**'
+              - '${{ inputs.package-path }}/*.md'
+            tests:
+              - '${{ inputs.package-path }}/tests/**'
+            ci:
+              - '.github/workflows/**'
+            performance:
+              - '${{ inputs.package-path }}/tests/performance/**'
+            security:
+              - '.github/workflows/security.yml'
+
+  quality:
+    name: "💎 Code Quality"
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.src == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Setup Environment"
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [ "${{ inputs.package-manager }}" == "pixi" ]; then
+            pip install pixi
+            pixi install
+          elif [ "${{ inputs.package-manager }}" == "hatch" ]; then
+            pip install hatch
+            hatch env create
+          fi
+      - name: "Run Linters, Formatters, Type Checkers"
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [ "${{ inputs.package-manager }}" == "pixi" ]; then
+            pixi run quality-checks
+          elif [ "${{ inputs.package-manager }}" == "hatch" ]; then
+            hatch run quality-checks
+          fi
+
+  test:
+    name: "🧪 Test Python ${{ matrix.python-version }} on ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    needs: detect-changes
+    if: needs.detect-changes.outputs.src == 'true' || needs.detect-changes.outputs.tests == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJson(inputs.os-matrix) }}
+        python-version: ${{ fromJson(inputs.python-versions) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Setup Python ${{ matrix.python-version }}"
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: "Setup Environment & Dependencies"
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [ "${{ inputs.package-manager }}" == "pixi" ]; then
+            pip install pixi
+            pixi install
+          elif [ "${{ inputs.package-manager }}" == "hatch" ]; then
+            pip install hatch
+            hatch env create
+          fi
+      - name: "Run Test Suite"
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [ "${{ inputs.package-manager }}" == "pixi" ]; then
+            pixi run test
+          elif [ "${{ inputs.package-manager }}" == "hatch" ]; then
+            hatch run test
+          fi
+
+  security:
+    name: "🛡️ Security Scan"
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.security == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Checkout CI Framework"
+        uses: actions/checkout@v4
+        with:
+          repository: MementoRC/ci-framework
+          path: ci-framework
+      - name: "Setup Environment"
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [ "${{ inputs.package-manager }}" == "pixi" ]; then
+            pip install pixi
+            pixi install -e security
+          elif [ "${{ inputs.package-manager }}" == "hatch" ]; then
+            pip install hatch
+            hatch env create security
+          fi
+      - name: "Run Security Scans"
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          python ../ci-framework/framework/security/cli.py scan --path .
+      - name: "Automated License Compliance Scanning"
+        uses: actions/dependency-review-action@v4
+        with:
+          allow-licenses: ${{ inputs.allowed-licenses }}
+      - name: "Initialize CodeQL"
+        uses: github/codeql-action/init@v3
+        with: { languages: 'python' }
+      - name: "Perform CodeQL Analysis"
+        uses: github/codeql-action/analyze@v3
+
+  performance:
+    name: "📊 Performance Analysis"
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: ${{ inputs.enable-performance }} && needs.detect-changes.outputs.performance == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Checkout CI Framework"
+        uses: actions/checkout@v4
+        with:
+          repository: MementoRC/ci-framework
+          path: ci-framework
+      - name: "Setup Environment"
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [ "${{ inputs.package-manager }}" == "pixi" ]; then
+            pip install pixi
+            pixi install -e performance
+          elif [ "${{ inputs.package-manager }}" == "hatch" ]; then
+            pip install hatch
+            hatch env create performance
+          fi
+      - name: "Run Benchmarks"
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          python ../ci-framework/framework/performance/cli.py run --path .
+      - name: "Compare to Baseline & Comment on PR"
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          python ../ci-framework/framework/performance/cli.py compare --path .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+
+  build:
+    name: "📦 Build Package"
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Setup Environment"
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [ "${{ inputs.package-manager }}" == "pixi" ]; then
+            pip install pixi
+            pixi install
+          elif [ "${{ inputs.package-manager }}" == "hatch" ]; then
+            pip install hatch
+            hatch env create
+          fi
+      - name: "Build sdist and wheel"
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [ "${{ inputs.package-manager }}" == "pixi" ]; then
+            pixi run build
+          elif [ "${{ inputs.package-manager }}" == "hatch" ]; then
+            hatch run build
+          fi
+      - uses: actions/upload-artifact@v4
+        with: { name: 'dist', path: '${{ inputs.package-path }}/dist/' }
+
+  release:
+    name: "🚀 Release & Publish"
+    runs-on: ubuntu-latest
+    needs: [build, quality, security]
+    if: ${{ inputs.enable-release && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Checkout CI Framework"
+        uses: actions/checkout@v4
+        with:
+          repository: MementoRC/ci-framework
+          path: ci-framework
+      - name: "Generate Changelog"
+        id: changelog
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          python ../ci-framework/framework/reporting/cli.py generate-changelog --path .
+      - uses: actions/download-artifact@v4
+        with: { name: 'dist', path: 'dist/' }
+      - name: "Publish to PyPI"
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  self-heal:
+    name: "🩹 Self-Healing (Manual Trigger)"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Checkout CI Framework"
+        uses: actions/checkout@v4
+        with:
+          repository: MementoRC/ci-framework
+          path: ci-framework
+      - name: "Run Self-Healing Script"
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          echo "This is a placeholder for the self-healing mechanism."
+          echo "In the future, this job could automatically fix common test failures."
+          # Example: python ../ci-framework/framework/self_healing/cli.py fix --path .
+
+  summary:
+    name: "✅ CI Summary"
+    runs-on: ubuntu-latest
+    needs: [quality, test, security, performance, build, release, self-heal]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Checkout CI Framework"
+        uses: actions/checkout@v4
+        with:
+          repository: MementoRC/ci-framework
+          path: ci-framework
+      - name: "Generate Run Summary"
+        run: |
+          python ci-framework/framework/reporting/cli.py generate-summary --path ${{ inputs.package-path }} --output-file summary.md
+      - name: "Add Summary to Job Summary"
+        run: |
+          cat summary.md >> $GITHUB_STEP_SUMMARY
