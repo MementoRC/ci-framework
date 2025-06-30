@@ -64,6 +64,10 @@ dependencies = [
 project_name = "ci-framework-tools"
 project_version = "0.0.1"
 
+[tool.pixi.project]
+name = "ci-framework-tools"
+version = "0.0.1"
+
 [tool.pixi.environments]
 default = {
     python = "3.12",
