@@ -66,32 +66,34 @@ project_version = "0.0.1"
 name = "ci-framework-tools"
 version = "0.0.1"
 channels = ["conda-forge"]
+platforms = ["linux-64"]
 
+# Core dependencies for the default environment
+[tool.pixi.dependencies]
+python = "3.12"
+pytest = "*"
+psutil = "*"
+pandas = "*"
+pyyaml = "*"
+requests = "*"
+
+# Development tools and dependencies for the 'dev' environment
+[tool.pixi.feature.dev.dependencies]
+ruff = "*"
+black = "*"
+yamllint = "*"
+actionlint = "*"
+pip-audit = "*"
+bandit = "*"
+detect-secrets = "*"
+twine = "*"
+build = "*"
+cyclonedx-bom = "*"
+
+# Pixi environments referencing features
 [tool.pixi.environments]
-
-[tool.pixi.environments.default]
-dependencies = [
-    "python 3.12",
-    "pytest",
-    "psutil",
-    "pandas",
-    "pyyaml",
-    "requests",
-]
-
-[tool.pixi.environments.dev]
-dependencies = [
-    "python 3.12",
-    "ruff",
-    "black",
-    "yamllint",
-    "pip-audit",
-    "bandit",
-    "detect-secrets",
-    "twine",
-    "build",
-    "cyclonedx-bom",
-]
+default = { features = [], solve-group = "default" }
+dev = { features = ["dev"], solve-group = "dev" }
 
 [tool.pixi.tasks]
 lint = "ruff check framework/"
