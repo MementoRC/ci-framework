@@ -67,30 +67,30 @@ name = "ci-framework-tools"
 version = "0.0.1"
 
 [tool.pixi.environments]
-default = {
-    python = "3.12",
-    dependencies = [
-        "pytest",
-        "psutil",
-        "pandas",
-        "pyyaml",
-        "requests",
-    ]
-}
-dev = {
-    python = "3.12",
-    dependencies = [
-        "ruff",
-        "black",
-        "yamllint",
-        "pip-audit",
-        "bandit",
-        "detect-secrets",
-        "twine",
-        "build",
-        "cyclonedx-bom",
-    ]
-}
+
+[tool.pixi.environments.default]
+python = "3.12"
+dependencies = [
+    "pytest",
+    "psutil",
+    "pandas",
+    "pyyaml",
+    "requests",
+]
+
+[tool.pixi.environments.dev]
+python = "3.12"
+dependencies = [
+    "ruff",
+    "black",
+    "yamllint",
+    "pip-audit",
+    "bandit",
+    "detect-secrets",
+    "twine",
+    "build",
+    "cyclonedx-bom",
+]
 
 [tool.pixi.tasks]
 lint = "ruff check framework/"
