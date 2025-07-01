@@ -22,7 +22,8 @@ jobs:
           manifest-path: pyproject.toml
       - name: "Install Python dependencies"
         run: |
-          pixi install -e dev
+          pixi install -e dev || exit 1
+          ls -la .pixi
       - name: "Run Ruff (linting)"
         run: |
           pixi run -e dev lint
@@ -33,8 +34,7 @@ jobs:
         run: |
           pixi run -e dev yaml-lint
       - name: "Run Actionlint (workflow syntax)"
-        run: |
-          pixi run -e dev action-lint
+        uses: reviewdog/action-actionlint@v1
 
   security-scan:
     name: "🛡️ Security Scan"
@@ -48,7 +48,8 @@ jobs:
           manifest-path: pyproject.toml
       - name: "Install Python dependencies"
         run: |
-          pixi install -e dev
+          pixi install -e dev || exit 1
+          ls -la .pixi
       - name: "Run pip-audit (dependency vulnerabilities)"
         run: |
           pixi run -e dev security-audit
@@ -80,7 +81,8 @@ jobs:
           manifest-path: pyproject.toml
       - name: "Install Python dependencies"
         run: |
-          pixi install -e default
+          pixi install -e default || exit 1
+          ls -la .pixi
       - name: "Run Unit Tests for Framework Scripts"
         run: |
           pixi run -e default unit-test
