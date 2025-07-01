@@ -70,8 +70,8 @@ channels = ["conda-forge"]
 [tool.pixi.environments]
 
 [tool.pixi.environments.default]
-python = "3.12"
 dependencies = [
+    "python 3.12",
     "pytest",
     "psutil",
     "pandas",
@@ -80,8 +80,8 @@ dependencies = [
 ]
 
 [tool.pixi.environments.dev]
-python = "3.12"
 dependencies = [
+    "python 3.12",
     "ruff",
     "black",
     "yamllint",
