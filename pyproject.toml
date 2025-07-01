@@ -65,6 +65,7 @@ project_version = "0.0.1"
 [tool.pixi.project]
 name = "ci-framework-tools"
 version = "0.0.1"
+channels = ["conda-forge"]
 
 [tool.pixi.environments]
 
