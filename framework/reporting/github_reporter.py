@@ -212,7 +212,10 @@ class GitHubReporter:
         Returns:
             Report generation results.
         """
-        results: dict[str, bool | Path | None] = {"summary_added": False, "artifact_created": None}
+        results: dict[str, bool | Path | None] = {
+            "summary_added": False,
+            "artifact_created": None,
+        }
 
         # Generate step summary
         if include_summary:
@@ -251,11 +254,16 @@ class GitHubReporter:
         Returns:
             Report generation results.
         """
-        results: dict[str, bool | Path | None] = {"summary_added": False, "artifact_created": None}
+        results: dict[str, bool | Path | None] = {
+            "summary_added": False,
+            "artifact_created": None,
+        }
 
         # Load security data
         bandit_data = self._load_json_file(bandit_file) if bandit_file else None
-        pip_audit_data = self._load_json_file(pip_audit_file) if pip_audit_file else None
+        pip_audit_data = (
+            self._load_json_file(pip_audit_file) if pip_audit_file else None
+        )
 
         # Generate step summary
         if include_summary:
@@ -264,7 +272,10 @@ class GitHubReporter:
 
         # Create detailed artifact
         if include_artifact:
-            artifact_data = {"bandit_results": bandit_data, "pip_audit_results": pip_audit_data}
+            artifact_data = {
+                "bandit_results": bandit_data,
+                "pip_audit_results": pip_audit_data,
+            }
             results["artifact_created"] = self.create_detailed_report_artifact(
                 "security", artifact_data
             )
@@ -289,11 +300,18 @@ class GitHubReporter:
         Returns:
             Report generation results.
         """
-        results: dict[str, bool | Path | None] = {"summary_added": False, "artifact_created": None}
+        results: dict[str, bool | Path | None] = {
+            "summary_added": False,
+            "artifact_created": None,
+        }
 
         # Load data files
-        test_data = self._load_json_file(test_results_file) if test_results_file else None
-        performance_data = self._load_json_file(performance_file) if performance_file else None
+        test_data = (
+            self._load_json_file(test_results_file) if test_results_file else None
+        )
+        performance_data = (
+            self._load_json_file(performance_file) if performance_file else None
+        )
 
         security_data = {}
         if security_files:
@@ -313,7 +331,9 @@ class GitHubReporter:
             "performance_data": performance_data,
             "security_data": security_data,
         }
-        results["artifact_created"] = self.create_detailed_report_artifact("build", artifact_data)
+        results["artifact_created"] = self.create_detailed_report_artifact(
+            "build", artifact_data
+        )
 
         return results
 

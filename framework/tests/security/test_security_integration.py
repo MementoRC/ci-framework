@@ -57,7 +57,11 @@ class TestSecurityIntegration:
         security_data = {
             "scan_date": "2024-01-01",
             "vulnerabilities": [
-                {"package": "test-package", "severity": "medium", "fixed_version": "2.0.0"}
+                {
+                    "package": "test-package",
+                    "severity": "medium",
+                    "fixed_version": "2.0.0",
+                }
             ],
             "total_count": 1,
             "severity_breakdown": {"medium": 1},
@@ -212,7 +216,11 @@ class TestSecurityIntegration:
 
         async def mock_security_scan():
             await asyncio.sleep(0.1)  # Simulate scanning time
-            return {"scan_id": "async_test", "vulnerabilities": [], "status": "completed"}
+            return {
+                "scan_id": "async_test",
+                "vulnerabilities": [],
+                "status": "completed",
+            }
 
         # Run async scan
         scan_result = await mock_security_scan()
@@ -232,9 +240,7 @@ class TestSecurityIntegration:
 
         # Test with invalid/incomplete data
         invalid_data = {
-            "vulnerabilities": [
-                {"package": "test"}  # Missing required fields
-            ]
+            "vulnerabilities": [{"package": "test"}]  # Missing required fields
         }
 
         # Should handle gracefully
@@ -242,7 +248,9 @@ class TestSecurityIntegration:
             report = dashboard.generate_security_dashboard(invalid_data)
             assert report is not None  # Should not crash
         except Exception as e:
-            pytest.fail(f"Security integration should handle invalid data gracefully: {e}")
+            pytest.fail(
+                f"Security integration should handle invalid data gracefully: {e}"
+            )
 
     def test_security_performance_integration(self, tmp_path):
         """Test security module performance characteristics."""

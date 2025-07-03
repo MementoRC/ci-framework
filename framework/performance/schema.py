@@ -26,8 +26,14 @@ BENCHMARK_RESULT_SCHEMA = {
             "maximum": 100,
             "description": "CPU usage percentage",
         },
-        "timestamp": {"type": "number", "description": "Unix timestamp when the benchmark was run"},
-        "metadata": {"type": "object", "description": "Additional metadata for the benchmark"},
+        "timestamp": {
+            "type": "number",
+            "description": "Unix timestamp when the benchmark was run",
+        },
+        "metadata": {
+            "type": "object",
+            "description": "Additional metadata for the benchmark",
+        },
     },
     "additionalProperties": False,
 }
@@ -36,7 +42,10 @@ PERFORMANCE_METRICS_SCHEMA = {
     "type": "object",
     "required": ["build_id", "timestamp", "results"],
     "properties": {
-        "build_id": {"type": "string", "description": "Unique identifier for this build/run"},
+        "build_id": {
+            "type": "string",
+            "description": "Unique identifier for this build/run",
+        },
         "timestamp": {
             "type": "string",
             "format": "date-time",
@@ -100,8 +109,14 @@ COMPARISON_RESULT_SCHEMA = {
     "type": "object",
     "required": ["baseline_build_id", "current_build_id", "comparisons"],
     "properties": {
-        "baseline_build_id": {"type": "string", "description": "Build ID of the baseline"},
-        "current_build_id": {"type": "string", "description": "Build ID of the current run"},
+        "baseline_build_id": {
+            "type": "string",
+            "description": "Build ID of the baseline",
+        },
+        "current_build_id": {
+            "type": "string",
+            "description": "Build ID of the current run",
+        },
         "baseline_timestamp": {
             "type": "string",
             "format": "date-time",
@@ -121,7 +136,12 @@ COMPARISON_RESULT_SCHEMA = {
                     "name": {"type": "string", "description": "Name of the benchmark"},
                     "execution_time": {
                         "type": "object",
-                        "required": ["current", "baseline", "change_percent", "change_direction"],
+                        "required": [
+                            "current",
+                            "baseline",
+                            "change_percent",
+                            "change_direction",
+                        ],
                         "properties": {
                             "current": {"type": "number"},
                             "baseline": {"type": "number"},

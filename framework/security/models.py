@@ -105,7 +105,8 @@ class DependencyInfo:
             source=data.get("source"),
             license=data.get("license"),
             vulnerabilities=[
-                VulnerabilityInfo.from_dict(vuln) for vuln in data.get("vulnerabilities", [])
+                VulnerabilityInfo.from_dict(vuln)
+                for vuln in data.get("vulnerabilities", [])
             ],
             dependencies=data.get("dependencies", []),
             metadata=data.get("metadata", {}),
@@ -167,9 +168,9 @@ class SecurityMetrics:
             "total_vulnerabilities": total_vulnerabilities,
             "vulnerabilities_by_severity": severity_counts,
             "package_managers": package_managers,
-            "vulnerability_rate": round(vulnerable_deps / total_deps * 100, 2)
-            if total_deps > 0
-            else 0,
+            "vulnerability_rate": (
+                round(vulnerable_deps / total_deps * 100, 2) if total_deps > 0 else 0
+            ),
         }
 
     def to_dict(self) -> dict[str, Any]:
@@ -190,7 +191,9 @@ class SecurityMetrics:
         return cls(
             build_id=data["build_id"],
             timestamp=datetime.fromisoformat(data["timestamp"]),
-            dependencies=[DependencyInfo.from_dict(dep) for dep in data.get("dependencies", [])],
+            dependencies=[
+                DependencyInfo.from_dict(dep) for dep in data.get("dependencies", [])
+            ],
             scan_config=data.get("scan_config", {}),
             environment=data.get("environment", {}),
             scan_duration=data.get("scan_duration"),

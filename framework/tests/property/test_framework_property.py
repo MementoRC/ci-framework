@@ -22,7 +22,9 @@ class TestFrameworkProperties:
         memory_usage=st.integers(min_value=1, max_value=10000),
         throughput=st.integers(min_value=1, max_value=100000),
     )
-    @settings(max_examples=5, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(
+        max_examples=5, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
     def test_performance_collector_data_integrity(
         self, execution_time, memory_usage, throughput, tmp_path
     ):
@@ -74,10 +76,16 @@ class TestFrameworkProperties:
             max_size=10,
             unique=True,
         ),
-        values=st.lists(st.floats(min_value=0.001, max_value=1000.0), min_size=1, max_size=10),
+        values=st.lists(
+            st.floats(min_value=0.001, max_value=1000.0), min_size=1, max_size=10
+        ),
     )
-    @settings(max_examples=5, suppress_health_check=[HealthCheck.function_scoped_fixture])
-    def test_performance_metrics_aggregation_properties(self, test_names, values, tmp_path):
+    @settings(
+        max_examples=5, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    def test_performance_metrics_aggregation_properties(
+        self, test_names, values, tmp_path
+    ):
         """Test that performance metrics aggregation maintains mathematical properties."""
         assume(len(test_names) == len(values))
 
@@ -105,7 +113,9 @@ class TestFrameworkProperties:
 
     @given(
         severity_levels=st.lists(
-            st.sampled_from(["low", "medium", "high", "critical"]), min_size=0, max_size=20
+            st.sampled_from(["low", "medium", "high", "critical"]),
+            min_size=0,
+            max_size=20,
         ),
         package_names=st.lists(
             st.text(
@@ -127,7 +137,9 @@ class TestFrameworkProperties:
         # Create mock vulnerability data
         vulnerabilities = []
         for severity, package in zip(severity_levels, package_names, strict=True):
-            vulnerabilities.append({"package": package, "severity": severity, "version": "1.0.0"})
+            vulnerabilities.append(
+                {"package": package, "severity": severity, "version": "1.0.0"}
+            )
 
         # Count vulnerabilities by severity
         severity_counts = {"low": 0, "medium": 0, "high": 0, "critical": 0}
@@ -157,7 +169,9 @@ class TestFrameworkProperties:
         duration_seconds=st.integers(min_value=1, max_value=7200),
     )
     @settings(max_examples=20)
-    def test_github_reporter_summary_properties(self, test_count, coverage, duration_seconds):
+    def test_github_reporter_summary_properties(
+        self, test_count, coverage, duration_seconds
+    ):
         """Test that GitHub reporter maintains summary properties."""
         # Setup
         reporter = GitHubReporter()
@@ -169,7 +183,10 @@ class TestFrameworkProperties:
 
         # Generate build status summary
         summary = reporter.create_build_status_summary(
-            success=True, duration=duration_str, test_count=test_count, coverage=coverage
+            success=True,
+            duration=duration_str,
+            test_count=test_count,
+            coverage=coverage,
         )
 
         # Verify summary properties
@@ -202,7 +219,9 @@ class TestFrameworkProperties:
         )
     )
     @settings(max_examples=10)
-    def test_performance_collector_batch_operations_properties(self, benchmark_data, tmp_path):
+    def test_performance_collector_batch_operations_properties(
+        self, benchmark_data, tmp_path
+    ):
         """Test that batch operations maintain consistency properties."""
         # Setup
         collector = PerformanceCollector(storage_path=tmp_path)
@@ -229,7 +248,9 @@ class TestFrameworkProperties:
         baseline_values=st.lists(
             st.floats(min_value=0.1, max_value=100.0), min_size=1, max_size=10
         ),
-        current_values=st.lists(st.floats(min_value=0.1, max_value=100.0), min_size=1, max_size=10),
+        current_values=st.lists(
+            st.floats(min_value=0.1, max_value=100.0), min_size=1, max_size=10
+        ),
     )
     @settings(max_examples=15)
     def test_performance_comparison_properties(self, baseline_values, current_values):
@@ -332,7 +353,9 @@ class TestFrameworkDataValidation:
             max_size=20,
         )
     )
-    @settings(max_examples=3, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(
+        max_examples=3, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
     def test_data_serialization_properties(self, data, tmp_path):
         """Test that data serialization maintains consistency properties."""
         # Setup

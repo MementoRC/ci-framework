@@ -80,7 +80,9 @@ class MaintenanceTask:
                 next_run = now.replace(hour=2, minute=0, second=0, microsecond=0)
             else:
                 next_month = now.replace(day=1) + timedelta(days=32)
-                next_run = next_month.replace(day=1, hour=2, minute=0, second=0, microsecond=0)
+                next_run = next_month.replace(
+                    day=1, hour=2, minute=0, second=0, microsecond=0
+                )
             self.next_run = next_run
         else:
             # Custom or unknown schedule
@@ -120,9 +122,11 @@ class MaintenanceTask:
                     "success": True,
                     "duration": time.time() - start_time,
                     "message": f"Task '{self.name}' completed successfully",
-                    "details": task_result
-                    if isinstance(task_result, dict)
-                    else {"result": task_result},
+                    "details": (
+                        task_result
+                        if isinstance(task_result, dict)
+                        else {"result": task_result}
+                    ),
                 }
             )
 
@@ -168,7 +172,9 @@ class MaintenanceScheduler:
     """Schedules and executes automated maintenance tasks."""
 
     def __init__(
-        self, config_path: str | Path | None = None, project_path: str | Path | None = None
+        self,
+        config_path: str | Path | None = None,
+        project_path: str | Path | None = None,
     ):
         """Initialize the maintenance scheduler.
 
@@ -214,7 +220,9 @@ class MaintenanceScheduler:
         self.register_task(
             name="health_check",
             func=self.health_monitor.collect_health_metrics,
-            schedule=self.config.get("update_schedule", {}).get("health_check", "hourly"),
+            schedule=self.config.get("update_schedule", {}).get(
+                "health_check", "hourly"
+            ),
             description="Collect system health metrics and check component status",
         )
 
@@ -222,7 +230,9 @@ class MaintenanceScheduler:
         self.register_task(
             name="data_cleanup",
             func=self._cleanup_old_data,
-            schedule=self.config.get("update_schedule", {}).get("cleanup_old_data", "weekly"),
+            schedule=self.config.get("update_schedule", {}).get(
+                "cleanup_old_data", "weekly"
+            ),
             description="Clean up old data files based on retention policies",
         )
 
@@ -230,7 +240,9 @@ class MaintenanceScheduler:
         self.register_task(
             name="security_update",
             func=self._update_security_databases,
-            schedule=self.config.get("update_schedule", {}).get("security_databases", "daily"),
+            schedule=self.config.get("update_schedule", {}).get(
+                "security_databases", "daily"
+            ),
             description="Update security vulnerability databases",
         )
 
@@ -238,7 +250,9 @@ class MaintenanceScheduler:
         self.register_task(
             name="performance_baseline",
             func=self._update_performance_baselines,
-            schedule=self.config.get("update_schedule", {}).get("performance_baseline", "weekly"),
+            schedule=self.config.get("update_schedule", {}).get(
+                "performance_baseline", "weekly"
+            ),
             description="Update performance baselines and analyze trends",
         )
 
@@ -308,7 +322,11 @@ class MaintenanceScheduler:
             Task execution result.
         """
         if task_name not in self.tasks:
-            return {"task": task_name, "success": False, "message": f"Task '{task_name}' not found"}
+            return {
+                "task": task_name,
+                "success": False,
+                "message": f"Task '{task_name}' not found",
+            }
 
         task = self.tasks[task_name]
         result = task.execute()
@@ -433,10 +451,15 @@ class MaintenanceScheduler:
 
         try:
             # Get recent performance history
-            recent_metrics = self.health_monitor.performance_collector.get_recent_history(limit=10)
+            recent_metrics = (
+                self.health_monitor.performance_collector.get_recent_history(limit=10)
+            )
 
             if not recent_metrics:
-                return {"status": "no_data", "message": "No recent performance data to analyze"}
+                return {
+                    "status": "no_data",
+                    "message": "No recent performance data to analyze",
+                }
 
             # Calculate average performance for new baseline
             baseline_metrics = recent_metrics[0]  # Use most recent as baseline
@@ -471,7 +494,11 @@ class MaintenanceScheduler:
             "start_time": datetime.now().isoformat(),
             "dry_run": dry_run,
             "operations": [],
-            "summary": {"total_operations": 0, "successful_operations": 0, "failed_operations": 0},
+            "summary": {
+                "total_operations": 0,
+                "successful_operations": 0,
+                "failed_operations": 0,
+            },
         }
 
         # Health check
@@ -481,7 +508,9 @@ class MaintenanceScheduler:
                 {
                     "operation": "health_check",
                     "status": "success",
-                    "details": {"overall_status": self.health_monitor._determine_overall_status()},
+                    "details": {
+                        "overall_status": self.health_monitor._determine_overall_status()
+                    },
                 }
             )
         except Exception as e:
@@ -494,7 +523,11 @@ class MaintenanceScheduler:
             try:
                 cleanup_result = self._cleanup_old_data()
                 maintenance_result["operations"].append(
-                    {"operation": "data_cleanup", "status": "success", "details": cleanup_result}
+                    {
+                        "operation": "data_cleanup",
+                        "status": "success",
+                        "details": cleanup_result,
+                    }
                 )
             except Exception as e:
                 maintenance_result["operations"].append(
@@ -502,7 +535,11 @@ class MaintenanceScheduler:
                 )
         else:
             maintenance_result["operations"].append(
-                {"operation": "data_cleanup", "status": "skipped", "reason": "dry_run_mode"}
+                {
+                    "operation": "data_cleanup",
+                    "status": "skipped",
+                    "reason": "dry_run_mode",
+                }
             )
 
         # System diagnostics
@@ -521,7 +558,9 @@ class MaintenanceScheduler:
             )
 
         # Update summary
-        maintenance_result["summary"]["total_operations"] = len(maintenance_result["operations"])
+        maintenance_result["summary"]["total_operations"] = len(
+            maintenance_result["operations"]
+        )
         maintenance_result["summary"]["successful_operations"] = len(
             [op for op in maintenance_result["operations"] if op["status"] == "success"]
         )

@@ -180,7 +180,9 @@ def sbom_command(args: argparse.Namespace) -> None:
             if args.include_vulns:
                 print(f"  Vulnerabilities: {vuln_count}")
         elif args.format == "spdx":
-            package_count = len(sbom_data.get("packages", [])) - 1  # Exclude root package
+            package_count = (
+                len(sbom_data.get("packages", [])) - 1
+            )  # Exclude root package
             print("\nSBOM Summary (SPDX):")
             print(f"  Packages: {package_count}")
 
@@ -280,16 +282,24 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Scan command
-    scan_parser = subparsers.add_parser("scan", help="Perform security scan of a project")
-    scan_parser.add_argument("project_path", type=str, help="Path to the project to scan")
-    scan_parser.add_argument("--build-id", type=str, help="Unique identifier for this scan")
+    scan_parser = subparsers.add_parser(
+        "scan", help="Perform security scan of a project"
+    )
+    scan_parser.add_argument(
+        "project_path", type=str, help="Path to the project to scan"
+    )
+    scan_parser.add_argument(
+        "--build-id", type=str, help="Unique identifier for this scan"
+    )
     scan_parser.add_argument(
         "--package-managers",
         nargs="+",
         choices=["pip", "pixi", "conda"],
         help="Package managers to scan (auto-detected if not specified)",
     )
-    scan_parser.add_argument("--output", "-o", type=str, help="Output file for scan results")
+    scan_parser.add_argument(
+        "--output", "-o", type=str, help="Output file for scan results"
+    )
     scan_parser.add_argument(
         "--save-baseline",
         action="store_true",
@@ -308,9 +318,15 @@ def main() -> None:
     )
 
     # Report command
-    report_parser = subparsers.add_parser("report", help="Generate comprehensive security report")
-    report_parser.add_argument("project_path", type=str, help="Path to the project to analyze")
-    report_parser.add_argument("--output", "-o", type=str, help="Output file for the report")
+    report_parser = subparsers.add_parser(
+        "report", help="Generate comprehensive security report"
+    )
+    report_parser.add_argument(
+        "project_path", type=str, help="Path to the project to analyze"
+    )
+    report_parser.add_argument(
+        "--output", "-o", type=str, help="Output file for the report"
+    )
     report_parser.add_argument(
         "--include-baseline",
         action="store_true",
@@ -332,8 +348,12 @@ def main() -> None:
     subparsers.add_parser("list", help="List saved security scan results")
 
     # SBOM command
-    sbom_parser = subparsers.add_parser("sbom", help="Generate Software Bill of Materials")
-    sbom_parser.add_argument("project_path", type=str, help="Path to the project to analyze")
+    sbom_parser = subparsers.add_parser(
+        "sbom", help="Generate Software Bill of Materials"
+    )
+    sbom_parser.add_argument(
+        "project_path", type=str, help="Path to the project to analyze"
+    )
     sbom_parser.add_argument(
         "--format",
         choices=["cyclonedx", "spdx"],
@@ -358,8 +378,12 @@ def main() -> None:
     )
 
     # Vulnerability report command
-    vuln_parser = subparsers.add_parser("vulnerabilities", help="Generate vulnerability report")
-    vuln_parser.add_argument("project_path", type=str, help="Path to the project to analyze")
+    vuln_parser = subparsers.add_parser(
+        "vulnerabilities", help="Generate vulnerability report"
+    )
+    vuln_parser.add_argument(
+        "project_path", type=str, help="Path to the project to analyze"
+    )
     vuln_parser.add_argument(
         "--output", "-o", type=str, help="Output file for vulnerability report"
     )
@@ -371,8 +395,12 @@ def main() -> None:
     )
 
     # Compliance command
-    compliance_parser = subparsers.add_parser("compliance", help="Generate compliance report")
-    compliance_parser.add_argument("project_path", type=str, help="Path to the project to analyze")
+    compliance_parser = subparsers.add_parser(
+        "compliance", help="Generate compliance report"
+    )
+    compliance_parser.add_argument(
+        "project_path", type=str, help="Path to the project to analyze"
+    )
     compliance_parser.add_argument(
         "--output", "-o", type=str, help="Output file for compliance report"
     )

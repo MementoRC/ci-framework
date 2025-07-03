@@ -9,12 +9,16 @@ from .github_reporter import GitHubReporter
 
 def main():
     """Main CLI entry point."""
-    parser = argparse.ArgumentParser(description="GitHub Actions reporting and step summary tool")
+    parser = argparse.ArgumentParser(
+        description="GitHub Actions reporting and step summary tool"
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Build status command
-    build_parser = subparsers.add_parser("build-status", help="Generate build status report")
+    build_parser = subparsers.add_parser(
+        "build-status", help="Generate build status report"
+    )
     build_parser.add_argument(
         "--status",
         choices=["success", "failure", "warning"],
@@ -22,8 +26,12 @@ def main():
         help="Build status (default: success)",
     )
     build_parser.add_argument("--test-results", help="Path to test results JSON file")
-    build_parser.add_argument("--performance-results", help="Path to performance results JSON file")
-    build_parser.add_argument("--security-bandit", help="Path to bandit security scan results")
+    build_parser.add_argument(
+        "--performance-results", help="Path to performance results JSON file"
+    )
+    build_parser.add_argument(
+        "--security-bandit", help="Path to bandit security scan results"
+    )
     build_parser.add_argument("--security-pip-audit", help="Path to pip-audit results")
     build_parser.add_argument(
         "--artifact-path",
@@ -32,27 +40,39 @@ def main():
     )
 
     # Performance report command
-    perf_parser = subparsers.add_parser("performance", help="Generate performance report")
+    perf_parser = subparsers.add_parser(
+        "performance", help="Generate performance report"
+    )
     perf_parser.add_argument(
         "--results", required=True, help="Path to performance results JSON file"
     )
-    perf_parser.add_argument("--baseline-comparison", help="Path to baseline comparison JSON file")
+    perf_parser.add_argument(
+        "--baseline-comparison", help="Path to baseline comparison JSON file"
+    )
     perf_parser.add_argument(
         "--artifact-path", default="./artifacts", help="Path for artifact storage"
     )
     perf_parser.add_argument(
-        "--summary-only", action="store_true", help="Generate only step summary, no artifacts"
+        "--summary-only",
+        action="store_true",
+        help="Generate only step summary, no artifacts",
     )
 
     # Security report command
     security_parser = subparsers.add_parser("security", help="Generate security report")
-    security_parser.add_argument("--bandit-results", help="Path to bandit results JSON file")
-    security_parser.add_argument("--pip-audit-results", help="Path to pip-audit results JSON file")
+    security_parser.add_argument(
+        "--bandit-results", help="Path to bandit results JSON file"
+    )
+    security_parser.add_argument(
+        "--pip-audit-results", help="Path to pip-audit results JSON file"
+    )
     security_parser.add_argument(
         "--artifact-path", default="./artifacts", help="Path for artifact storage"
     )
     security_parser.add_argument(
-        "--summary-only", action="store_true", help="Generate only step summary, no artifacts"
+        "--summary-only",
+        action="store_true",
+        help="Generate only step summary, no artifacts",
     )
 
     # Environment info command
@@ -70,12 +90,16 @@ def main():
         "--artifact-path", default="./artifacts", help="Path to artifacts directory"
     )
 
-    summary_parser = artifact_subparsers.add_parser("summary", help="Show artifact summary")
+    summary_parser = artifact_subparsers.add_parser(
+        "summary", help="Show artifact summary"
+    )
     summary_parser.add_argument(
         "--artifact-path", default="./artifacts", help="Path to artifacts directory"
     )
 
-    cleanup_parser = artifact_subparsers.add_parser("cleanup", help="Clean up old artifacts")
+    cleanup_parser = artifact_subparsers.add_parser(
+        "cleanup", help="Clean up old artifacts"
+    )
     cleanup_parser.add_argument(
         "--max-age-days",
         type=int,
@@ -180,7 +204,9 @@ def handle_security(args):
     reporter = GitHubReporter(args.artifact_path)
 
     if not args.bandit_results and not args.pip_audit_results:
-        print("Error: At least one of --bandit-results or --pip-audit-results must be provided")
+        print(
+            "Error: At least one of --bandit-results or --pip-audit-results must be provided"
+        )
         sys.exit(1)
 
     # Generate security report
@@ -262,7 +288,9 @@ def handle_artifacts(args):
 
     elif args.artifact_command == "cleanup":
         cleaned_count = artifact_manager.cleanup_old_artifacts(args.max_age_days)
-        print(f"Cleaned up {cleaned_count} artifacts older than {args.max_age_days} days")
+        print(
+            f"Cleaned up {cleaned_count} artifacts older than {args.max_age_days} days"
+        )
 
 
 if __name__ == "__main__":

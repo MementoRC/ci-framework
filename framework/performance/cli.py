@@ -10,12 +10,16 @@ from .comparator import ComparisonMode, PerformanceComparator
 
 def main():
     """Main CLI entry point."""
-    parser = argparse.ArgumentParser(description="Performance data collection and analysis tool")
+    parser = argparse.ArgumentParser(
+        description="Performance data collection and analysis tool"
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Collect command
-    collect_parser = subparsers.add_parser("collect", help="Collect performance metrics")
+    collect_parser = subparsers.add_parser(
+        "collect", help="Collect performance metrics"
+    )
     collect_parser.add_argument(
         "--results", required=True, help="Path to benchmark results file (JSON)"
     )
@@ -25,13 +29,21 @@ def main():
         help="Directory for storing performance data (default: performance_data)",
     )
     collect_parser.add_argument(
-        "--store-baseline", action="store_true", help="Store the collected metrics as a baseline"
+        "--store-baseline",
+        action="store_true",
+        help="Store the collected metrics as a baseline",
     )
     collect_parser.add_argument(
-        "--baseline-name", default="default", help="Name for the baseline (default: default)"
+        "--baseline-name",
+        default="default",
+        help="Name for the baseline (default: default)",
     )
-    collect_parser.add_argument("--compare-baseline", help="Compare with existing baseline")
-    collect_parser.add_argument("--output", help="Output file for results (JSON format)")
+    collect_parser.add_argument(
+        "--compare-baseline", help="Compare with existing baseline"
+    )
+    collect_parser.add_argument(
+        "--output", help="Output file for results (JSON format)"
+    )
 
     # Compare command (enhanced with PerformanceComparator)
     compare_parser = subparsers.add_parser(
@@ -41,10 +53,14 @@ def main():
         "--current", required=True, help="Path to current benchmark results"
     )
     compare_parser.add_argument(
-        "--baseline", default="default", help="Baseline name to compare against (default: default)"
+        "--baseline",
+        default="default",
+        help="Baseline name to compare against (default: default)",
     )
     compare_parser.add_argument(
-        "--storage-path", default="performance_data", help="Directory containing performance data"
+        "--storage-path",
+        default="performance_data",
+        help="Directory containing performance data",
     )
     compare_parser.add_argument(
         "--threshold-config", help="Path to custom threshold configuration file"
@@ -84,16 +100,23 @@ def main():
     )
     baseline_parser.add_argument("--name", default="default", help="Baseline name")
     baseline_parser.add_argument(
-        "--storage-path", default="performance_data", help="Directory for storing performance data"
+        "--storage-path",
+        default="performance_data",
+        help="Directory for storing performance data",
     )
 
     # History command
     history_parser = subparsers.add_parser("history", help="View performance history")
     history_parser.add_argument(
-        "--storage-path", default="performance_data", help="Directory containing performance data"
+        "--storage-path",
+        default="performance_data",
+        help="Directory containing performance data",
     )
     history_parser.add_argument(
-        "--limit", type=int, default=10, help="Number of recent entries to show (default: 10)"
+        "--limit",
+        type=int,
+        default=10,
+        help="Number of recent entries to show (default: 10)",
     )
     history_parser.add_argument("--output", help="Output file for history data")
 
@@ -136,7 +159,9 @@ def handle_collect(args):
     # Compare with baseline if requested
     comparison_result = None
     if args.compare_baseline:
-        comparison_result = collector.compare_with_baseline(metrics, args.compare_baseline)
+        comparison_result = collector.compare_with_baseline(
+            metrics, args.compare_baseline
+        )
         if "error" not in comparison_result:
             print(f"Comparison with baseline '{args.compare_baseline}':")
             print_comparison_summary(comparison_result)
@@ -189,7 +214,9 @@ def handle_compare(args):
                 current_metrics, baseline_metrics, ComparisonMode.SINGLE_BASELINE
             )
         else:
-            comparison_result = comparator.compare_with_trend(current_metrics, historical_metrics)
+            comparison_result = comparator.compare_with_trend(
+                current_metrics, historical_metrics
+            )
     else:
         comparison_result = comparator.compare_with_baseline(
             current_metrics, baseline_metrics, ComparisonMode.SINGLE_BASELINE
@@ -213,7 +240,9 @@ def handle_compare(args):
             )
             sys.exit(1)
         elif comparison_result.warnings_count > 0:
-            print(f"\nPerformance warnings detected: {comparison_result.warnings_count} warnings")
+            print(
+                f"\nPerformance warnings detected: {comparison_result.warnings_count} warnings"
+            )
             sys.exit(2)  # Warning exit code
 
 
@@ -322,19 +351,28 @@ def check_for_regressions(comparison_result, threshold: float) -> bool:
     for comp in comparison_result["comparisons"]:
         # Check execution time regression
         et = comp["execution_time"]
-        if et["change_direction"] == "regression" and abs(et["change_percent"]) > threshold:
+        if (
+            et["change_direction"] == "regression"
+            and abs(et["change_percent"]) > threshold
+        ):
             return True
 
         # Check memory regression
         if "memory_usage" in comp:
             mem = comp["memory_usage"]
-            if mem["change_direction"] == "regression" and abs(mem["change_percent"]) > threshold:
+            if (
+                mem["change_direction"] == "regression"
+                and abs(mem["change_percent"]) > threshold
+            ):
                 return True
 
         # Check throughput regression
         if "throughput" in comp:
             thr = comp["throughput"]
-            if thr["change_direction"] == "regression" and abs(thr["change_percent"]) > threshold:
+            if (
+                thr["change_direction"] == "regression"
+                and abs(thr["change_percent"]) > threshold
+            ):
                 return True
 
     return False

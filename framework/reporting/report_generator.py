@@ -49,7 +49,9 @@ class ReportGenerator:
     """High-level orchestrator for generating comprehensive CI reports."""
 
     def __init__(
-        self, github_reporter: GitHubReporter | None = None, artifact_path: str | None = None
+        self,
+        github_reporter: GitHubReporter | None = None,
+        artifact_path: str | None = None,
     ):
         """Initialize report generator.
 
@@ -83,7 +85,9 @@ class ReportGenerator:
         Args:
             trend: Trend data as dict or PerformanceTrend instance.
         """
-        trend_obj = self._parse_performance_trend(trend) if isinstance(trend, dict) else trend
+        trend_obj = (
+            self._parse_performance_trend(trend) if isinstance(trend, dict) else trend
+        )
 
         self._performance_trends.append(trend_obj)
 
@@ -138,7 +142,9 @@ class ReportGenerator:
             markdown += "|--------|----------|-------|----------|\n"
 
             # Sort modules by coverage (lowest first for attention)
-            sorted_modules = sorted(coverage.modules, key=lambda x: x.get("coverage", 0))
+            sorted_modules = sorted(
+                coverage.modules, key=lambda x: x.get("coverage", 0)
+            )
 
             for module in sorted_modules:
                 name = module.get("name", "Unknown")
@@ -148,9 +154,7 @@ class ReportGenerator:
                 branches = module.get("branches_covered", 0)
 
                 status = self._get_coverage_status(cov)
-                markdown += (
-                    f"| {name} | {cov:.1f}% {status} | {lines}/{total_lines} | {branches} |\n"
-                )
+                markdown += f"| {name} | {cov:.1f}% {status} | {lines}/{total_lines} | {branches} |\n"
 
         # Coverage insights and recommendations
         insights = self._generate_coverage_insights(coverage)
@@ -179,10 +183,14 @@ class ReportGenerator:
         critical_count = sum(
             1 for t in self._performance_trends if t.threshold_status == "critical"
         )
-        warning_count = sum(1 for t in self._performance_trends if t.threshold_status == "warning")
+        warning_count = sum(
+            1 for t in self._performance_trends if t.threshold_status == "warning"
+        )
 
         if critical_count > 0:
-            markdown += f"🚨 **{critical_count} Critical Performance Issues Detected**\n\n"
+            markdown += (
+                f"🚨 **{critical_count} Critical Performance Issues Detected**\n\n"
+            )
         elif warning_count > 0:
             markdown += f"⚠️ **{warning_count} Performance Warnings**\n\n"
         else:
@@ -194,20 +202,26 @@ class ReportGenerator:
         markdown += "|--------|---------|----------|--------|--------|---------|\n"
 
         for trend in self._performance_trends:
-            current_str = self._format_metric_value(trend.metric_name, trend.current_value)
+            current_str = self._format_metric_value(
+                trend.metric_name, trend.current_value
+            )
             baseline_str = (
                 self._format_metric_value(trend.metric_name, trend.baseline_value)
                 if trend.baseline_value
                 else "N/A"
             )
-            change_str = f"{trend.change_percentage:+.1f}%" if trend.change_percentage else "N/A"
+            change_str = (
+                f"{trend.change_percentage:+.1f}%" if trend.change_percentage else "N/A"
+            )
             status_icon = self._get_threshold_status_icon(trend.threshold_status)
             trend_icon = self._get_trend_icon(trend.trend_direction)
 
             markdown += f"| {trend.metric_name} | {current_str} | {baseline_str} | {change_str} | {status_icon} | {trend_icon} |\n"
 
         # Detailed trend analysis for critical metrics
-        critical_trends = [t for t in self._performance_trends if t.threshold_status == "critical"]
+        critical_trends = [
+            t for t in self._performance_trends if t.threshold_status == "critical"
+        ]
         if critical_trends:
             markdown += "\n## 🚨 Critical Performance Issues\n\n"
             for trend in critical_trends:
@@ -251,7 +265,9 @@ class ReportGenerator:
         )
         status_icon = self._get_status_icon(overall_status)
 
-        markdown += f"## {status_icon} Overall Build Health: {overall_status.title()}\n\n"
+        markdown += (
+            f"## {status_icon} Overall Build Health: {overall_status.title()}\n\n"
+        )
 
         # Quick metrics summary
         markdown += "## Quick Metrics\n\n"
@@ -260,16 +276,18 @@ class ReportGenerator:
 
         # Test results summary
         if test_results:
-            test_status = "✅ Passing" if test_results.get("failed", 0) == 0 else "❌ Failing"
-            test_details = f"{test_results.get('passed', 0)}/{test_results.get('total', 0)} tests"
+            test_status = (
+                "✅ Passing" if test_results.get("failed", 0) == 0 else "❌ Failing"
+            )
+            test_details = (
+                f"{test_results.get('passed', 0)}/{test_results.get('total', 0)} tests"
+            )
             markdown += f"| Tests | {test_status} | {test_details} |\n"
 
         # Coverage summary
         if self._coverage_data:
             cov_status = self._get_coverage_status(self._coverage_data.overall_coverage)
-            markdown += (
-                f"| Coverage | {cov_status} | {self._coverage_data.overall_coverage:.1f}% |\n"
-            )
+            markdown += f"| Coverage | {cov_status} | {self._coverage_data.overall_coverage:.1f}% |\n"
 
         # Performance summary
         if self._performance_trends:
@@ -311,11 +329,15 @@ class ReportGenerator:
                     markdown += self._format_insight(insight)
 
         # Auto-generated insights based on data
-        auto_insights = self._generate_auto_insights(test_results, performance_data, security_data)
+        auto_insights = self._generate_auto_insights(
+            test_results, performance_data, security_data
+        )
         if auto_insights:
             markdown += "## 🤖 Auto-Generated Recommendations\n\n"
             for auto_insight in auto_insights:
-                markdown += f"- **{auto_insight['title']}**: {auto_insight['description']}\n"
+                markdown += (
+                    f"- **{auto_insight['title']}**: {auto_insight['description']}\n"
+                )
 
         return markdown
 
@@ -374,7 +396,9 @@ class ReportGenerator:
 
             # Create comprehensive data artifact
             comprehensive_data = {
-                "coverage_data": self._coverage_data.__dict__ if self._coverage_data else None,
+                "coverage_data": (
+                    self._coverage_data.__dict__ if self._coverage_data else None
+                ),
                 "performance_trends": [t.__dict__ for t in self._performance_trends],
                 "build_insights": [i.__dict__ for i in self._build_insights],
                 "test_results": test_results,
@@ -455,7 +479,12 @@ class ReportGenerator:
 
     def _get_status_icon(self, status: str) -> str:
         """Get icon for overall status."""
-        status_icons = {"success": "✅", "warning": "⚠️", "failure": "❌", "unknown": "❓"}
+        status_icons = {
+            "success": "✅",
+            "warning": "⚠️",
+            "failure": "❌",
+            "unknown": "❓",
+        }
         return status_icons.get(status, "❓")
 
     def _format_metric_value(self, metric_name: str, value: float | None) -> str:
@@ -479,7 +508,9 @@ class ReportGenerator:
         else:
             return f"{value:.2f}"
 
-    def _generate_coverage_insights(self, coverage: CoverageData) -> list[dict[str, str]]:
+    def _generate_coverage_insights(
+        self, coverage: CoverageData
+    ) -> list[dict[str, str]]:
         """Generate actionable insights from coverage data."""
         insights = []
 
@@ -554,14 +585,18 @@ class ReportGenerator:
         if test_results and test_results.get("failed", 0) > 0:
             return "failure"
 
-        critical_perf = sum(1 for t in self._performance_trends if t.threshold_status == "critical")
+        critical_perf = sum(
+            1 for t in self._performance_trends if t.threshold_status == "critical"
+        )
         if critical_perf > 0:
             return "failure"
 
         if security_data and self._count_security_issues(security_data) > 0:
             return "warning"
 
-        warning_perf = sum(1 for t in self._performance_trends if t.threshold_status == "warning")
+        warning_perf = sum(
+            1 for t in self._performance_trends if t.threshold_status == "warning"
+        )
         if warning_perf > 0:
             return "warning"
 
@@ -625,7 +660,9 @@ class ReportGenerator:
                 )
 
         # Performance insights
-        critical_trends = [t for t in self._performance_trends if t.threshold_status == "critical"]
+        critical_trends = [
+            t for t in self._performance_trends if t.threshold_status == "critical"
+        ]
         if critical_trends:
             insights.append(
                 {
@@ -650,7 +687,9 @@ class ReportGenerator:
         summary = "# 📊 Comprehensive Build Report\n\n"
 
         # Add timestamp
-        summary += f"*Generated at {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}*\n\n"
+        summary += (
+            f"*Generated at {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}*\n\n"
+        )
 
         # Add each section
         for _section_name, content in sections.items():

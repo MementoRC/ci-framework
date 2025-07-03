@@ -193,7 +193,11 @@ class TestMaintenanceScheduler:
     def sample_config(self, temp_project_dir):
         """Create a sample configuration file."""
         config_data = {
-            "data_retention": {"performance_data": 90, "security_scans": 30, "reports": 60},
+            "data_retention": {
+                "performance_data": 90,
+                "security_scans": 30,
+                "reports": 60,
+            },
             "health_thresholds": {"max_execution_time": 3600, "max_storage_usage": 5},
             "update_schedule": {
                 "health_check": "hourly",
@@ -207,7 +211,10 @@ class TestMaintenanceScheduler:
         }
 
         config_path = (
-            temp_project_dir / "strategy_sandbox" / "maintenance" / "maintenance_config.yaml"
+            temp_project_dir
+            / "strategy_sandbox"
+            / "maintenance"
+            / "maintenance_config.yaml"
         )
         with open(config_path, "w") as f:
             yaml.dump(config_data, f)
@@ -216,7 +223,9 @@ class TestMaintenanceScheduler:
 
     def test_scheduler_initialization(self, temp_project_dir, sample_config):
         """Test MaintenanceScheduler initialization."""
-        scheduler = MaintenanceScheduler(config_path=sample_config, project_path=temp_project_dir)
+        scheduler = MaintenanceScheduler(
+            config_path=sample_config, project_path=temp_project_dir
+        )
 
         assert scheduler.project_path == temp_project_dir
         assert scheduler.config_path == sample_config
@@ -238,7 +247,10 @@ class TestMaintenanceScheduler:
             return "custom result"
 
         scheduler.register_task(
-            name="custom_task", func=custom_task, schedule="daily", description="Custom test task"
+            name="custom_task",
+            func=custom_task,
+            schedule="daily",
+            description="Custom test task",
         )
 
         assert "custom_task" in scheduler.tasks
@@ -249,7 +261,9 @@ class TestMaintenanceScheduler:
 
     def test_register_task_with_config_override(self, temp_project_dir, sample_config):
         """Test task registration with config override."""
-        scheduler = MaintenanceScheduler(config_path=sample_config, project_path=temp_project_dir)
+        scheduler = MaintenanceScheduler(
+            config_path=sample_config, project_path=temp_project_dir
+        )
 
         # data_cleanup should be disabled according to config
         assert "data_cleanup" in scheduler.tasks
@@ -418,8 +432,12 @@ class TestMaintenanceScheduler:
         scheduler = MaintenanceScheduler(project_path=temp_project_dir)
 
         with (
-            patch.object(scheduler.health_monitor, "collect_health_metrics") as mock_health,
-            patch.object(scheduler.health_monitor, "run_diagnostics") as mock_diagnostics,
+            patch.object(
+                scheduler.health_monitor, "collect_health_metrics"
+            ) as mock_health,
+            patch.object(
+                scheduler.health_monitor, "run_diagnostics"
+            ) as mock_diagnostics,
         ):
             mock_health.return_value = {"status": "healthy"}
             mock_diagnostics.return_value = {"overall_status": "healthy"}
@@ -431,7 +449,9 @@ class TestMaintenanceScheduler:
             assert "summary" in result
 
             # Data cleanup should be skipped in dry run
-            cleanup_ops = [op for op in result["operations"] if op["operation"] == "data_cleanup"]
+            cleanup_ops = [
+                op for op in result["operations"] if op["operation"] == "data_cleanup"
+            ]
             assert len(cleanup_ops) == 1
             assert cleanup_ops[0]["status"] == "skipped"
 
@@ -440,9 +460,13 @@ class TestMaintenanceScheduler:
         scheduler = MaintenanceScheduler(project_path=temp_project_dir)
 
         with (
-            patch.object(scheduler.health_monitor, "collect_health_metrics") as mock_health,
+            patch.object(
+                scheduler.health_monitor, "collect_health_metrics"
+            ) as mock_health,
             patch.object(scheduler, "_cleanup_old_data") as mock_cleanup,
-            patch.object(scheduler.health_monitor, "run_diagnostics") as mock_diagnostics,
+            patch.object(
+                scheduler.health_monitor, "run_diagnostics"
+            ) as mock_diagnostics,
         ):
             mock_health.return_value = {"status": "healthy"}
             mock_cleanup.return_value = {"files_removed": 5}
@@ -455,6 +479,8 @@ class TestMaintenanceScheduler:
             assert result["summary"]["total_operations"] > 0
 
             # All operations should be attempted
-            cleanup_ops = [op for op in result["operations"] if op["operation"] == "data_cleanup"]
+            cleanup_ops = [
+                op for op in result["operations"] if op["operation"] == "data_cleanup"
+            ]
             assert len(cleanup_ops) == 1
             assert cleanup_ops[0]["status"] == "success"

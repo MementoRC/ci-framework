@@ -61,7 +61,9 @@ class TrendAnalyzer:
     """Advanced analytics engine for performance data trend analysis and alerting."""
 
     def __init__(
-        self, alert_config_path: str | Path | None = None, github_token: str | None = None
+        self,
+        alert_config_path: str | Path | None = None,
+        github_token: str | None = None,
     ):
         """Initialize the trend analyzer.
 
@@ -93,7 +95,11 @@ class TrendAnalyzer:
         """Get default alert configuration."""
         return {
             "alert_channels": ["step_summary"],
-            "alert_thresholds": {"critical": 0.25, "warning": 0.10, "improvement": 0.05},
+            "alert_thresholds": {
+                "critical": 0.25,
+                "warning": 0.10,
+                "improvement": 0.05,
+            },
             "alert_cooldown": 24,
             "trend_analysis": {
                 "min_data_points": 5,
@@ -109,7 +115,9 @@ class TrendAnalyzer:
 
     def _load_cooldown_data(self) -> dict[str, AlertCooldown]:
         """Load alert cooldown data from storage."""
-        cooldown_file = self.config.get("cooldown_storage", ".performance_alerts_cooldown.json")
+        cooldown_file = self.config.get(
+            "cooldown_storage", ".performance_alerts_cooldown.json"
+        )
         cooldown_path = Path(cooldown_file)
 
         if not cooldown_path.exists():
@@ -124,7 +132,9 @@ class TrendAnalyzer:
                 cooldowns[key] = AlertCooldown(
                     benchmark_name=cooldown_data["benchmark_name"],
                     metric_name=cooldown_data["metric_name"],
-                    last_alert_time=datetime.fromisoformat(cooldown_data["last_alert_time"]),
+                    last_alert_time=datetime.fromisoformat(
+                        cooldown_data["last_alert_time"]
+                    ),
                     severity=AlertSeverity(cooldown_data["severity"]),
                 )
 
@@ -135,7 +145,9 @@ class TrendAnalyzer:
 
     def _save_cooldown_data(self) -> None:
         """Save alert cooldown data to storage."""
-        cooldown_file = self.config.get("cooldown_storage", ".performance_alerts_cooldown.json")
+        cooldown_file = self.config.get(
+            "cooldown_storage", ".performance_alerts_cooldown.json"
+        )
         cooldown_path = Path(cooldown_file)
 
         data = {}
@@ -154,7 +166,9 @@ class TrendAnalyzer:
             print(f"Warning: Failed to save cooldown data: {e}")
 
     def analyze_trends(
-        self, historical_metrics: list[PerformanceMetrics], time_window: timedelta | None = None
+        self,
+        historical_metrics: list[PerformanceMetrics],
+        time_window: timedelta | None = None,
     ) -> dict[str, TrendData]:
         """Analyze historical trends for all benchmarks and metrics.
 
@@ -172,7 +186,9 @@ class TrendAnalyzer:
         if time_window:
             cutoff_time = datetime.now() - time_window
             historical_metrics = [
-                m for m in historical_metrics if m.timestamp and m.timestamp >= cutoff_time
+                m
+                for m in historical_metrics
+                if m.timestamp and m.timestamp >= cutoff_time
             ]
 
         # Group data by benchmark and metric
@@ -221,7 +237,11 @@ class TrendAnalyzer:
         return trends
 
     def _analyze_single_trend(
-        self, benchmark_name: str, metric_name: str, values: list[float], timestamps: list[datetime]
+        self,
+        benchmark_name: str,
+        metric_name: str,
+        values: list[float],
+        timestamps: list[datetime],
     ) -> TrendData:
         """Analyze trend for a single benchmark/metric combination."""
         # Calculate correlation with time sequence
@@ -255,7 +275,9 @@ class TrendAnalyzer:
             anomaly_scores=anomaly_scores,
         )
 
-    def _calculate_correlation(self, x_values: list[int], y_values: list[float]) -> float:
+    def _calculate_correlation(
+        self, x_values: list[int], y_values: list[float]
+    ) -> float:
         """Calculate Pearson correlation coefficient."""
         if len(x_values) != len(y_values) or len(x_values) < 2:
             return 0.0
@@ -269,7 +291,9 @@ class TrendAnalyzer:
             sum_y2 = sum(y * y for y in y_values)
 
             numerator = n * sum_xy - sum_x * sum_y
-            denominator = ((n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y)) ** 0.5
+            denominator = (
+                (n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y)
+            ) ** 0.5
 
             if denominator == 0:
                 return 0.0
@@ -278,7 +302,9 @@ class TrendAnalyzer:
         except (ValueError, ZeroDivisionError):
             return 0.0
 
-    def _calculate_moving_average(self, values: list[float], window_size: int) -> list[float]:
+    def _calculate_moving_average(
+        self, values: list[float], window_size: int
+    ) -> list[float]:
         """Calculate moving average with specified window size."""
         if window_size <= 0 or len(values) < window_size:
             return values.copy()
@@ -326,7 +352,10 @@ class TrendAnalyzer:
                 key = f"{result.name}.execution_time"
                 if key in trends:
                     alert = self._check_metric_anomaly(
-                        trends[key], result.execution_time, "execution_time", anomaly_threshold
+                        trends[key],
+                        result.execution_time,
+                        "execution_time",
+                        anomaly_threshold,
                     )
                     if alert:
                         alerts.append(alert)
@@ -336,7 +365,10 @@ class TrendAnalyzer:
                 key = f"{result.name}.memory_usage"
                 if key in trends:
                     alert = self._check_metric_anomaly(
-                        trends[key], result.memory_usage, "memory_usage", anomaly_threshold
+                        trends[key],
+                        result.memory_usage,
+                        "memory_usage",
+                        anomaly_threshold,
                     )
                     if alert:
                         alerts.append(alert)
@@ -365,7 +397,9 @@ class TrendAnalyzer:
             return None
 
         mean_val = statistics.mean(trend_data.values)
-        std_dev = statistics.stdev(trend_data.values) if len(trend_data.values) > 1 else 0.0
+        std_dev = (
+            statistics.stdev(trend_data.values) if len(trend_data.values) > 1 else 0.0
+        )
 
         if std_dev == 0:
             return None
@@ -375,7 +409,9 @@ class TrendAnalyzer:
 
         if z_score >= anomaly_threshold:
             # Determine severity based on change magnitude
-            change_percent = ((current_value - mean_val) / mean_val) * 100 if mean_val != 0 else 0
+            change_percent = (
+                ((current_value - mean_val) / mean_val) * 100 if mean_val != 0 else 0
+            )
 
             severity = self._determine_severity(abs(change_percent), metric_type)
 
@@ -383,7 +419,9 @@ class TrendAnalyzer:
             recommendations = self._generate_recommendations(
                 metric_type, change_percent, trend_data
             )
-            root_cause_indicators = self._analyze_root_cause(trend_data, current_value, z_score)
+            root_cause_indicators = self._analyze_root_cause(
+                trend_data, current_value, z_score
+            )
 
             return TrendAlert(
                 metric_name=metric_type,
@@ -404,7 +442,9 @@ class TrendAnalyzer:
 
         return None
 
-    def _determine_severity(self, change_percent: float, metric_type: str) -> AlertSeverity:
+    def _determine_severity(
+        self, change_percent: float, metric_type: str
+    ) -> AlertSeverity:
         """Determine alert severity based on change magnitude."""
         critical_threshold = self.config["alert_thresholds"]["critical"] * 100
         warning_threshold = self.config["alert_thresholds"]["warning"] * 100
@@ -514,7 +554,9 @@ class TrendAnalyzer:
         )
 
         # Data points
-        context_parts.append(f"Based on {len(trend_data.values)} historical measurements")
+        context_parts.append(
+            f"Based on {len(trend_data.values)} historical measurements"
+        )
 
         return " | ".join(context_parts)
 
@@ -606,7 +648,9 @@ class TrendAnalyzer:
         templates = self.config.get("templates", {})
         severity_icons = self.config.get("severity_icons", {})
 
-        summary_format = templates.get("step_summary_format", "Performance alert: {severity}")
+        summary_format = templates.get(
+            "step_summary_format", "Performance alert: {severity}"
+        )
 
         summary = summary_format.format(
             severity_icon=severity_icons.get(alert.severity.value, ""),

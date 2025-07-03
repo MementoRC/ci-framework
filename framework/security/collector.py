@@ -110,7 +110,9 @@ class SecurityCollector:
 
         return metrics
 
-    def save_metrics(self, metrics: SecurityMetrics, filename: str | None = None) -> Path:
+    def save_metrics(
+        self, metrics: SecurityMetrics, filename: str | None = None
+    ) -> Path:
         """Save security metrics to storage.
 
         Args:
@@ -145,7 +147,9 @@ class SecurityCollector:
 
         return SecurityMetrics.from_dict(data)
 
-    def save_baseline(self, metrics: SecurityMetrics, baseline_name: str = "default") -> Path:
+    def save_baseline(
+        self, metrics: SecurityMetrics, baseline_name: str = "default"
+    ) -> Path:
         """Save security metrics as a baseline for comparison.
 
         Args:
@@ -219,14 +223,18 @@ class SecurityCollector:
                 current_val = current_stats[key]
                 baseline_val = baseline_stats[key]
 
-                if isinstance(current_val, int | float) and isinstance(baseline_val, int | float):
+                if isinstance(current_val, int | float) and isinstance(
+                    baseline_val, int | float
+                ):
                     change = current_val - baseline_val
                     comparison["changes"][key] = {
                         "current": current_val,
                         "baseline": baseline_val,
                         "change": change,
                         "change_percent": (
-                            round((change / baseline_val) * 100, 2) if baseline_val != 0 else 0
+                            round((change / baseline_val) * 100, 2)
+                            if baseline_val != 0
+                            else 0
                         ),
                     }
 

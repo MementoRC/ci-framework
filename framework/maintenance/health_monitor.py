@@ -20,7 +20,9 @@ class CIHealthMonitor:
     """Monitors CI pipeline health and performs system diagnostics."""
 
     def __init__(
-        self, config_path: str | Path | None = None, project_path: str | Path | None = None
+        self,
+        config_path: str | Path | None = None,
+        project_path: str | Path | None = None,
     ):
         """Initialize the CI health monitor.
 
@@ -103,7 +105,9 @@ class CIHealthMonitor:
                 "memory_usage_percent": memory.percent,
                 "memory_available_gb": round(memory.available / (1024**3), 2),
                 "memory_total_gb": round(memory.total / (1024**3), 2),
-                "load_average": psutil.getloadavg() if hasattr(psutil, "getloadavg") else None,
+                "load_average": (
+                    psutil.getloadavg() if hasattr(psutil, "getloadavg") else None
+                ),
                 "uptime_seconds": time.time() - psutil.boot_time(),
             }
         except Exception as e:
@@ -148,7 +152,9 @@ class CIHealthMonitor:
             component_health["performance"] = {
                 "status": "healthy" if recent_history else "no_data",
                 "recent_runs": len(recent_history),
-                "last_run": recent_history[0].timestamp.isoformat() if recent_history else None,
+                "last_run": (
+                    recent_history[0].timestamp.isoformat() if recent_history else None
+                ),
             }
         except Exception as e:
             component_health["performance"] = {"status": "error", "error": str(e)}
@@ -170,9 +176,11 @@ class CIHealthMonitor:
             component_health["reporting"] = {
                 "status": "healthy",
                 "report_count": len(report_files),
-                "latest_report": max(report_files, key=lambda x: x.stat().st_mtime).name
-                if report_files
-                else None,
+                "latest_report": (
+                    max(report_files, key=lambda x: x.stat().st_mtime).name
+                    if report_files
+                    else None
+                ),
             }
         else:
             component_health["reporting"] = {"status": "no_reports_directory"}
@@ -185,7 +193,10 @@ class CIHealthMonitor:
             recent_metrics = self.performance_collector.get_recent_history(limit=10)
 
             if not recent_metrics:
-                return {"status": "no_data", "message": "No recent performance data found"}
+                return {
+                    "status": "no_data",
+                    "message": "No recent performance data found",
+                }
 
             # Calculate average execution times
             execution_times = [
@@ -222,7 +233,9 @@ class CIHealthMonitor:
             dependencies = self.dependency_analyzer.scan_dependencies()
 
             vulnerable_deps = [dep for dep in dependencies if dep.has_vulnerabilities]
-            total_vulnerabilities = sum(len(dep.vulnerabilities) for dep in vulnerable_deps)
+            total_vulnerabilities = sum(
+                len(dep.vulnerabilities) for dep in vulnerable_deps
+            )
 
             # Count by severity
             severity_counts = {"low": 0, "medium": 0, "high": 0, "critical": 0}
@@ -265,7 +278,9 @@ class CIHealthMonitor:
         # Simple trend calculation: compare first half vs second half
         mid_point = len(execution_times) // 2
         first_half_avg = sum(execution_times[:mid_point]) / mid_point
-        second_half_avg = sum(execution_times[mid_point:]) / (len(execution_times) - mid_point)
+        second_half_avg = sum(execution_times[mid_point:]) / (
+            len(execution_times) - mid_point
+        )
 
         if second_half_avg > first_half_avg * 1.1:
             return "degrading"
@@ -397,7 +412,8 @@ class CIHealthMonitor:
             recent_reports = [
                 f
                 for f in report_files
-                if (datetime.now() - datetime.fromtimestamp(f.stat().st_mtime)) < timedelta(days=7)
+                if (datetime.now() - datetime.fromtimestamp(f.stat().st_mtime))
+                < timedelta(days=7)
             ]
 
             status = "healthy" if recent_reports else "warning"
@@ -429,7 +445,9 @@ class CIHealthMonitor:
                         )
                         status = "critical"
                     elif metrics["free_gb"] < min_free_space:
-                        issues.append(f"Low free space in {location}: {metrics['free_gb']}GB")
+                        issues.append(
+                            f"Low free space in {location}: {metrics['free_gb']}GB"
+                        )
                         status = "warning"
 
             return {
@@ -447,14 +465,16 @@ class CIHealthMonitor:
             self.collect_health_metrics()
 
         # Check if metrics are stale (older than 1 hour)
-        if self.last_health_check and (datetime.now() - self.last_health_check) > timedelta(
-            hours=1
-        ):
+        if self.last_health_check and (
+            datetime.now() - self.last_health_check
+        ) > timedelta(hours=1):
             self.collect_health_metrics()
 
         return {
             "overall_status": self._determine_overall_status(),
-            "last_check": self.last_health_check.isoformat() if self.last_health_check else None,
+            "last_check": (
+                self.last_health_check.isoformat() if self.last_health_check else None
+            ),
             "component_summary": self._get_component_summary(),
             "recommendations": self._generate_health_recommendations(),
         }
@@ -484,8 +504,12 @@ class CIHealthMonitor:
                     component_statuses.append("warning")
 
         # Check performance and security status
-        perf_status = self.metrics.get("performance_status", {}).get("status", "unknown")
-        security_status = self.metrics.get("security_status", {}).get("status", "unknown")
+        perf_status = self.metrics.get("performance_status", {}).get(
+            "status", "unknown"
+        )
+        security_status = self.metrics.get("security_status", {}).get(
+            "status", "unknown"
+        )
 
         component_statuses.extend([perf_status, security_status])
 
@@ -512,9 +536,9 @@ class CIHealthMonitor:
                 summary[component] = health.get("status", "unknown")
 
         # Performance and security
-        summary["performance_monitoring"] = self.metrics.get("performance_status", {}).get(
-            "status", "unknown"
-        )
+        summary["performance_monitoring"] = self.metrics.get(
+            "performance_status", {}
+        ).get("status", "unknown")
         summary["security_scanning"] = self.metrics.get("security_status", {}).get(
             "status", "unknown"
         )
@@ -544,13 +568,19 @@ class CIHealthMonitor:
         # Component-specific recommendations
         perf_status = self.metrics.get("performance_status", {})
         if perf_status.get("status") == "no_data":
-            recommendations.append("Run performance benchmarks to establish baseline metrics")
+            recommendations.append(
+                "Run performance benchmarks to establish baseline metrics"
+            )
         elif perf_status.get("trend") == "degrading":
-            recommendations.append("Performance degradation detected - investigate recent changes")
+            recommendations.append(
+                "Performance degradation detected - investigate recent changes"
+            )
 
         security_status = self.metrics.get("security_status", {})
         if security_status.get("status") == "critical":
-            critical_vulns = security_status.get("severity_breakdown", {}).get("critical", 0)
+            critical_vulns = security_status.get("severity_breakdown", {}).get(
+                "critical", 0
+            )
             if critical_vulns > 0:
                 recommendations.append(
                     f"Critical security vulnerabilities found ({critical_vulns}) - update dependencies immediately"
@@ -560,6 +590,8 @@ class CIHealthMonitor:
         storage_usage = self.metrics.get("storage_usage", {})
         for location, metrics in storage_usage.items():
             if isinstance(metrics, dict) and metrics.get("usage_percent", 0) > 85:
-                recommendations.append(f"High storage usage in {location} - consider data cleanup")
+                recommendations.append(
+                    f"High storage usage in {location} - consider data cleanup"
+                )
 
         return recommendations

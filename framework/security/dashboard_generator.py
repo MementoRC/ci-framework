@@ -38,7 +38,9 @@ class SecurityDashboardGenerator:
         # Create dashboard content
         dashboard_data = {
             "security_score": security_score,
-            "vulnerability_summary": self._summarize_vulnerabilities(vulnerability_data),
+            "vulnerability_summary": self._summarize_vulnerabilities(
+                vulnerability_data
+            ),
             "dependency_health": dependency_health,
             "recommendations": recommendations,
             "generated_at": datetime.now().isoformat(),
@@ -62,7 +64,9 @@ class SecurityDashboardGenerator:
             "dashboard_content": dashboard_content,
         }
 
-    def _calculate_security_score(self, vulnerability_data: dict[str, Any]) -> dict[str, Any]:
+    def _calculate_security_score(
+        self, vulnerability_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Calculate overall security score based on vulnerabilities.
 
         Args:
@@ -93,7 +97,9 @@ class SecurityDashboardGenerator:
         # Adjust for proportion of vulnerable dependencies
         if total_deps > 0:
             vuln_ratio = vulnerable_deps / total_deps
-            vulnerability_factor = max(0.5, 1 - vuln_ratio)  # Don't go below 50% of base score
+            vulnerability_factor = max(
+                0.5, 1 - vuln_ratio
+            )  # Don't go below 50% of base score
             final_score = int(base_score * vulnerability_factor)
         else:
             final_score = base_score
@@ -137,7 +143,9 @@ class SecurityDashboardGenerator:
         # Analyze license compliance
         licensed_components = len([c for c in components if c.get("licenses")])
         license_compliance = (
-            (licensed_components / total_components * 100) if total_components > 0 else 100
+            (licensed_components / total_components * 100)
+            if total_components > 0
+            else 100
         )
 
         # Analyze vulnerability exposure
@@ -150,11 +158,15 @@ class SecurityDashboardGenerator:
             vulnerable_components = len(affected_refs)
 
         vulnerability_exposure = (
-            (vulnerable_components / total_components * 100) if total_components > 0 else 0
+            (vulnerable_components / total_components * 100)
+            if total_components > 0
+            else 0
         )
 
         # Calculate overall health score
-        health_score = int((license_compliance * 0.3) + ((100 - vulnerability_exposure) * 0.7))
+        health_score = int(
+            (license_compliance * 0.3) + ((100 - vulnerability_exposure) * 0.7)
+        )
 
         return {
             "health_score": health_score,
@@ -184,7 +196,9 @@ class SecurityDashboardGenerator:
         else:
             return "poor"
 
-    def _generate_recommendations(self, vulnerability_data: dict[str, Any]) -> list[str]:
+    def _generate_recommendations(
+        self, vulnerability_data: dict[str, Any]
+    ) -> list[str]:
         """Generate actionable security recommendations.
 
         Args:
@@ -216,7 +230,9 @@ class SecurityDashboardGenerator:
 
         # Specific package recommendations from vulnerability data
         existing_recommendations = vulnerability_data.get("recommendations", [])
-        for rec in existing_recommendations[:5]:  # Limit to top 5 specific recommendations
+        for rec in existing_recommendations[
+            :5
+        ]:  # Limit to top 5 specific recommendations
             if rec not in recommendations:
                 recommendations.append(f"📦 {rec}")
 
@@ -225,7 +241,9 @@ class SecurityDashboardGenerator:
             recommendations.append(
                 "🔄 **Enable automated security updates** for dependencies where possible"
             )
-            recommendations.append("📊 **Set up regular security scans** in your CI/CD pipeline")
+            recommendations.append(
+                "📊 **Set up regular security scans** in your CI/CD pipeline"
+            )
 
         if len(recommendations) == 0:
             recommendations.append(
@@ -255,7 +273,9 @@ class SecurityDashboardGenerator:
             fixed_available = 0
             for package in vulnerability_data.get("vulnerable_packages", []):
                 for vuln in package.get("vulnerabilities", []):
-                    if vuln.get("severity", "").lower() == severity and vuln.get("fix_versions"):
+                    if vuln.get("severity", "").lower() == severity and vuln.get(
+                        "fix_versions"
+                    ):
                         fixed_available += 1
 
             summary.append(
@@ -327,7 +347,9 @@ class SecurityDashboardGenerator:
 
 """
 
-        for i, rec in enumerate(recommendations[:8], 1):  # Limit to top 8 recommendations
+        for i, rec in enumerate(
+            recommendations[:8], 1
+        ):  # Limit to top 8 recommendations
             dashboard += f"{i}. {rec}\n"
 
         dashboard += f"""
@@ -363,7 +385,9 @@ class SecurityDashboardGenerator:
 
         trend_data = {
             "current_score": current_data["security_score"]["score"],
-            "current_vulnerabilities": current_data["security_score"]["total_vulnerabilities"],
+            "current_vulnerabilities": current_data["security_score"][
+                "total_vulnerabilities"
+            ],
             "historical_scores": [],
             "historical_vulnerabilities": [],
             "trend_analysis": {},
@@ -387,24 +411,23 @@ class SecurityDashboardGenerator:
 
         # Calculate trends
         if len(trend_data["historical_scores"]) >= 2:
-            recent_scores = [point["score"] for point in trend_data["historical_scores"][-3:]]
+            recent_scores = [
+                point["score"] for point in trend_data["historical_scores"][-3:]
+            ]
             score_trend = (
                 "improving"
                 if recent_scores[-1] > recent_scores[0]
-                else "declining"
-                if recent_scores[-1] < recent_scores[0]
-                else "stable"
+                else "declining" if recent_scores[-1] < recent_scores[0] else "stable"
             )
 
             recent_vulns = [
-                point["count"] for point in trend_data["historical_vulnerabilities"][-3:]
+                point["count"]
+                for point in trend_data["historical_vulnerabilities"][-3:]
             ]
             vuln_trend = (
                 "decreasing"
                 if recent_vulns[-1] < recent_vulns[0]
-                else "increasing"
-                if recent_vulns[-1] > recent_vulns[0]
-                else "stable"
+                else "increasing" if recent_vulns[-1] > recent_vulns[0] else "stable"
             )
 
             trend_data["trend_analysis"] = {

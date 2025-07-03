@@ -6,7 +6,11 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from framework.performance import BenchmarkResult, PerformanceCollector, PerformanceMetrics
+from framework.performance import (
+    BenchmarkResult,
+    PerformanceCollector,
+    PerformanceMetrics,
+)
 
 
 class TestPerformanceCollector:
@@ -111,9 +115,13 @@ class TestPerformanceCollector:
             collector = PerformanceCollector(temp_dir)
 
             # Create test metrics
-            metrics = PerformanceMetrics(build_id="test_build", timestamp=datetime.now())
+            metrics = PerformanceMetrics(
+                build_id="test_build", timestamp=datetime.now()
+            )
             metrics.add_result(
-                BenchmarkResult(name="test_benchmark", execution_time=0.1, memory_usage=50.0)
+                BenchmarkResult(
+                    name="test_benchmark", execution_time=0.1, memory_usage=50.0
+                )
             )
 
             # Store baseline
@@ -134,9 +142,13 @@ class TestPerformanceCollector:
 
             # Create and store multiple metrics
             for i in range(3):
-                metrics = PerformanceMetrics(build_id=f"build_{i}", timestamp=datetime.now())
+                metrics = PerformanceMetrics(
+                    build_id=f"build_{i}", timestamp=datetime.now()
+                )
                 metrics.add_result(
-                    BenchmarkResult(name="test_benchmark", execution_time=0.1 + i * 0.01)
+                    BenchmarkResult(
+                        name="test_benchmark", execution_time=0.1 + i * 0.01
+                    )
                 )
 
                 collector.store_history(metrics)
@@ -159,13 +171,18 @@ class TestPerformanceCollector:
             )
             baseline_metrics.add_result(
                 BenchmarkResult(
-                    name="test_benchmark", execution_time=0.1, memory_usage=50.0, throughput=100.0
+                    name="test_benchmark",
+                    execution_time=0.1,
+                    memory_usage=50.0,
+                    throughput=100.0,
                 )
             )
             collector.store_baseline(baseline_metrics, "test")
 
             # Create current metrics (10% slower, 20% more memory, 5% less throughput)
-            current_metrics = PerformanceMetrics(build_id="current_build", timestamp=datetime.now())
+            current_metrics = PerformanceMetrics(
+                build_id="current_build", timestamp=datetime.now()
+            )
             current_metrics.add_result(
                 BenchmarkResult(
                     name="test_benchmark",
@@ -276,7 +293,9 @@ class TestPerformanceMetrics:
 
     def test_serialization_roundtrip(self):
         """Test serializing and deserializing metrics."""
-        original_metrics = PerformanceMetrics(build_id="test_build", timestamp=datetime.now())
+        original_metrics = PerformanceMetrics(
+            build_id="test_build", timestamp=datetime.now()
+        )
         original_metrics.add_result(
             BenchmarkResult(
                 name="test_benchmark",
@@ -304,7 +323,10 @@ class TestBenchmarkResult:
     def test_result_creation(self):
         """Test creating benchmark result."""
         result = BenchmarkResult(
-            name="test_benchmark", execution_time=0.5, memory_usage=100.0, throughput=200.0
+            name="test_benchmark",
+            execution_time=0.5,
+            memory_usage=100.0,
+            throughput=200.0,
         )
 
         assert result.name == "test_benchmark"
