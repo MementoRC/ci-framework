@@ -1,12 +1,71 @@
 """Core dependency analysis and vulnerability scanning functionality."""
 
 import json
-import subprocess  # nosec B404
+
+# Security: subprocess is used with strict validation and shell=False
+import subprocess  # Used securely via _run_secure_subprocess wrapper
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 
 from .models import DependencyInfo, VulnerabilityInfo
+
+
+def _run_secure_subprocess(
+    command: List[str], cwd: Path | str, timeout: int = 60
+) -> subprocess.CompletedProcess:
+    """
+    Securely run subprocess with proper validation and constraints.
+
+    Args:
+        command: List of command arguments (no shell expansion)
+        cwd: Working directory
+        timeout: Command timeout in seconds
+
+    Returns:
+        CompletedProcess result
+
+    Raises:
+        ValueError: If command validation fails
+        subprocess.TimeoutExpired: If command times out
+        subprocess.CalledProcessError: If command fails
+    """
+    # Validate command is a list (prevents shell injection)
+    if not isinstance(command, list) or not command:
+        raise ValueError("Command must be a non-empty list")
+
+    # Validate first argument is a known safe command
+    allowed_commands = {
+        "pip-audit",
+        "pip",
+        "pixi",
+        "poetry",
+        "hatch",
+        "ruff",
+        "black",
+        "bandit",
+        "mypy",
+    }
+    if command[0] not in allowed_commands:
+        raise ValueError(
+            f"Command '{command[0]}' not in allowed list: {allowed_commands}"
+        )
+
+    # Validate working directory exists
+    cwd_path = Path(cwd)
+    if not cwd_path.exists():
+        raise ValueError(f"Working directory does not exist: {cwd}")
+
+    # Run with security constraints
+    return subprocess.run(
+        command,  # List format prevents shell injection
+        cwd=cwd_path,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        shell=False,  # Explicit shell=False for security
+        check=False,  # We'll handle return codes ourselves
+    )
 
 
 class DependencyAnalyzer:
@@ -61,11 +120,9 @@ class DependencyAnalyzer:
 
         try:
             # Use pip-audit to get vulnerability information
-            result = subprocess.run(  # nosec B607 B603
+            result = _run_secure_subprocess(
                 ["pip-audit", "--format=json", "--progress-spinner=off"],
                 cwd=self.project_path,
-                capture_output=True,
-                text=True,
                 timeout=300,
             )
 
@@ -96,11 +153,9 @@ class DependencyAnalyzer:
         dependencies = []
 
         try:
-            result = subprocess.run(  # nosec B607 B603
+            result = _run_secure_subprocess(
                 ["pip", "list", "--format=json"],
                 cwd=self.project_path,
-                capture_output=True,
-                text=True,
                 timeout=60,
             )
 
@@ -130,11 +185,9 @@ class DependencyAnalyzer:
 
         try:
             # Get pixi environment information
-            result = subprocess.run(  # nosec B607 B603
+            result = _run_secure_subprocess(
                 ["pixi", "list", "--json"],
                 cwd=self.project_path,
-                capture_output=True,
-                text=True,
                 timeout=60,
             )
 

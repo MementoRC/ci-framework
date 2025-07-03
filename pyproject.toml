@@ -88,18 +88,33 @@ bc-detect-secrets = "*"
 twine = "*"
 python-build = "*"
 cyclonedx-bom = "*"
+filelock = "*"
 
 # Pixi environments referencing features
 [tool.pixi.environments]
 default = { features = [], solve-group = "default" }
 dev = { features = ["dev"], solve-group = "dev" }
 
+# Ensure proper environment isolation
+[tool.pixi.activation]
+env = { PYTHONNOUSERSITE = "1" }
+
 [tool.pixi.tasks]
 lint = "ruff check framework/"
 format = "black --check framework/"
 yaml-lint = "yamllint .github/workflows/"
 action-lint = "actionlint"
-security-audit = "pip-audit --verbose --ignore-vuln GHSA-9hjg-9r4m-mvj7 --ignore-vuln GHSA-48p4-8xcf-vxj5 --ignore-vuln GHSA-pq67-6m6q-mj2v"
-bandit-scan = "bandit -r framework/ --skip B101"
+security-audit = "pip-audit --verbose"
+bandit-scan = "bandit -r framework/ -x framework/tests/ -s B101"
 detect-secrets = "detect-secrets scan --all-files"
 unit-test = "pytest framework/tests/"
+
+# Bandit security scanning configuration
+[tool.bandit]
+exclude_dirs = ["framework/tests"]
+skips = ["B101"]  # Allow assert statements in test files
+targets = ["framework"]
+
+# Security decisions for CI framework:
+# B404: subprocess import - Required for CI functionality, used securely with validation
+# B603: subprocess call - Used with shell=False and comprehensive input validation
