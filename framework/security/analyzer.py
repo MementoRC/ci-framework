@@ -38,7 +38,9 @@ class DependencyAnalyzer:
             detected.append("pip")
 
         # Check for pixi (pixi.toml, pixi.lock)
-        if (self.project_path / "pixi.toml").exists() or (self.project_path / "pixi.lock").exists():
+        if (self.project_path / "pixi.toml").exists() or (
+            self.project_path / "pixi.lock"
+        ).exists():
             detected.append("pixi")
 
         # Check for conda (environment.yml, conda-lock.yml)
@@ -151,7 +153,9 @@ class DependencyAnalyzer:
 
         return dependencies
 
-    def scan_dependencies(self, package_managers: list[str] | None = None) -> list[DependencyInfo]:
+    def scan_dependencies(
+        self, package_managers: list[str] | None = None
+    ) -> list[DependencyInfo]:
         """Scan dependencies for specified package managers.
 
         Args:
@@ -177,7 +181,9 @@ class DependencyAnalyzer:
 
         return all_dependencies
 
-    def _parse_pip_audit_output(self, audit_data: dict[str, Any]) -> list[DependencyInfo]:
+    def _parse_pip_audit_output(
+        self, audit_data: dict[str, Any]
+    ) -> list[DependencyInfo]:
         """Parse pip-audit JSON output into DependencyInfo objects.
 
         Args:
@@ -198,7 +204,9 @@ class DependencyAnalyzer:
                     id=vuln_data.get("id", ""),
                     package_name=dep_data.get("name", ""),
                     package_version=dep_data.get("version", ""),
-                    severity=self._normalize_severity(vuln_data.get("severity", "unknown")),
+                    severity=self._normalize_severity(
+                        vuln_data.get("severity", "unknown")
+                    ),
                     description=vuln_data.get("description", ""),
                     fix_versions=vuln_data.get("fix_versions", []),
                     aliases=vuln_data.get("aliases", []),
@@ -287,7 +295,9 @@ class DependencyAnalyzer:
             "dependencies": {dep.name: dep.to_dict() for dep in dependencies},
             "summary": {
                 "total_dependencies": len(dependencies),
-                "vulnerable_dependencies": len([d for d in dependencies if d.has_vulnerabilities]),
+                "vulnerable_dependencies": len(
+                    [d for d in dependencies if d.has_vulnerabilities]
+                ),
                 "package_manager_distribution": pm_distribution,
             },
         }

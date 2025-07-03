@@ -137,7 +137,9 @@ class ArtifactManager:
                     json.dump(data, f, indent=2, default=str)
             elif format_type == "csv":
                 # Simple CSV generation for dict/list data
-                csv_content = data if isinstance(data, str) else self._generate_csv(data)
+                csv_content = (
+                    data if isinstance(data, str) else self._generate_csv(data)
+                )
                 with open(data_path, "w", encoding="utf-8") as f:
                     f.write(csv_content)
             else:
@@ -182,8 +184,12 @@ class ArtifactManager:
                             "path": str(file_path),
                             "type": search_path.name,
                             "size": stat.st_size,
-                            "created": datetime.fromtimestamp(stat.st_ctime).isoformat(),
-                            "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                            "created": datetime.fromtimestamp(
+                                stat.st_ctime
+                            ).isoformat(),
+                            "modified": datetime.fromtimestamp(
+                                stat.st_mtime
+                            ).isoformat(),
                         }
                     )
 
@@ -254,7 +260,9 @@ class ArtifactManager:
         else:
             return self.artifact_path / name
 
-    def _generate_html_report(self, report_name: str, report_data: dict[str, Any]) -> str:
+    def _generate_html_report(
+        self, report_name: str, report_data: dict[str, Any]
+    ) -> str:
         """Generate HTML report from data."""
         html = f"""<!DOCTYPE html>
 <html>
@@ -286,7 +294,9 @@ class ArtifactManager:
 </html>"""
         return html
 
-    def _generate_markdown_report(self, report_name: str, report_data: dict[str, Any]) -> str:
+    def _generate_markdown_report(
+        self, report_name: str, report_data: dict[str, Any]
+    ) -> str:
         """Generate Markdown report from data."""
         markdown = f"""# {report_name} Report
 

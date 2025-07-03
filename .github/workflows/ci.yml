@@ -1,3 +1,4 @@
+---
 name: CI Framework CI
 
 on:
@@ -6,7 +7,7 @@ on:
   pull_request:
     branches: [main, master, development]
   schedule:
-    - cron: '0 0 * * *' # Nightly build
+    - cron: '0 0 * * *'  # Nightly build
   workflow_dispatch:
 
 jobs:
@@ -88,7 +89,8 @@ jobs:
           pixi run -e default unit-test
 
   # Placeholder for more advanced integration tests of reusable workflows
-  # This would involve creating a dummy repository and calling the reusable workflows
+  # This would involve creating a dummy repository and calling the reusable
+  # workflows
   # from there, then asserting their behavior.
   # This is a complex setup and is left as a future enhancement.
   integration-tests-reusable-workflows:
@@ -97,15 +99,20 @@ jobs:
     steps:
       - name: "Explanation"
         run: |
-          echo "This job would contain integration tests for the reusable workflows (reusable-ci.yml, standalone-ci.yml)."
-          echo "It would involve setting up a dummy project, calling the reusable workflows, and verifying their end-to-end behavior."
-          echo "This is a complex task that often requires a dedicated testing repository or advanced GitHub Actions features."
-          echo "For now, manual verification or separate dedicated integration test repositories are recommended."
+          echo "This job would contain integration tests for the reusable"
+          echo "workflows (reusable-ci.yml, standalone-ci.yml)."
+          echo "It would involve setting up a dummy project, calling the"
+          echo "reusable workflows, and verifying their end-to-end behavior."
+          echo "This is a complex task that often requires a dedicated"
+          echo "testing repository or advanced GitHub Actions features."
+          echo "For now, manual verification or separate dedicated"
+          echo "integration test repositories are recommended."
 
   summary:
     name: "✅ CI Summary"
     runs-on: ubuntu-latest
-    needs: [lint-and-format, security-scan, unit-tests, integration-tests-reusable-workflows]
+    needs: [lint-and-format, security-scan, unit-tests,
+            integration-tests-reusable-workflows]
     if: always()
     steps:
       - name: "Generate Run Summary"
@@ -113,16 +120,23 @@ jobs:
           echo "## CI Framework CI Summary" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Lint & Format | ${{ needs.lint-and-format.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Security Scan | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Unit Tests | ${{ needs.unit-tests.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Reusable Workflow Integration Tests | ${{ needs.integration-tests-reusable-workflows.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint & Format | ${{ needs.lint-and-format.result }} |" \
+            >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | ${{ needs.security-scan.result }} |" \
+            >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests | ${{ needs.unit-tests.result }} |" \
+            >> $GITHUB_STEP_SUMMARY
+          echo "| Reusable Workflow Integration Tests |" \
+            "${{ needs.integration-tests-reusable-workflows.result }} |" \
+            >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ needs.lint-and-format.result }}" == "success" && \
                 "${{ needs.security-scan.result }}" == "success" && \
                 "${{ needs.unit-tests.result }}" == "success" ]]; then
-            echo -e "\n**Overall Status: ✅ Core CI Framework checks passed.**" >> $GITHUB_STEP_SUMMARY
+            echo -e "\n**Overall Status: ✅ Core CI Framework checks passed.**" \
+              >> $GITHUB_STEP_SUMMARY
           else
-            echo -e "\n**Overall Status: ❌ Some CI Framework checks failed.**" >> $GITHUB_STEP_SUMMARY
+            echo -e "\n**Overall Status: ❌ Some CI Framework checks failed.**" \
+              >> $GITHUB_STEP_SUMMARY
             exit 1
           fi

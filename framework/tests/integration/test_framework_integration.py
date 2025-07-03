@@ -26,7 +26,11 @@ class TestFrameworkIntegration:
 
         # Create mock performance data
         performance_data = {
-            "test_simulation": {"execution_time": 1.5, "memory_usage": "50MB", "throughput": 1000}
+            "test_simulation": {
+                "execution_time": 1.5,
+                "memory_usage": "50MB",
+                "throughput": 1000,
+            }
         }
 
         # Store performance data
@@ -95,14 +99,18 @@ class TestFrameworkIntegration:
         reporter = GitHubReporter()
 
         # Step 1: Collect performance data
-        performance_data = {"integration_test": {"execution_time": 0.5, "memory_usage": "25MB"}}
+        performance_data = {
+            "integration_test": {"execution_time": 0.5, "memory_usage": "25MB"}
+        }
         collector.store_benchmark_results(performance_data)
 
         # Step 2: Run health monitoring
         health_data = health_monitor.collect_health_metrics()
 
         # Step 3: Create comprehensive report
-        performance_report = reporter.generate_performance_report(performance_data=performance_data)
+        performance_report = reporter.generate_performance_report(
+            performance_data=performance_data
+        )
 
         # Step 4: Verify integrated data flow
         assert health_data is not None

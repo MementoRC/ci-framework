@@ -28,14 +28,22 @@ class TestReportingIntegration:
 
         # Generate report
         performance_data = {
-            "test_suite": {"execution_time": 2.5, "memory_usage": "75MB", "throughput": 500}
+            "test_suite": {
+                "execution_time": 2.5,
+                "memory_usage": "75MB",
+                "throughput": 500,
+            }
         }
 
-        report_content = reporter.generate_performance_report(performance_data=performance_data)
+        report_content = reporter.generate_performance_report(
+            performance_data=performance_data
+        )
 
         # Store as artifact
         artifact_path = artifact_manager.create_report_artifact(
-            content=report_content, report_type="performance", filename="performance_report.md"
+            content=report_content,
+            report_type="performance",
+            filename="performance_report.md",
         )
 
         # Verify integration
@@ -110,7 +118,10 @@ class TestReportingIntegration:
         artifact_manager = ArtifactManager(artifact_path=tmp_path)
 
         # Test data
-        test_data = {"timestamp": "2024-01-01T00:00:00Z", "results": {"tests": 150, "failures": 0}}
+        test_data = {
+            "timestamp": "2024-01-01T00:00:00Z",
+            "results": {"tests": 150, "failures": 0},
+        }
 
         # Create artifacts in different formats
         json_artifact = artifact_manager.create_json_artifact(
@@ -142,8 +153,16 @@ class TestReportingIntegration:
         # Mock performance data from framework.performance
         performance_metrics = {
             "benchmarks": {
-                "simulation_throughput": {"current": 1500, "baseline": 1200, "improvement": 25.0},
-                "memory_efficiency": {"current": "45MB", "baseline": "52MB", "improvement": 13.5},
+                "simulation_throughput": {
+                    "current": 1500,
+                    "baseline": 1200,
+                    "improvement": 25.0,
+                },
+                "memory_efficiency": {
+                    "current": "45MB",
+                    "baseline": "52MB",
+                    "improvement": 13.5,
+                },
             },
             "summary": {"total_benchmarks": 2, "improvements": 2, "regressions": 0},
         }
@@ -213,12 +232,19 @@ class TestReportingIntegration:
         reporter = GitHubReporter()
 
         # Test with various invalid inputs
-        invalid_inputs = [None, {}, {"invalid": "structure"}, {"missing_required_fields": True}]
+        invalid_inputs = [
+            None,
+            {},
+            {"invalid": "structure"},
+            {"missing_required_fields": True},
+        ]
 
         for invalid_input in invalid_inputs:
             try:
                 # Should handle gracefully without crashing
-                report = reporter.generate_performance_report(performance_data=invalid_input)
+                report = reporter.generate_performance_report(
+                    performance_data=invalid_input
+                )
                 assert report is not None  # Should return some content
             except Exception as e:
                 pytest.fail(f"Reporting should handle invalid input gracefully: {e}")
@@ -250,7 +276,9 @@ class TestReportingIntegration:
 
         # Store large report
         artifact_path = artifact_manager.create_report_artifact(
-            content=report, report_type="performance", filename="large_performance_report.md"
+            content=report,
+            report_type="performance",
+            filename="large_performance_report.md",
         )
 
         end_time = time.time()
@@ -276,7 +304,9 @@ class TestReportingIntegration:
 
         # Test custom template rendering
         performance_summary = template_engine.render_performance_summary(
-            data=custom_data, trend="improving", key_metrics=["execution_time", "memory_usage"]
+            data=custom_data,
+            trend="improving",
+            key_metrics=["execution_time", "memory_usage"],
         )
 
         # Verify customization integration
@@ -295,7 +325,11 @@ class TestReportingIntegration:
 
         async def generate_async_report():
             await asyncio.sleep(0.1)  # Simulate async processing
-            return {"async_report": True, "generation_time": "0.1s", "status": "completed"}
+            return {
+                "async_report": True,
+                "generation_time": "0.1s",
+                "status": "completed",
+            }
 
         # Generate async report
         async_data = await generate_async_report()

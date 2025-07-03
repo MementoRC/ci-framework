@@ -81,7 +81,9 @@ class PerformanceComparator:
                                  Defaults to 'performance_thresholds.yaml' in package directory.
         """
         if threshold_config_path is None:
-            threshold_config_path = Path(__file__).parent / "performance_thresholds.yaml"
+            threshold_config_path = (
+                Path(__file__).parent / "performance_thresholds.yaml"
+            )
 
         self.threshold_config_path = Path(threshold_config_path)
         self.thresholds = self._load_thresholds()
@@ -100,7 +102,9 @@ class PerformanceComparator:
                 thresholds[metric_type] = ThresholdConfig(
                     relative_increase=threshold_data.get("relative_increase", 0.10),
                     absolute_increase=threshold_data.get("absolute_increase", 0.0),
-                    statistical_significance=threshold_data.get("statistical_significance", 0.95),
+                    statistical_significance=threshold_data.get(
+                        "statistical_significance", 0.95
+                    ),
                 )
 
             return thresholds
@@ -158,7 +162,9 @@ class PerformanceComparator:
         for current_result in current_metrics.results:
             baseline_result = baseline_metrics.get_result(current_result.name)
             if baseline_result:
-                comparison = self._compare_benchmark_results(current_result, baseline_result)
+                comparison = self._compare_benchmark_results(
+                    current_result, baseline_result
+                )
                 result.detailed_comparisons.append(comparison)
 
                 # Check for regressions and generate alerts
@@ -167,8 +173,12 @@ class PerformanceComparator:
 
                 # Update counters
                 if alerts:
-                    critical_alerts = [a for a in alerts if a.severity == AlertSeverity.CRITICAL]
-                    warning_alerts = [a for a in alerts if a.severity == AlertSeverity.WARNING]
+                    critical_alerts = [
+                        a for a in alerts if a.severity == AlertSeverity.CRITICAL
+                    ]
+                    warning_alerts = [
+                        a for a in alerts if a.severity == AlertSeverity.WARNING
+                    ]
 
                     if critical_alerts:
                         result.regressions_count += 1
@@ -191,7 +201,9 @@ class PerformanceComparator:
         return result
 
     def compare_with_trend(
-        self, current_metrics: PerformanceMetrics, historical_metrics: list[PerformanceMetrics]
+        self,
+        current_metrics: PerformanceMetrics,
+        historical_metrics: list[PerformanceMetrics],
     ) -> ComparisonResult:
         """Compare current metrics with historical trend.
 
@@ -213,7 +225,9 @@ class PerformanceComparator:
         )
 
         # Enhance with trend analysis
-        result.statistical_summary.update(self._analyze_trends(current_metrics, historical_metrics))
+        result.statistical_summary.update(
+            self._analyze_trends(current_metrics, historical_metrics)
+        )
 
         return result
 
@@ -253,12 +267,16 @@ class PerformanceComparator:
             comparison["memory_usage"] = {
                 "current": current.memory_usage,
                 "baseline": baseline.memory_usage,
-                "change_percent": calc_change_percent(current.memory_usage, baseline.memory_usage),
+                "change_percent": calc_change_percent(
+                    current.memory_usage, baseline.memory_usage
+                ),
                 "change_absolute": calc_change_absolute(
                     current.memory_usage, baseline.memory_usage
                 ),
                 "change_direction": (
-                    "regression" if current.memory_usage > baseline.memory_usage else "improvement"
+                    "regression"
+                    if current.memory_usage > baseline.memory_usage
+                    else "improvement"
                 ),
             }
 
@@ -266,10 +284,16 @@ class PerformanceComparator:
             comparison["throughput"] = {
                 "current": current.throughput,
                 "baseline": baseline.throughput,
-                "change_percent": calc_change_percent(current.throughput, baseline.throughput),
-                "change_absolute": calc_change_absolute(current.throughput, baseline.throughput),
+                "change_percent": calc_change_percent(
+                    current.throughput, baseline.throughput
+                ),
+                "change_absolute": calc_change_absolute(
+                    current.throughput, baseline.throughput
+                ),
                 "change_direction": (
-                    "improvement" if current.throughput > baseline.throughput else "regression"
+                    "improvement"
+                    if current.throughput > baseline.throughput
+                    else "regression"
                 ),
             }
 
@@ -317,7 +341,11 @@ class PerformanceComparator:
         return alerts
 
     def _check_metric_regression(
-        self, metric_type: str, benchmark_name: str, current_value: float, baseline_value: float
+        self,
+        metric_type: str,
+        benchmark_name: str,
+        current_value: float,
+        baseline_value: float,
     ) -> list[PerformanceAlert]:
         """Check if a specific metric has regressed."""
         alerts: list[PerformanceAlert] = []
@@ -365,7 +393,9 @@ class PerformanceComparator:
             )
         elif is_relative_regression:
             severity = AlertSeverity.WARNING
-            message = f"Relative {metric_type} regression: {change_percent:+.1f}% change"
+            message = (
+                f"Relative {metric_type} regression: {change_percent:+.1f}% change"
+            )
             alerts.append(
                 PerformanceAlert(
                     metric_name=metric_type,
@@ -396,7 +426,9 @@ class PerformanceComparator:
 
         return alerts
 
-    def _is_improvement(self, current: BenchmarkResult, baseline: BenchmarkResult) -> bool:
+    def _is_improvement(
+        self, current: BenchmarkResult, baseline: BenchmarkResult
+    ) -> bool:
         """Check if current result shows improvement over baseline."""
         improvements = 0
         total_metrics = 0
@@ -404,19 +436,25 @@ class PerformanceComparator:
         # Check execution time improvement (lower is better)
         if current.execution_time is not None and baseline.execution_time is not None:
             total_metrics += 1
-            if current.execution_time <= baseline.execution_time * 0.95:  # 5% improvement threshold
+            if (
+                current.execution_time <= baseline.execution_time * 0.95
+            ):  # 5% improvement threshold
                 improvements += 1
 
         # Check memory usage improvement (lower is better)
         if current.memory_usage is not None and baseline.memory_usage is not None:
             total_metrics += 1
-            if current.memory_usage <= baseline.memory_usage * 0.95:  # 5% improvement threshold
+            if (
+                current.memory_usage <= baseline.memory_usage * 0.95
+            ):  # 5% improvement threshold
                 improvements += 1
 
         # Check throughput improvement (higher is better)
         if current.throughput is not None and baseline.throughput is not None:
             total_metrics += 1
-            if current.throughput >= baseline.throughput * 1.05:  # 5% improvement threshold
+            if (
+                current.throughput >= baseline.throughput * 1.05
+            ):  # 5% improvement threshold
                 improvements += 1
 
         # Return true if there's any improvement (not requiring all metrics to improve)
@@ -481,13 +519,19 @@ class PerformanceComparator:
 
         # Calculate statistics for each metric type
         if execution_time_changes:
-            summary["execution_time_stats"] = self._calculate_metric_stats(execution_time_changes)
+            summary["execution_time_stats"] = self._calculate_metric_stats(
+                execution_time_changes
+            )
 
         if memory_usage_changes:
-            summary["memory_usage_stats"] = self._calculate_metric_stats(memory_usage_changes)
+            summary["memory_usage_stats"] = self._calculate_metric_stats(
+                memory_usage_changes
+            )
 
         if throughput_changes:
-            summary["throughput_stats"] = self._calculate_metric_stats(throughput_changes)
+            summary["throughput_stats"] = self._calculate_metric_stats(
+                throughput_changes
+            )
 
         return summary
 
@@ -499,14 +543,18 @@ class PerformanceComparator:
         return {
             "mean_change_percent": statistics.mean(changes),
             "median_change_percent": statistics.median(changes),
-            "std_dev_change_percent": statistics.stdev(changes) if len(changes) > 1 else 0.0,
+            "std_dev_change_percent": (
+                statistics.stdev(changes) if len(changes) > 1 else 0.0
+            ),
             "min_change_percent": min(changes),
             "max_change_percent": max(changes),
             "sample_size": len(changes),
         }
 
     def _analyze_trends(
-        self, current_metrics: PerformanceMetrics, historical_metrics: list[PerformanceMetrics]
+        self,
+        current_metrics: PerformanceMetrics,
+        historical_metrics: list[PerformanceMetrics],
     ) -> dict[str, Any]:
         """Analyze performance trends over historical data."""
         trend_analysis: dict[str, Any] = {
@@ -528,14 +576,16 @@ class PerformanceComparator:
                 x_values = list(range(len(historical_values)))
                 try:
                     # Calculate Pearson correlation coefficient
-                    correlation = self._calculate_correlation(x_values, historical_values)
+                    correlation = self._calculate_correlation(
+                        x_values, historical_values
+                    )
                     trend_analysis["trend_details"][current_result.name] = {
                         "correlation": correlation,
-                        "direction": "increasing"
-                        if correlation > 0.1
-                        else "decreasing"
-                        if correlation < -0.1
-                        else "stable",
+                        "direction": (
+                            "increasing"
+                            if correlation > 0.1
+                            else "decreasing" if correlation < -0.1 else "stable"
+                        ),
                         "historical_values": historical_values,
                     }
                 except (ValueError, ZeroDivisionError):
@@ -543,7 +593,9 @@ class PerformanceComparator:
 
         return trend_analysis
 
-    def _calculate_correlation(self, x_values: list[int], y_values: list[float]) -> float:
+    def _calculate_correlation(
+        self, x_values: list[int], y_values: list[float]
+    ) -> float:
         """Calculate Pearson correlation coefficient."""
         if len(x_values) != len(y_values) or len(x_values) < 2:
             return 0.0
@@ -556,7 +608,9 @@ class PerformanceComparator:
         sum_y2 = sum(y * y for y in y_values)
 
         numerator = n * sum_xy - sum_x * sum_y
-        denominator = ((n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y)) ** 0.5
+        denominator = (
+            (n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y)
+        ) ** 0.5
 
         if denominator == 0:
             return 0.0
@@ -610,7 +664,9 @@ class PerformanceComparator:
             report += "## Alerts\n\n"
             for alert in result.alerts:
                 icon = "🚨" if alert.severity == AlertSeverity.CRITICAL else "⚠️"
-                report += f"**{icon} {alert.severity.value.upper()}**: {alert.message}\n"
+                report += (
+                    f"**{icon} {alert.severity.value.upper()}**: {alert.message}\n"
+                )
                 report += f"- Benchmark: `{alert.benchmark_name}`\n"
                 report += f"- Metric: `{alert.metric_name}`\n"
                 report += f"- Current: {alert.current_value:.4f}\n"

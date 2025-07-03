@@ -1,3 +1,4 @@
+---
 name: Reusable CI/CD Pipeline
 
 on:
@@ -18,22 +19,26 @@ on:
         type: string
         default: '["ubuntu-latest", "macos-latest"]'
       enable-performance:
-        description: "Enable performance benchmarks and regression analysis"
+        description: >-
+          Enable performance benchmarks and regression analysis
         required: false
         type: boolean
         default: true
       enable-release:
-        description: "Enable automated releases to PyPI on main branch pushes"
+        description: >-
+          Enable automated releases to PyPI on main branch pushes
         required: false
         type: boolean
         default: true
       allowed-licenses:
-        description: "Comma-separated list of allowed licenses for dependency review"
+        description: >-
+          Comma-separated list of allowed licenses for dependency review
         required: false
         type: string
         default: 'MIT, Apache-2.0, BSD-3-Clause'
       package-path:
-        description: "Relative path to the package directory within the monorepo"
+        description: >-
+          Relative path to the package directory within the monorepo
         required: false
         type: string
         default: '.'
@@ -45,7 +50,8 @@ on:
         description: "Token for publishing packages to PyPI"
         required: false
       GH_PAT:
-        description: "Personal Access Token for actions requiring it (like PR comments)"
+        description: >-
+          Personal Access Token for actions requiring it (like PR comments)
         required: false
       SOURCERY_TOKEN:
         description: "Token for Sourcery AI code reviewer"
@@ -115,7 +121,9 @@ jobs:
     name: "🧪 Test Python ${{ matrix.python-version }} on ${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
     needs: detect-changes
-    if: needs.detect-changes.outputs.src == 'true' || needs.detect-changes.outputs.tests == 'true'
+    if: >-
+      needs.detect-changes.outputs.src == 'true' ||
+      needs.detect-changes.outputs.tests == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -178,7 +186,8 @@ jobs:
           allow-licenses: ${{ inputs.allowed-licenses }}
       - name: "Initialize CodeQL"
         uses: github/codeql-action/init@v3
-        with: { languages: 'python' }
+        with:
+          languages: 'python'
       - name: "Perform CodeQL Analysis"
         uses: github/codeql-action/analyze@v3
 
@@ -186,7 +195,9 @@ jobs:
     name: "📊 Performance Analysis"
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: ${{ inputs.enable-performance }} && needs.detect-changes.outputs.performance == 'true'
+    if: >-
+      ${{ inputs.enable-performance }} &&
+      needs.detect-changes.outputs.performance == 'true'
     steps:
       - uses: actions/checkout@v4
       - name: "Checkout CI Framework"
@@ -240,13 +251,17 @@ jobs:
             hatch run build
           fi
       - uses: actions/upload-artifact@v4
-        with: { name: 'dist', path: '${{ inputs.package-path }}/dist/' }
+        with:
+          name: 'dist'
+          path: '${{ inputs.package-path }}/dist/'
 
   release:
     name: "🚀 Release & Publish"
     runs-on: ubuntu-latest
     needs: [build, quality, security]
-    if: ${{ inputs.enable-release && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
+    if: >-
+      ${{ inputs.enable-release && github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
     permissions:
       id-token: write
       contents: write
@@ -261,9 +276,12 @@ jobs:
         id: changelog
         working-directory: ${{ inputs.package-path }}
         run: |
-          python ../ci-framework/framework/reporting/cli.py generate-changelog --path .
+          python ../ci-framework/framework/reporting/cli.py \
+            generate-changelog --path .
       - uses: actions/download-artifact@v4
-        with: { name: 'dist', path: 'dist/' }
+        with:
+          name: 'dist'
+          path: 'dist/'
       - name: "Publish to PyPI"
         uses: pypa/gh-action-pypi-publish@release/v1
 
@@ -282,8 +300,10 @@ jobs:
         working-directory: ${{ inputs.package-path }}
         run: |
           echo "This is a placeholder for the self-healing mechanism."
-          echo "In the future, this job could automatically fix common test failures."
-          # Example: python ../ci-framework/framework/self_healing/cli.py fix --path .
+          echo "In the future, this job could automatically fix common"
+          echo "test failures."
+          # Example: python ../ci-framework/framework/self_healing/cli.py \
+          #   fix --path .
 
   summary:
     name: "✅ CI Summary"
@@ -299,7 +319,9 @@ jobs:
           path: ci-framework
       - name: "Generate Run Summary"
         run: |
-          python ci-framework/framework/reporting/cli.py generate-summary --path ${{ inputs.package-path }} --output-file summary.md
+          python ci-framework/framework/reporting/cli.py \
+            generate-summary --path ${{ inputs.package-path }} \
+            --output-file summary.md
       - name: "Add Summary to Job Summary"
         run: |
           cat summary.md >> $GITHUB_STEP_SUMMARY
