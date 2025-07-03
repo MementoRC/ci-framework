@@ -1,7 +1,7 @@
 """Core dependency analysis and vulnerability scanning functionality."""
 
 import json
-import subprocess
+import subprocess  # nosec B404
 import time
 from pathlib import Path
 from typing import Any
@@ -61,7 +61,7 @@ class DependencyAnalyzer:
 
         try:
             # Use pip-audit to get vulnerability information
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B607 B603
                 ["pip-audit", "--format=json", "--progress-spinner=off"],
                 cwd=self.project_path,
                 capture_output=True,
@@ -96,7 +96,7 @@ class DependencyAnalyzer:
         dependencies = []
 
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B607 B603
                 ["pip", "list", "--format=json"],
                 cwd=self.project_path,
                 capture_output=True,
@@ -130,7 +130,7 @@ class DependencyAnalyzer:
 
         try:
             # Get pixi environment information
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B607 B603
                 ["pixi", "list", "--json"],
                 cwd=self.project_path,
                 capture_output=True,
