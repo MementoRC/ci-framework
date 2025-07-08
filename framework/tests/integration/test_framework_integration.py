@@ -33,8 +33,8 @@ class TestFrameworkIntegration:
             }
         }
 
-        # Collect performance metrics
-        metrics = collector.collect_metrics(performance_data)
+        # Collect performance metrics to verify collector works
+        collector.collect_metrics(performance_data)
 
         # Generate report from performance data
         report_result = reporter.generate_performance_report(
