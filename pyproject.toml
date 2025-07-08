@@ -118,3 +118,13 @@ targets = ["framework"]
 # Security decisions for CI framework:
 # B404: subprocess import - Required for CI functionality, used securely with validation
 # B603: subprocess call - Used with shell=False and comprehensive input validation
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests as integration tests",
+    "property: marks tests as property-based tests",
+    "security: marks tests as security tests",
+    "reporting: marks tests as reporting tests",
+    "unit: marks tests as unit tests",
+    "asyncio: marks tests as async tests",
+]
