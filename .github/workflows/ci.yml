@@ -117,18 +117,18 @@ jobs:
     steps:
       - name: "Generate Run Summary"
         run: |
-          echo "## CI Framework CI Summary" >> $GITHUB_STEP_SUMMARY
-          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "## CI Framework CI Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Job | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-----|--------|" >> "$GITHUB_STEP_SUMMARY"
           echo "| Lint & Format | ${{ needs.lint-and-format.result }} |" \
-            >> $GITHUB_STEP_SUMMARY
+            >> "$GITHUB_STEP_SUMMARY"
           echo "| Security Scan | ${{ needs.security-scan.result }} |" \
-            >> $GITHUB_STEP_SUMMARY
+            >> "$GITHUB_STEP_SUMMARY"
           echo "| Unit Tests | ${{ needs.unit-tests.result }} |" \
-            >> $GITHUB_STEP_SUMMARY
+            >> "$GITHUB_STEP_SUMMARY"
           echo "| Reusable Workflow Integration Tests |" \
             "${{ needs.integration-tests-reusable-workflows.result }} |" \
-            >> $GITHUB_STEP_SUMMARY
+            >> "$GITHUB_STEP_SUMMARY"
 
           if [[ "${{ needs.lint-and-format.result }}" == "success" && \
                 "${{ needs.security-scan.result }}" == "success" && \

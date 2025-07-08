@@ -70,7 +70,7 @@ jobs:
       security: ${{ steps.changes.outputs.security }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v2
+      - uses: dorny/paths-filter@v3
         id: changes
         with:
           filters: |
@@ -196,7 +196,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: detect-changes
     if: >-
-      ${{ inputs.enable-performance }} &&
+      inputs.enable-performance &&
       needs.detect-changes.outputs.performance == 'true'
     steps:
       - uses: actions/checkout@v4
@@ -324,4 +324,4 @@ jobs:
             --output-file summary.md
       - name: "Add Summary to Job Summary"
         run: |
-          cat summary.md >> $GITHUB_STEP_SUMMARY
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
