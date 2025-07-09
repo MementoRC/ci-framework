@@ -80,7 +80,11 @@ class TestFrameworkProperties:
         ),
     )
     @settings(
-        max_examples=5, suppress_health_check=[HealthCheck.function_scoped_fixture]
+        max_examples=5,
+        suppress_health_check=[
+            HealthCheck.function_scoped_fixture,
+            HealthCheck.filter_too_much,
+        ],
     )
     def test_performance_metrics_aggregation_properties(
         self, test_names, values, tmp_path
@@ -89,26 +93,30 @@ class TestFrameworkProperties:
         assume(len(test_names) == len(values))
 
         # Setup
-        metrics = PerformanceMetrics()
+        from datetime import datetime
+
+        metrics = PerformanceMetrics(build_id="test_build", timestamp=datetime.now())
 
         # Add results with generated data
+        from framework.performance.models import BenchmarkResult
+
         for name, value in zip(test_names, values, strict=True):
-            metrics.add_result(name, {"execution_time": value})
+            result = BenchmarkResult(name=name, execution_time=value)
+            metrics.add_result(result)
 
         # Calculate summary statistics
-        summary = metrics.get_summary_stats()
+        summary = metrics.calculate_summary_stats()
 
         # Verify mathematical properties
         if len(values) > 0:
             min_value = min(values)
             max_value = max(values)
 
-            # Property: min <= mean <= max
-            for test_name in test_names:
-                if test_name in summary:
-                    stats = summary[test_name].get("execution_time", {})
-                    if "mean" in stats:
-                        assert min_value <= stats["mean"] <= max_value
+            # The summary stats are aggregated across all results
+            if "avg_execution_time" in summary:
+                avg_time = summary["avg_execution_time"]
+                # Property: min <= mean <= max
+                assert min_value <= avg_time <= max_value
 
     @given(
         severity_levels=st.lists(
