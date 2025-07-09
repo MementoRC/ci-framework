@@ -181,11 +181,6 @@ class TestFrameworkProperties:
         # Setup
         reporter = GitHubReporter()
 
-        # Convert duration to human-readable format
-        minutes = duration_seconds // 60
-        seconds = duration_seconds % 60
-        duration_str = f"{minutes}m {seconds}s"
-
         # Generate build status summary
         test_results = {
             "total": test_count,
