@@ -186,8 +186,8 @@ class TestReportingIntegration:
             "summary": {"total_benchmarks": 2, "improvements": 2, "regressions": 0},
         }
 
-        # Generate performance report
-        performance_report = reporter.generate_performance_report(
+        # Generate performance report (creates internal artifacts)
+        reporter.generate_performance_report(
             performance_metrics=performance_metrics
         )
 
