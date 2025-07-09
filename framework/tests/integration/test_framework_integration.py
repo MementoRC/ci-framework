@@ -86,11 +86,10 @@ class TestFrameworkIntegration:
             "passed": 145,
             "failed": 5,
             "coverage": 85.5,
-            "duration": 150.0  # duration in seconds
+            "duration": 150.0,  # duration in seconds
         }
         build_summary = reporter.create_build_status_summary(
-            build_status="success",
-            test_results=test_results
+            build_status="success", test_results=test_results
         )
 
         assert "success" in build_summary.lower() or "✅" in build_summary
@@ -138,6 +137,7 @@ class TestFrameworkIntegration:
 
         # Simulate processing delay (converted from async)
         import time
+
         time.sleep(0.1)  # Simulate processing operation
 
         # Verify integration works
@@ -269,11 +269,13 @@ class TestFrameworkModuleIntegration:
             "total": 75,
             "passed": 73,
             "failed": 2,
-            "duration": 105.0  # 1m 45s in seconds
+            "duration": 105.0,  # 1m 45s in seconds
         }
         maintenance_summary = reporter.create_build_status_summary(
-            build_status="success" if health_data.get("status") != "critical" else "failure",
-            test_results=test_results
+            build_status=(
+                "success" if health_data.get("status") != "critical" else "failure"
+            ),
+            test_results=test_results,
         )
 
         assert maintenance_summary is not None
