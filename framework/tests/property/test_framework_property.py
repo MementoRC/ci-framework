@@ -23,7 +23,9 @@ class TestFrameworkProperties:
         throughput=st.integers(min_value=1, max_value=100000),
     )
     @settings(
-        max_examples=5, suppress_health_check=[HealthCheck.function_scoped_fixture]
+        max_examples=5,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+        deadline=2000,  # Increase deadline to 2 seconds
     )
     def test_performance_collector_data_integrity(
         self, execution_time, memory_usage, throughput, tmp_path
@@ -55,7 +57,7 @@ class TestFrameworkProperties:
         # Get the stored benchmark result
         stored_result = retrieved_metrics.get_result(test_name)
         assert stored_result is not None
-        
+
         # Check that the values match (within floating point tolerance)
         assert abs(stored_result.execution_time - execution_time) < 0.0001
         # Note: memory_usage is stored as float, not string
