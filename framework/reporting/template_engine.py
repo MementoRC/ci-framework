@@ -78,6 +78,11 @@ class TemplateEngine:
 
         markdown = "# ⚡ Performance Benchmark Report\n\n"
 
+        # Handle None metrics gracefully
+        if metrics is None:
+            markdown += "⚠️ No performance metrics available.\n\n"
+            return markdown
+
         # Check for regression alerts first
         if metrics.get("regressions_detected"):
             markdown += "## 🚨 Performance Regressions Detected\n\n"
