@@ -39,19 +39,19 @@ class TestReportingIntegration:
         report_result = reporter.generate_performance_report(
             performance_metrics=performance_data
         )
-        
+
         # The report creates its own artifact, so let's test creating another one
         artifact_path = artifact_manager.create_report_artifact(
             report_name="performance_report",
             report_data=performance_data,
-            format_type="json"
+            format_type="json",
         )
 
         # Verify integration
         assert artifact_path.exists()
         stored_content = artifact_path.read_text()
         assert "test_suite" in stored_content
-        
+
         # Verify the report result
         assert report_result["summary_added"] is False  # No GitHub environment
         assert report_result["artifact_created"] is not None
@@ -96,24 +96,29 @@ class TestReportingIntegration:
         # Test template rendering with various data types
         build_data = {
             "status": "success",
-            "duration": "3m 45s",
+            "duration": 225,  # 3m 45s = 225 seconds
             "test_count": 200,
             "coverage": 92.3,
         }
 
         # Render using template engine
         build_summary = template_engine.render_build_status(
-            success=build_data["status"] == "success",
-            duration=build_data["duration"],
-            test_count=build_data["test_count"],
-            coverage=build_data["coverage"],
+            {
+                "build_status": build_data["status"],
+                "test_results": {
+                    "total": build_data["test_count"],
+                    "passed": 200,
+                    "failed": 0,
+                    "duration": build_data["duration"],
+                },
+            }
         )
 
         # Verify template integration
         assert build_summary is not None
-        assert "200" in build_summary
-        assert "92.3" in build_summary
-        assert "3m 45s" in build_summary
+        assert "200" in build_summary  # Total and passed tests
+        assert "225.00s" in build_summary  # Duration
+        assert "success" in build_summary.lower()  # Status
 
     def test_artifact_manager_multiple_formats_integration(self, tmp_path):
         """Test artifact manager with multiple report formats."""
@@ -128,15 +133,13 @@ class TestReportingIntegration:
 
         # Create artifacts in different formats
         json_artifact = artifact_manager.create_artifact(
-            name="test_results.json",
-            content=test_data,
-            content_type="application/json"
+            name="test_results.json", content=test_data, content_type="application/json"
         )
 
         text_artifact = artifact_manager.create_artifact(
             name="summary.txt",
             content="Test Results Summary\n===================\nTests: 150\nFailures: 0",
-            content_type="text/plain"
+            content_type="text/plain",
         )
 
         # Verify multiple format integration
@@ -182,7 +185,7 @@ class TestReportingIntegration:
         artifact_path = artifact_manager.create_report_artifact(
             report_name="performance_analysis",
             report_data=performance_report,
-            format_type="markdown"
+            format_type="markdown",
         )
 
         # Verify performance integration
@@ -284,7 +287,7 @@ class TestReportingIntegration:
         artifact_path = artifact_manager.create_report_artifact(
             report_name="large_performance_report",
             report_data=report,
-            format_type="markdown"
+            format_type="markdown",
         )
 
         end_time = time.time()

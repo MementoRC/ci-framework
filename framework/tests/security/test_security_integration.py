@@ -24,27 +24,15 @@ class TestSecurityIntegration:
         # Setup
         from framework.security.sbom_generator import SBOMGenerator
         from framework.reporting.github_reporter import GitHubReporter
-        
-        sbom_gen = SBOMGenerator(storage_path=tmp_path)
+
+        sbom_gen = SBOMGenerator()
         github_reporter = GitHubReporter(artifact_path=tmp_path)
         dashboard = SecurityDashboardGenerator(sbom_gen, github_reporter)
 
-        # Mock security findings
-        security_findings = {
-            "vulnerabilities": [
-                {
-                    "package": "vulnerable-package",
-                    "version": "1.0.0",
-                    "severity": "high",
-                    "description": "Test vulnerability",
-                }
-            ],
-            "total_vulnerabilities": 1,
-            "by_severity": {"high": 1, "medium": 0, "low": 0, "critical": 0},
-        }
+        # Note: SecurityDashboardGenerator gets data from sbom_generator internally
 
-        # Generate dashboard from findings
-        dashboard_html = dashboard.generate_security_dashboard(security_findings)
+        # Generate dashboard (gets data from sbom_generator internally)
+        dashboard_html = dashboard.generate_security_dashboard()
 
         # Verify integration
         assert dashboard_html is not None
