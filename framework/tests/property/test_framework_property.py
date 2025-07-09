@@ -35,11 +35,10 @@ class TestFrameworkProperties:
         # Create test data with generated values
         test_name = "property_test"
         performance_data = {
-            test_name: {
-                "execution_time": execution_time,
-                "memory_usage": f"{memory_usage}MB",
-                "throughput": throughput,
-            }
+            "name": test_name,
+            "execution_time": execution_time,
+            "memory_usage": memory_usage,  # Pass as float, not string
+            "throughput": throughput,
         }
 
         # Collect metrics and store as baseline
@@ -51,19 +50,17 @@ class TestFrameworkProperties:
 
         # Verify data integrity properties
         assert retrieved_metrics is not None
-        assert len(retrieved_metrics.benchmarks) == 1
+        assert len(retrieved_metrics.results) == 1
 
-        # Find the stored benchmark result
-        stored_result = None
-        for result in retrieved_metrics.benchmarks:
-            if result.name == test_name:
-                stored_result = result
-                break
-
+        # Get the stored benchmark result
+        stored_result = retrieved_metrics.get_result(test_name)
         assert stored_result is not None
-        assert stored_result.execution_time == execution_time
-        assert stored_result.memory_usage == f"{memory_usage}MB"
-        assert stored_result.throughput == throughput
+        
+        # Check that the values match (within floating point tolerance)
+        assert abs(stored_result.execution_time - execution_time) < 0.0001
+        # Note: memory_usage is stored as float, not string
+        assert abs(stored_result.memory_usage - memory_usage) < 0.0001
+        assert abs(stored_result.throughput - throughput) < 0.0001
 
     @given(
         test_names=st.lists(

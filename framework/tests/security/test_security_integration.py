@@ -22,7 +22,12 @@ class TestSecurityIntegration:
     def test_analyzer_to_dashboard_integration(self, tmp_path):
         """Test integration between security analyzer and dashboard generator."""
         # Setup
-        dashboard = SecurityDashboardGenerator()
+        from framework.security.sbom_generator import SBOMGenerator
+        from framework.reporting.github_reporter import GitHubReporter
+        
+        sbom_gen = SBOMGenerator(storage_path=tmp_path)
+        github_reporter = GitHubReporter(artifact_path=tmp_path)
+        dashboard = SecurityDashboardGenerator(sbom_gen, github_reporter)
 
         # Mock security findings
         security_findings = {

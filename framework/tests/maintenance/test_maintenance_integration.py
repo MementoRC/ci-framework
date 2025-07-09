@@ -198,7 +198,7 @@ dependencies = ["numpy>=1.20.0", "pandas>=1.0.0"]
         old_report_file.write_text('{"old": "report"}')
 
         # Mock datetime to make files appear old
-        with patch("strategy_sandbox.maintenance.scheduler.datetime") as mock_datetime:
+        with patch("framework.maintenance.scheduler.datetime") as mock_datetime:
             from datetime import datetime, timedelta
 
             mock_now = datetime(2024, 6, 15, 12, 0, 0)

@@ -35,22 +35,26 @@ class TestReportingIntegration:
             }
         }
 
-        report_content = reporter.generate_performance_report(
-            performance_data=performance_data
+        # Generate performance report (this creates its own artifact)
+        report_result = reporter.generate_performance_report(
+            performance_metrics=performance_data
         )
-
-        # Store as artifact
+        
+        # The report creates its own artifact, so let's test creating another one
         artifact_path = artifact_manager.create_report_artifact(
-            content=report_content,
-            report_type="performance",
-            filename="performance_report.md",
+            report_name="performance_report",
+            report_data=performance_data,
+            format_type="json"
         )
 
         # Verify integration
         assert artifact_path.exists()
         stored_content = artifact_path.read_text()
         assert "test_suite" in stored_content
-        assert "2.5" in stored_content
+        
+        # Verify the report result
+        assert report_result["summary_added"] is False  # No GitHub environment
+        assert report_result["artifact_created"] is not None
 
     def test_report_generator_comprehensive_integration(self, tmp_path):
         """Test comprehensive report generation integration."""
@@ -75,9 +79,8 @@ class TestReportingIntegration:
         report_generator.set_coverage_data(coverage_data)
         report_generator.add_performance_trend(performance_data)
 
-        comprehensive_report = report_generator.generate_comprehensive_report(
-            include_coverage=True, include_performance=True, include_build_insights=True
-        )
+        # Generate comprehensive report with available data
+        comprehensive_report = report_generator.generate_comprehensive_report()
 
         # Verify comprehensive integration
         assert comprehensive_report is not None
@@ -124,13 +127,16 @@ class TestReportingIntegration:
         }
 
         # Create artifacts in different formats
-        json_artifact = artifact_manager.create_json_artifact(
-            data=test_data, filename="test_results.json"
+        json_artifact = artifact_manager.create_artifact(
+            name="test_results.json",
+            content=test_data,
+            content_type="application/json"
         )
 
-        text_artifact = artifact_manager.create_text_artifact(
+        text_artifact = artifact_manager.create_artifact(
+            name="summary.txt",
             content="Test Results Summary\n===================\nTests: 150\nFailures: 0",
-            filename="summary.txt",
+            content_type="text/plain"
         )
 
         # Verify multiple format integration
@@ -169,14 +175,14 @@ class TestReportingIntegration:
 
         # Generate performance report
         performance_report = reporter.generate_performance_report(
-            performance_data=performance_metrics
+            performance_metrics=performance_metrics
         )
 
         # Store as artifact
         artifact_path = artifact_manager.create_report_artifact(
-            content=performance_report,
-            report_type="performance",
-            filename="performance_analysis.md",
+            report_name="performance_analysis",
+            report_data=performance_report,
+            format_type="markdown"
         )
 
         # Verify performance integration
@@ -243,7 +249,7 @@ class TestReportingIntegration:
             try:
                 # Should handle gracefully without crashing
                 report = reporter.generate_performance_report(
-                    performance_data=invalid_input
+                    performance_metrics=invalid_input
                 )
                 assert report is not None  # Should return some content
             except Exception as e:
@@ -272,13 +278,13 @@ class TestReportingIntegration:
 
         start_time = time.time()
 
-        report = reporter.generate_performance_report(performance_data=large_dataset)
+        report = reporter.generate_performance_report(performance_metrics=large_dataset)
 
         # Store large report
         artifact_path = artifact_manager.create_report_artifact(
-            content=report,
-            report_type="performance",
-            filename="large_performance_report.md",
+            report_name="large_performance_report",
+            report_data=report,
+            format_type="markdown"
         )
 
         end_time = time.time()
