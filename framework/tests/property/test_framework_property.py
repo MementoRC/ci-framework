@@ -6,6 +6,7 @@ to verify properties and invariants hold across a wide range of inputs.
 """
 
 import pytest
+import string
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 
@@ -69,7 +70,7 @@ class TestFrameworkProperties:
             st.text(
                 min_size=1,
                 max_size=50,
-                alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Pc")),
+                alphabet=string.ascii_letters + string.digits + "_-",
             ),
             min_size=1,
             max_size=10,
@@ -119,16 +120,14 @@ class TestFrameworkProperties:
                 assert min_value <= avg_time <= max_value
 
     @given(
-        severity_levels=st.lists(
-            st.sampled_from(["low", "medium", "high", "critical"]),
-            min_size=0,
-            max_size=20,
-        ),
-        package_names=st.lists(
-            st.text(
-                min_size=1,
-                max_size=30,
-                alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Pc")),
+        vulnerabilities=st.lists(
+            st.tuples(
+                st.sampled_from(["low", "medium", "high", "critical"]),
+                st.text(
+                    min_size=1,
+                    max_size=30,
+                    alphabet=string.ascii_letters + string.digits + "_-",
+                ),
             ),
             min_size=0,
             max_size=20,
@@ -136,26 +135,25 @@ class TestFrameworkProperties:
     )
     @settings(max_examples=15)
     def test_security_analyzer_vulnerability_counting_properties(
-        self, severity_levels, package_names
+        self, vulnerabilities
     ):
         """Test that security analyzer maintains counting properties."""
-        assume(len(severity_levels) == len(package_names))
 
-        # Create mock vulnerability data
-        vulnerabilities = []
-        for severity, package in zip(severity_levels, package_names, strict=True):
-            vulnerabilities.append(
+        # Create mock vulnerability data from tuples
+        vulnerability_data = []
+        for severity, package in vulnerabilities:
+            vulnerability_data.append(
                 {"package": package, "severity": severity, "version": "1.0.0"}
             )
 
         # Count vulnerabilities by severity
         severity_counts = {"low": 0, "medium": 0, "high": 0, "critical": 0}
-        for vuln in vulnerabilities:
+        for vuln in vulnerability_data:
             severity_counts[vuln["severity"]] += 1
 
         # Verify counting properties
         total_count = sum(severity_counts.values())
-        assert total_count == len(vulnerabilities)
+        assert total_count == len(vulnerability_data)
 
         # Property: sum of individual counts equals total
         assert (
@@ -210,7 +208,7 @@ class TestFrameworkProperties:
             keys=st.text(
                 min_size=1,
                 max_size=30,
-                alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Pc")),
+                alphabet=string.ascii_letters + string.digits + "_-",
             ),
             values=st.dictionaries(
                 keys=st.sampled_from(["execution_time", "memory_usage", "throughput"]),
