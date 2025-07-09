@@ -312,5 +312,5 @@ class TestSecurityModuleUnits:
         collector = SecurityCollector(storage_path=tmp_path)
 
         assert collector.storage_path == Path(tmp_path)
-        assert hasattr(collector, "store_security_results")
-        assert hasattr(collector, "load_security_results")
+        assert hasattr(collector, "save_metrics")
+        assert hasattr(collector, "load_metrics")
