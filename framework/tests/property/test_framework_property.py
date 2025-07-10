@@ -226,7 +226,7 @@ class TestFrameworkProperties:
             max_size=5,
         )
     )
-    @settings(max_examples=10, deadline=5000)
+    @settings(max_examples=10, deadline=5000, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_performance_collector_batch_operations_properties(
         self, benchmark_data, tmp_path
     ):
