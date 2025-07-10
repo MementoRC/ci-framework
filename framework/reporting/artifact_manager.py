@@ -287,7 +287,7 @@ class ArtifactManager:
     <div class="section">
         <h2>Report Data</h2>
         <div class="data">
-            <pre>{json.dumps(report_data, indent=2)}</pre>
+            <pre>{json.dumps(report_data, indent=2, default=str)}</pre>
         </div>
     </div>
 </body>
@@ -305,7 +305,7 @@ Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 ## Report Data
 
 ```json
-{json.dumps(report_data, indent=2)}
+{json.dumps(report_data, indent=2, default=str)}
 ```
 """
         return markdown
