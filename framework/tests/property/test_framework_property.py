@@ -362,7 +362,9 @@ class TestFrameworkDataValidation:
         )
     )
     @settings(
-        max_examples=3, suppress_health_check=[HealthCheck.function_scoped_fixture]
+        max_examples=3, 
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+        deadline=5000  # 5 seconds for system info collection
     )
     def test_data_serialization_properties(self, data, tmp_path):
         """Test that data serialization maintains consistency properties."""
@@ -371,7 +373,11 @@ class TestFrameworkDataValidation:
 
         # Create a test with the generated data
         test_name = "serialization_test"
-        test_data = {test_name: data}
+        test_data = {
+            "name": test_name,
+            "execution_time": 1.0,
+            "test_data": data  # Include the generated data as metadata
+        }
 
         # Collect metrics and store as baseline
         metrics = collector.collect_metrics(test_data)

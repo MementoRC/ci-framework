@@ -324,11 +324,18 @@ class TestReportingIntegration:
         # Test custom template rendering
         context = {
             "metrics": {
-                "build_number": custom_data["build_number"],
-                "project_name": custom_data["project_name"],
-                "branch": custom_data["branch"],
-                "execution_time": 2.5,
-                "memory_usage": 512
+                "results": [
+                    {
+                        "name": custom_data["project_name"],
+                        "execution_time": 2.5,
+                        "memory_usage": 512,
+                        "throughput": 100
+                    }
+                ],
+                "summary_stats": {
+                    "build_number": custom_data["build_number"],
+                    "branch": custom_data["branch"]
+                }
             },
             "timestamp": "2024-01-01T12:00:00Z"
         }
