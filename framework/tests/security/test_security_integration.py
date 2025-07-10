@@ -88,21 +88,7 @@ class TestSecurityIntegration:
         github_reporter = GitHubReporter(artifact_path=tmp_path)
         dashboard = SecurityDashboardGenerator(sbom_gen, github_reporter)
 
-        # Comprehensive security data
-        security_data = {
-            "scan_summary": {
-                "total_packages": 100,
-                "vulnerable_packages": 5,
-                "scan_date": "2024-01-01",
-            },
-            "vulnerabilities": [
-                {"package": "pkg1", "severity": "critical", "cvss": 9.5},
-                {"package": "pkg2", "severity": "high", "cvss": 7.8},
-                {"package": "pkg3", "severity": "medium", "cvss": 5.2},
-                {"package": "pkg4", "severity": "low", "cvss": 2.1},
-            ],
-            "remediation": {"upgradeable": 3, "patchable": 1, "no_fix": 1},
-        }
+        # Note: dashboard.generate_security_dashboard() gets data from sbom_generator
 
         # Generate dashboard
         dashboard_result = dashboard.generate_security_dashboard()
@@ -141,9 +127,21 @@ class TestSecurityIntegration:
             },
         ]
 
-        # Store historical data
-        for data in historical_data:
-            collector.store_security_results(data)
+        # Store historical data - create mock SecurityMetrics from data
+        from framework.security.models import SecurityMetrics
+        from datetime import datetime
+        
+        for i, data in enumerate(historical_data):
+            # Create mock SecurityMetrics
+            mock_metrics = SecurityMetrics(
+                build_id=f"trend_test_{i}",
+                timestamp=datetime.now(),
+                dependencies=[],  # Empty for this test
+                scan_config={},
+                environment={},
+                scan_duration=1.0
+            )
+            collector.save_metrics(mock_metrics)
 
         # Generate trend analysis
         trend_data = {
@@ -161,8 +159,13 @@ class TestSecurityIntegration:
 
     def test_security_compliance_integration(self, tmp_path):
         """Test security compliance reporting integration."""
-        # Setup
-        dashboard = SecurityDashboardGenerator()
+        # Setup - provide required dependencies
+        from framework.security.sbom_generator import SBOMGenerator
+        from framework.reporting.github_reporter import GitHubReporter
+        
+        sbom_gen = SBOMGenerator()
+        github_reporter = GitHubReporter(artifact_path=tmp_path)
+        dashboard = SecurityDashboardGenerator(sbom_gen, github_reporter)
 
         # Compliance data
         compliance_data = {
@@ -207,18 +210,35 @@ class TestSecurityIntegration:
         # Run async scan
         scan_result = await mock_security_scan()
 
-        # Store async results
-        collector.store_security_results(scan_result)
+        # Store async results - create mock SecurityMetrics
+        from framework.security.models import SecurityMetrics
+        from datetime import datetime
+        
+        mock_metrics = SecurityMetrics(
+            build_id="async_test",
+            timestamp=datetime.now(),
+            dependencies=[],
+            scan_config=scan_result,
+            environment={},
+            scan_duration=1.0
+        )
+        saved_file = collector.save_metrics(mock_metrics, "async_test.json")
 
         # Verify async integration
-        retrieved = collector.load_security_results("async_test")
+        retrieved = collector.load_metrics(saved_file)
         assert retrieved is not None
-        assert retrieved["status"] == "completed"
+        assert retrieved.build_id == "async_test"
+        assert retrieved.scan_config["status"] == "completed"
 
     def test_security_error_handling_integration(self, tmp_path):
         """Test error handling in security integrations."""
-        # Setup
-        dashboard = SecurityDashboardGenerator()
+        # Setup - provide required dependencies
+        from framework.security.sbom_generator import SBOMGenerator
+        from framework.reporting.github_reporter import GitHubReporter
+        
+        sbom_gen = SBOMGenerator()
+        github_reporter = GitHubReporter(artifact_path=tmp_path)
+        dashboard = SecurityDashboardGenerator(sbom_gen, github_reporter)
 
         # Test with invalid/incomplete data
         invalid_data = {
@@ -236,9 +256,14 @@ class TestSecurityIntegration:
 
     def test_security_performance_integration(self, tmp_path):
         """Test security module performance characteristics."""
-        # Setup
+        # Setup - provide required dependencies
+        from framework.security.sbom_generator import SBOMGenerator
+        from framework.reporting.github_reporter import GitHubReporter
+        
         collector = SecurityCollector(storage_path=tmp_path)
-        dashboard = SecurityDashboardGenerator()
+        sbom_gen = SBOMGenerator()
+        github_reporter = GitHubReporter(artifact_path=tmp_path)
+        dashboard = SecurityDashboardGenerator(sbom_gen, github_reporter)
 
         # Large dataset for performance testing
         large_security_data = {
