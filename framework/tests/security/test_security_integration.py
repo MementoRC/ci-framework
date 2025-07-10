@@ -46,22 +46,7 @@ class TestSecurityIntegration:
     def test_security_to_reporting_integration(self, tmp_path):
         """Test security data integration with reporting system."""
         # Setup
-        collector = SecurityCollector(storage_path=tmp_path)
         reporter = GitHubReporter()
-
-        # Create security data
-        security_data = {
-            "scan_date": "2024-01-01",
-            "vulnerabilities": [
-                {
-                    "package": "test-package",
-                    "severity": "medium",
-                    "fixed_version": "2.0.0",
-                }
-            ],
-            "total_count": 1,
-            "severity_breakdown": {"medium": 1},
-        }
 
         # Generate security report directly (testing reporter integration)
         report = reporter.generate_security_report()
