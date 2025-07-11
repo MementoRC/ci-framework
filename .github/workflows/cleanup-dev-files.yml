@@ -109,8 +109,8 @@ jobs:
               repo: context.repo.repo,
               body: |
                 🧹 **Dev Files Cleanup Complete**
-                
-                Development files have been automatically removed from the `${{ github.event.pull_request.base.ref }}` branch after merge.
-                
+
+                Development files have been automatically removed from the target branch after merge.
+
                 *This keeps your main branches clean while preserving dev files in feature branches.*
             })
