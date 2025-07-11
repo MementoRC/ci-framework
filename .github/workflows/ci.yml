@@ -27,13 +27,13 @@ jobs:
           ls -la .pixi
       - name: "Run Ruff (linting)"
         run: |
-          pixi run -e quality lint-impl
+          pixi run -e quality ruff check framework/ --select=F,E9
       - name: "Run Ruff Format Check"
         run: |
-          pixi run -e quality format-check
+          pixi run -e quality ruff format --check framework/
       - name: "Run Type Checking"
         run: |
-          pixi run -e quality typecheck-impl
+          pixi run -e quality mypy framework/
       - name: "Install Dev Dependencies for YAML/Action Lint"
         run: |
           pixi install -e dev || exit 1
@@ -95,7 +95,7 @@ jobs:
           ls -la .pixi
       - name: "Run Unit Tests with Coverage"
         run: |
-          pixi run -e ci ci-test
+          pixi run -e ci pytest framework/tests/ --cov=framework --cov-report=xml
 
   # Placeholder for more advanced integration tests of reusable workflows
   # This would involve creating a dummy repository and calling the reusable
