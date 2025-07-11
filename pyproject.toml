@@ -129,7 +129,8 @@ install-editable = "pip install -e ."
 dev = "echo 'Development environment ready'"
 
 # Testing (ZERO-TOLERANCE QUALITY GATES)
-test = "pytest framework/tests/ -v"
+test = "pixi run -e quality test-impl"
+test-impl = "pytest framework/tests/ -v"
 test-cov = "pytest framework/tests/ --cov=framework --cov-report=term-missing --cov-report=xml"
 test-unit = "pytest framework/tests/unit/ -v"
 test-integration = "pytest framework/tests/integration/ -v"
@@ -140,11 +141,13 @@ test-performance = "pytest framework/tests/performance/ -v"
 test-maintenance = "pytest framework/tests/maintenance/ -v"
 
 # Quality Gates (CRITICAL - MUST PASS)
-lint = "ruff check framework/ --select=F,E9"
+lint = "pixi run -e quality lint-impl"
+lint-impl = "ruff check framework/ --select=F,E9"
 lint-fix = "ruff check --fix framework/"
 format = "ruff format framework/"
 format-check = "ruff format --check framework/"
-typecheck = "mypy framework/"
+typecheck = "pixi run -e quality typecheck-impl"
+typecheck-impl = "mypy framework/"
 
 # Combined Quality Check
 quality = { depends-on = ["test", "lint", "typecheck"] }
