@@ -185,7 +185,7 @@ yaml-lint = "yamllint .github/workflows/"
 action-lint = "actionlint"
 security-audit = "pip-audit --verbose"
 bandit-scan = "bandit -r framework/ -x framework/tests/ -s B101"
-detect-secrets = "detect-secrets scan --all-files"
+detect-secrets = "detect-secrets scan --exclude-files '__pycache__' --exclude-files '*.pyc' --exclude-files '*.egg-info' --exclude-files '.git' --exclude-files 'pixi.lock'"
 unit-test = "pytest framework/tests/"
 
 # Performance & Benchmarking
