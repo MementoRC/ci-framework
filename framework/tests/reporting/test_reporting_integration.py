@@ -22,39 +22,49 @@ class TestReportingIntegration:
 
     def test_github_reporter_to_artifact_manager_integration(self, tmp_path):
         """Test integration between GitHub reporter and artifact manager."""
-        # Setup
-        reporter = GitHubReporter()
-        artifact_manager = ArtifactManager(artifact_path=tmp_path)
+        # Setup - ensure no GitHub environment for consistent test behavior
+        import os
+        original_env = os.environ.get("GITHUB_STEP_SUMMARY")
+        if "GITHUB_STEP_SUMMARY" in os.environ:
+            del os.environ["GITHUB_STEP_SUMMARY"]
+        
+        try:
+            reporter = GitHubReporter()
+            artifact_manager = ArtifactManager(artifact_path=tmp_path)
 
-        # Generate report
-        performance_data = {
-            "test_suite": {
-                "execution_time": 2.5,
-                "memory_usage": "75MB",
-                "throughput": 500,
+            # Generate report
+            performance_data = {
+                "test_suite": {
+                    "execution_time": 2.5,
+                    "memory_usage": "75MB",
+                    "throughput": 500,
+                }
             }
-        }
 
-        # Generate performance report (this creates its own artifact)
-        report_result = reporter.generate_performance_report(
-            performance_metrics=performance_data
-        )
+            # Generate performance report (this creates its own artifact)
+            report_result = reporter.generate_performance_report(
+                performance_metrics=performance_data
+            )
 
-        # The report creates its own artifact, so let's test creating another one
-        artifact_path = artifact_manager.create_report_artifact(
-            report_name="performance_report",
-            report_data=performance_data,
-            format_type="json",
-        )
+            # The report creates its own artifact, so let's test creating another one
+            artifact_path = artifact_manager.create_report_artifact(
+                report_name="performance_report",
+                report_data=performance_data,
+                format_type="json",
+            )
 
-        # Verify integration
-        assert artifact_path.exists()
-        stored_content = artifact_path.read_text()
-        assert "test_suite" in stored_content
+            # Verify integration
+            assert artifact_path.exists()
+            stored_content = artifact_path.read_text()
+            assert "test_suite" in stored_content
 
-        # Verify the report result
-        assert report_result["summary_added"] is False  # No GitHub environment
-        assert report_result["artifact_created"] is not None
+            # Verify the report result
+            assert report_result["summary_added"] is False  # No GitHub environment
+            assert report_result["artifact_created"] is not None
+        finally:
+            # Restore original environment
+            if original_env is not None:
+                os.environ["GITHUB_STEP_SUMMARY"] = original_env
 
     def test_report_generator_comprehensive_integration(self, tmp_path):
         """Test comprehensive report generation integration."""
