@@ -417,7 +417,9 @@ class SecurityDashboardGenerator:
             score_trend = (
                 "improving"
                 if recent_scores[-1] > recent_scores[0]
-                else "declining" if recent_scores[-1] < recent_scores[0] else "stable"
+                else "declining"
+                if recent_scores[-1] < recent_scores[0]
+                else "stable"
             )
 
             recent_vulns = [
@@ -427,7 +429,9 @@ class SecurityDashboardGenerator:
             vuln_trend = (
                 "decreasing"
                 if recent_vulns[-1] < recent_vulns[0]
-                else "increasing" if recent_vulns[-1] > recent_vulns[0] else "stable"
+                else "increasing"
+                if recent_vulns[-1] > recent_vulns[0]
+                else "stable"
             )
 
             trend_data["trend_analysis"] = {

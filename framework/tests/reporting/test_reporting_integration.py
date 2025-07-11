@@ -85,15 +85,21 @@ class TestReportingIntegration:
         # Verify comprehensive integration
         assert comprehensive_report is not None
         assert "report_sections" in comprehensive_report
-        
+
         # Check coverage data in report sections
-        coverage_section = comprehensive_report["report_sections"].get("coverage_report", "")
+        coverage_section = comprehensive_report["report_sections"].get(
+            "coverage_report", ""
+        )
         assert "85.5" in coverage_section  # Coverage
-        
-        # Check performance data in report sections  
-        perf_section = comprehensive_report["report_sections"].get("performance_dashboard", "")
-        assert "1.8" in perf_section or "performance" in perf_section.lower()  # Performance
-        
+
+        # Check performance data in report sections
+        perf_section = comprehensive_report["report_sections"].get(
+            "performance_dashboard", ""
+        )
+        assert (
+            "1.8" in perf_section or "performance" in perf_section.lower()
+        )  # Performance
+
         # Verify substantial content across all sections
         total_content = "".join(comprehensive_report["report_sections"].values())
         assert len(total_content) > 1000  # Substantial content
@@ -187,9 +193,7 @@ class TestReportingIntegration:
         }
 
         # Generate performance report (creates internal artifacts)
-        reporter.generate_performance_report(
-            performance_metrics=performance_metrics
-        )
+        reporter.generate_performance_report(performance_metrics=performance_metrics)
 
         # Store as artifact - pass the performance metrics data, not the result dict
         artifact_path = artifact_manager.create_report_artifact(
@@ -304,7 +308,9 @@ class TestReportingIntegration:
         # Verify large dataset handling
         assert processing_time < 5.0  # Should complete within 5 seconds
         assert artifact_path.exists()
-        assert artifact_path.stat().st_size > 100  # Substantial content (realistic size)
+        assert (
+            artifact_path.stat().st_size > 100
+        )  # Substantial content (realistic size)
 
     def test_reporting_template_customization_integration(self, tmp_path):
         """Test template customization integration."""
@@ -327,15 +333,15 @@ class TestReportingIntegration:
                         "name": custom_data["project_name"],
                         "execution_time": 2.5,
                         "memory_usage": 512,
-                        "throughput": 100
+                        "throughput": 100,
                     }
                 ],
                 "summary_stats": {
                     "build_number": custom_data["build_number"],
-                    "branch": custom_data["branch"]
-                }
+                    "branch": custom_data["branch"],
+                },
             },
-            "timestamp": "2024-01-01T12:00:00Z"
+            "timestamp": "2024-01-01T12:00:00Z",
         }
         performance_summary = template_engine.render_performance_summary(context)
 

@@ -134,9 +134,7 @@ class TestFrameworkProperties:
         ),
     )
     @settings(max_examples=15)
-    def test_security_analyzer_vulnerability_counting_properties(
-        self, vulnerabilities
-    ):
+    def test_security_analyzer_vulnerability_counting_properties(self, vulnerabilities):
         """Test that security analyzer maintains counting properties."""
 
         # Create mock vulnerability data from tuples
@@ -202,7 +200,7 @@ class TestFrameworkProperties:
         # Property: duration should be present when > 0
         if duration_seconds > 0:
             assert "Duration" in summary or "duration" in summary.lower()
-        
+
         # Property: status information should be present
         assert "Status" in summary or "status" in summary.lower()
 
@@ -226,7 +224,11 @@ class TestFrameworkProperties:
             max_size=5,
         )
     )
-    @settings(max_examples=10, deadline=5000, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(
+        max_examples=10,
+        deadline=5000,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
     def test_performance_collector_batch_operations_properties(
         self, benchmark_data, tmp_path
     ):
@@ -240,7 +242,7 @@ class TestFrameworkProperties:
                 "name": test_name,
                 "execution_time": expected_data.get("execution_time", 1.0),
                 "memory_usage": expected_data.get("memory_usage"),
-                "throughput": expected_data.get("throughput")
+                "throughput": expected_data.get("throughput"),
             }
             metrics = collector.collect_metrics(test_data)
             collector.store_baseline(metrics, baseline_name=test_name)
@@ -252,19 +254,29 @@ class TestFrameworkProperties:
             # Property: all stored data can be retrieved
             assert retrieved_metrics is not None
             assert len(retrieved_metrics.results) == 1
-            
+
             retrieved_result = retrieved_metrics.results[0]
-            
+
             # Property: retrieved data matches stored data
             assert retrieved_result.name == test_name
             if "execution_time" in expected_data:
-                assert abs(retrieved_result.execution_time - expected_data["execution_time"]) < 1e-10
+                assert (
+                    abs(
+                        retrieved_result.execution_time
+                        - expected_data["execution_time"]
+                    )
+                    < 1e-10
+                )
 
     @given(
         values_pair=st.integers(min_value=1, max_value=10).flatmap(
             lambda n: st.tuples(
-                st.lists(st.floats(min_value=0.1, max_value=100.0), min_size=n, max_size=n),
-                st.lists(st.floats(min_value=0.1, max_value=100.0), min_size=n, max_size=n)
+                st.lists(
+                    st.floats(min_value=0.1, max_value=100.0), min_size=n, max_size=n
+                ),
+                st.lists(
+                    st.floats(min_value=0.1, max_value=100.0), min_size=n, max_size=n
+                ),
             )
         )
     )
@@ -372,9 +384,9 @@ class TestFrameworkDataValidation:
         )
     )
     @settings(
-        max_examples=3, 
+        max_examples=3,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
-        deadline=5000  # 5 seconds for system info collection
+        deadline=5000,  # 5 seconds for system info collection
     )
     def test_data_serialization_properties(self, data, tmp_path):
         """Test that data serialization maintains consistency properties."""
@@ -386,7 +398,7 @@ class TestFrameworkDataValidation:
         test_data = {
             "name": test_name,
             "execution_time": 1.0,
-            "test_data": data  # Include the generated data as metadata
+            "test_data": data,  # Include the generated data as metadata
         }
 
         # Collect metrics and store as baseline
