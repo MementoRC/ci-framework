@@ -103,7 +103,8 @@ jobs:
           pixi run -e ci which pytest || echo "Pytest not found in CI environment"
       - name: "Run Unit Tests with Coverage"
         run: |
-          pixi run -e ci pytest framework/tests/ --cov=framework --cov-report=xml || pixi run -e quality pytest framework/tests/ -v
+          pixi run -e ci pytest framework/tests/ --cov=framework --cov-report=xml || \
+          pixi run -e quality pytest framework/tests/ -v
 
   # Placeholder for more advanced integration tests of reusable workflows
   # This would involve creating a dummy repository and calling the reusable
