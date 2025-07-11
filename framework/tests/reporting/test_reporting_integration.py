@@ -24,10 +24,11 @@ class TestReportingIntegration:
         """Test integration between GitHub reporter and artifact manager."""
         # Setup - ensure no GitHub environment for consistent test behavior
         import os
+
         original_env = os.environ.get("GITHUB_STEP_SUMMARY")
         if "GITHUB_STEP_SUMMARY" in os.environ:
             del os.environ["GITHUB_STEP_SUMMARY"]
-        
+
         try:
             reporter = GitHubReporter()
             artifact_manager = ArtifactManager(artifact_path=tmp_path)
