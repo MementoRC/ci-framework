@@ -55,9 +55,9 @@ dependencies = ["numpy>=1.20.0", "pandas>=1.0.0"]
                 ],
             }
 
-            (project_path / "performance_data" / "history" / "test_metrics.json").write_text(
-                json.dumps(sample_metrics, indent=2)
-            )
+            (
+                project_path / "performance_data" / "history" / "test_metrics.json"
+            ).write_text(json.dumps(sample_metrics, indent=2))
 
             # Create sample security report
             security_report = {
@@ -66,9 +66,9 @@ dependencies = ["numpy>=1.20.0", "pandas>=1.0.0"]
                 "vulnerabilities": [],
             }
 
-            (project_path / "artifacts" / "reports" / "security_report.json").write_text(
-                json.dumps(security_report, indent=2)
-            )
+            (
+                project_path / "artifacts" / "reports" / "security_report.json"
+            ).write_text(json.dumps(security_report, indent=2))
 
             yield project_path
 
@@ -170,7 +170,9 @@ dependencies = ["numpy>=1.20.0", "pandas>=1.0.0"]
         assert "pip" in package_managers
 
         # Test security status checking
-        with patch.object(monitor.dependency_analyzer, "scan_dependencies") as mock_scan:
+        with patch.object(
+            monitor.dependency_analyzer, "scan_dependencies"
+        ) as mock_scan:
             # Mock a clean dependency scan
             mock_dep = Mock()
             mock_dep.has_vulnerabilities = False
@@ -187,19 +189,23 @@ dependencies = ["numpy>=1.20.0", "pandas>=1.0.0"]
         scheduler = MaintenanceScheduler(project_path=temp_project_dir)
 
         # Create some old files to clean up
-        old_performance_file = temp_project_dir / "performance_data" / "history" / "old_data.json"
+        old_performance_file = (
+            temp_project_dir / "performance_data" / "history" / "old_data.json"
+        )
         old_performance_file.write_text('{"old": "data"}')
 
         old_report_file = temp_project_dir / "artifacts" / "reports" / "old_report.json"
         old_report_file.write_text('{"old": "report"}')
 
         # Mock datetime to make files appear old
-        with patch("strategy_sandbox.maintenance.scheduler.datetime") as mock_datetime:
+        with patch("framework.maintenance.scheduler.datetime") as mock_datetime:
             from datetime import datetime, timedelta
 
             mock_now = datetime(2024, 6, 15, 12, 0, 0)
             mock_datetime.now.return_value = mock_now
-            mock_datetime.fromtimestamp.side_effect = lambda ts: datetime.fromtimestamp(ts)
+            mock_datetime.fromtimestamp.side_effect = lambda ts: datetime.fromtimestamp(
+                ts
+            )
 
             # Set file times to be very old using os.utime
             import os
@@ -257,7 +263,9 @@ dependencies = ["numpy>=1.20.0", "pandas>=1.0.0"]
             assert "system_diagnostics" in operations
 
             # Most operations should succeed
-            successful_ops = [op for op in result["operations"] if op["status"] == "success"]
+            successful_ops = [
+                op for op in result["operations"] if op["status"] == "success"
+            ]
             assert len(successful_ops) >= 2
 
     def test_health_recommendations_with_real_data(self, temp_project_dir):
@@ -295,7 +303,10 @@ dependencies = ["numpy>=1.20.0", "pandas>=1.0.0"]
         # Should not crash even with missing subdirectories
         monitor = CIHealthMonitor(project_path=broken_project_dir)
 
-        with patch("psutil.virtual_memory") as mock_memory, patch("psutil.cpu_percent") as mock_cpu:
+        with (
+            patch("psutil.virtual_memory") as mock_memory,
+            patch("psutil.cpu_percent") as mock_cpu,
+        ):
             mock_memory.return_value = Mock(
                 percent=50.0, available=8 * (1024**3), total=16 * (1024**3)
             )
@@ -343,7 +354,11 @@ dependencies = ["numpy>=1.20.0", "pandas>=1.0.0"]
         """Test configuration loading and validation with real files."""
         # Create a custom configuration
         config_content = {
-            "data_retention": {"performance_data": 60, "security_scans": 15, "reports": 30},
+            "data_retention": {
+                "performance_data": 60,
+                "security_scans": 15,
+                "reports": 30,
+            },
             "health_thresholds": {"max_execution_time": 1800, "max_storage_usage": 10},
             "update_schedule": {"health_check": "daily", "cleanup_old_data": "monthly"},
         }
@@ -355,7 +370,9 @@ dependencies = ["numpy>=1.20.0", "pandas>=1.0.0"]
             yaml.dump(config_content, f)
 
         # Test scheduler with custom config
-        scheduler = MaintenanceScheduler(config_path=config_path, project_path=temp_project_dir)
+        scheduler = MaintenanceScheduler(
+            config_path=config_path, project_path=temp_project_dir
+        )
 
         assert scheduler.config["data_retention"]["performance_data"] == 60
         assert scheduler.config["health_thresholds"]["max_execution_time"] == 1800

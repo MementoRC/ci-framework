@@ -32,7 +32,9 @@ Examples:
         """,
     )
 
-    parser.add_argument("--config", type=str, help="Path to maintenance configuration file")
+    parser.add_argument(
+        "--config", type=str, help="Path to maintenance configuration file"
+    )
 
     parser.add_argument(
         "--project-path",
@@ -56,17 +58,31 @@ Examples:
     health_group.add_argument(
         "--collect", action="store_true", help="Collect current health metrics"
     )
-    health_group.add_argument("--summary", action="store_true", help="Show health summary")
-    health_group.add_argument("--diagnostics", action="store_true", help="Run system diagnostics")
+    health_group.add_argument(
+        "--summary", action="store_true", help="Show health summary"
+    )
+    health_group.add_argument(
+        "--diagnostics", action="store_true", help="Run system diagnostics"
+    )
 
     # Task management commands
     tasks_parser = subparsers.add_parser("tasks", help="Maintenance task operations")
     tasks_group = tasks_parser.add_mutually_exclusive_group(required=True)
-    tasks_group.add_argument("--list", action="store_true", help="List all maintenance tasks")
-    tasks_group.add_argument("--run", type=str, metavar="TASK_NAME", help="Run specific task")
-    tasks_group.add_argument("--run-pending", action="store_true", help="Run all pending tasks")
-    tasks_group.add_argument("--status", type=str, metavar="TASK_NAME", help="Show task status")
-    tasks_group.add_argument("--history", action="store_true", help="Show execution history")
+    tasks_group.add_argument(
+        "--list", action="store_true", help="List all maintenance tasks"
+    )
+    tasks_group.add_argument(
+        "--run", type=str, metavar="TASK_NAME", help="Run specific task"
+    )
+    tasks_group.add_argument(
+        "--run-pending", action="store_true", help="Run all pending tasks"
+    )
+    tasks_group.add_argument(
+        "--status", type=str, metavar="TASK_NAME", help="Show task status"
+    )
+    tasks_group.add_argument(
+        "--history", action="store_true", help="Show execution history"
+    )
 
     # Maintenance operations
     maintenance_parser = subparsers.add_parser(
@@ -82,8 +98,12 @@ Examples:
     # Configuration commands
     config_parser = subparsers.add_parser("config", help="Configuration management")
     config_group = config_parser.add_mutually_exclusive_group(required=True)
-    config_group.add_argument("--show", action="store_true", help="Show current configuration")
-    config_group.add_argument("--validate", action="store_true", help="Validate configuration file")
+    config_group.add_argument(
+        "--show", action="store_true", help="Show current configuration"
+    )
+    config_group.add_argument(
+        "--validate", action="store_true", help="Validate configuration file"
+    )
 
     return parser
 
@@ -165,7 +185,9 @@ def handle_tasks_command(args, scheduler: MaintenanceScheduler) -> int:
                         print(f"   Next run: {task['next_run']}")
                     print()
 
-                print(f"Total: {result['total_tasks']} tasks, {result['enabled_tasks']} enabled")
+                print(
+                    f"Total: {result['total_tasks']} tasks, {result['enabled_tasks']} enabled"
+                )
             else:
                 print(format_output(result, args.output_format))
 
@@ -244,13 +266,21 @@ def handle_config_command(args, scheduler: MaintenanceScheduler) -> int:
 
         elif args.validate:
             # Basic configuration validation
-            required_sections = ["data_retention", "health_thresholds", "update_schedule"]
+            required_sections = [
+                "data_retention",
+                "health_thresholds",
+                "update_schedule",
+            ]
             missing_sections = [
-                section for section in required_sections if section not in scheduler.config
+                section
+                for section in required_sections
+                if section not in scheduler.config
             ]
 
             if missing_sections:
-                print(f"Configuration validation failed: Missing sections: {missing_sections}")
+                print(
+                    f"Configuration validation failed: Missing sections: {missing_sections}"
+                )
                 return 1
             else:
                 print("Configuration validation passed")
@@ -277,11 +307,15 @@ def main() -> int:
         config_path = args.config
 
         if args.command in ["health"]:
-            monitor = CIHealthMonitor(config_path=config_path, project_path=project_path)
+            monitor = CIHealthMonitor(
+                config_path=config_path, project_path=project_path
+            )
             return handle_health_command(args, monitor)
 
         else:
-            scheduler = MaintenanceScheduler(config_path=config_path, project_path=project_path)
+            scheduler = MaintenanceScheduler(
+                config_path=config_path, project_path=project_path
+            )
 
             if args.command == "tasks":
                 return handle_tasks_command(args, scheduler)

@@ -82,7 +82,9 @@ class PerformanceCollector:
 
         return env_info
 
-    def collect_metrics(self, benchmark_results: str | Path | dict) -> PerformanceMetrics:
+    def collect_metrics(
+        self, benchmark_results: str | Path | dict
+    ) -> PerformanceMetrics:
         """Process benchmark results and create performance metrics.
 
         Args:
@@ -211,7 +213,9 @@ class PerformanceCollector:
         else:
             return f"local_{timestamp}"
 
-    def store_baseline(self, metrics: PerformanceMetrics, baseline_name: str = "default") -> Path:
+    def store_baseline(
+        self, metrics: PerformanceMetrics, baseline_name: str = "default"
+    ) -> Path:
         """Store performance metrics as a baseline.
 
         Args:
@@ -228,7 +232,9 @@ class PerformanceCollector:
 
         return baseline_file
 
-    def load_baseline(self, baseline_name: str = "default") -> PerformanceMetrics | None:
+    def load_baseline(
+        self, baseline_name: str = "default"
+    ) -> PerformanceMetrics | None:
         """Load a baseline for comparison.
 
         Args:
@@ -338,9 +344,11 @@ class PerformanceCollector:
                 "change_percent": calc_change_percent(
                     current.execution_time, baseline.execution_time
                 ),
-                "change_direction": "regression"
-                if current.execution_time > baseline.execution_time
-                else "improvement",
+                "change_direction": (
+                    "regression"
+                    if current.execution_time > baseline.execution_time
+                    else "improvement"
+                ),
             },
         }
 
@@ -348,20 +356,28 @@ class PerformanceCollector:
             comparison["memory_usage"] = {
                 "current": current.memory_usage,
                 "baseline": baseline.memory_usage,
-                "change_percent": calc_change_percent(current.memory_usage, baseline.memory_usage),
-                "change_direction": "regression"
-                if current.memory_usage > baseline.memory_usage
-                else "improvement",
+                "change_percent": calc_change_percent(
+                    current.memory_usage, baseline.memory_usage
+                ),
+                "change_direction": (
+                    "regression"
+                    if current.memory_usage > baseline.memory_usage
+                    else "improvement"
+                ),
             }
 
         if current.throughput is not None and baseline.throughput is not None:
             comparison["throughput"] = {
                 "current": current.throughput,
                 "baseline": baseline.throughput,
-                "change_percent": calc_change_percent(current.throughput, baseline.throughput),
-                "change_direction": "improvement"
-                if current.throughput > baseline.throughput
-                else "regression",
+                "change_percent": calc_change_percent(
+                    current.throughput, baseline.throughput
+                ),
+                "change_direction": (
+                    "improvement"
+                    if current.throughput > baseline.throughput
+                    else "regression"
+                ),
             }
 
         return comparison

@@ -33,7 +33,11 @@ class TestCIHealthMonitor:
     def sample_config(self, temp_project_dir):
         """Create a sample configuration file."""
         config_data = {
-            "data_retention": {"performance_data": 90, "security_scans": 30, "reports": 60},
+            "data_retention": {
+                "performance_data": 90,
+                "security_scans": 30,
+                "reports": 60,
+            },
             "health_thresholds": {
                 "max_execution_time": 3600,
                 "max_storage_usage": 5,
@@ -43,7 +47,10 @@ class TestCIHealthMonitor:
         }
 
         config_path = (
-            temp_project_dir / "strategy_sandbox" / "maintenance" / "maintenance_config.yaml"
+            temp_project_dir
+            / "strategy_sandbox"
+            / "maintenance"
+            / "maintenance_config.yaml"
         )
         with open(config_path, "w") as f:
             yaml.dump(config_data, f)
@@ -52,7 +59,9 @@ class TestCIHealthMonitor:
 
     def test_init_with_config(self, temp_project_dir, sample_config):
         """Test CIHealthMonitor initialization with config file."""
-        monitor = CIHealthMonitor(config_path=sample_config, project_path=temp_project_dir)
+        monitor = CIHealthMonitor(
+            config_path=sample_config, project_path=temp_project_dir
+        )
 
         assert monitor.project_path == temp_project_dir
         assert monitor.config_path == sample_config
@@ -144,8 +153,12 @@ class TestCIHealthMonitor:
         monitor = CIHealthMonitor(project_path=temp_project_dir)
 
         with (
-            patch.object(monitor.performance_collector, "get_recent_history") as mock_history,
-            patch.object(monitor.dependency_analyzer, "detect_package_managers") as mock_pkg_mgr,
+            patch.object(
+                monitor.performance_collector, "get_recent_history"
+            ) as mock_history,
+            patch.object(
+                monitor.dependency_analyzer, "detect_package_managers"
+            ) as mock_pkg_mgr,
         ):
             mock_history.return_value = [Mock(timestamp=datetime.now())]
             mock_pkg_mgr.return_value = ["pip", "pixi"]
@@ -164,7 +177,9 @@ class TestCIHealthMonitor:
         """Test performance status check with no data."""
         monitor = CIHealthMonitor(project_path=temp_project_dir)
 
-        with patch.object(monitor.performance_collector, "get_recent_history") as mock_history:
+        with patch.object(
+            monitor.performance_collector, "get_recent_history"
+        ) as mock_history:
             mock_history.return_value = []
 
             status = monitor._check_performance_status()
@@ -183,7 +198,9 @@ class TestCIHealthMonitor:
         mock_metrics = Mock()
         mock_metrics.results = [mock_result]
 
-        with patch.object(monitor.performance_collector, "get_recent_history") as mock_history:
+        with patch.object(
+            monitor.performance_collector, "get_recent_history"
+        ) as mock_history:
             mock_history.return_value = [mock_metrics] * 5
 
             status = monitor._check_performance_status()
@@ -207,12 +224,16 @@ class TestCIHealthMonitor:
         mock_dep.has_vulnerabilities = True
         mock_dep.vulnerabilities = mock_vulns
 
-        with patch.object(monitor.dependency_analyzer, "scan_dependencies") as mock_scan:
+        with patch.object(
+            monitor.dependency_analyzer, "scan_dependencies"
+        ) as mock_scan:
             mock_scan.return_value = [mock_dep]
 
             status = monitor._check_security_status()
 
-            assert status["status"] == "warning"  # More than 5 high severity should trigger warning
+            assert (
+                status["status"] == "warning"
+            )  # More than 5 high severity should trigger warning
             assert status["total_dependencies"] == 1
             assert status["vulnerable_dependencies"] == 1
             assert status["severity_breakdown"]["high"] == 6
@@ -254,7 +275,9 @@ class TestCIHealthMonitor:
             assert "timestamp" in diagnostics
             assert diagnostics["performance"]["status"] == "healthy"
             assert diagnostics["security"]["status"] == "warning"
-            assert diagnostics["overall_status"] == "warning"  # Should match worst component
+            assert (
+                diagnostics["overall_status"] == "warning"
+            )  # Should match worst component
 
     def test_diagnose_performance_component_no_data(self, temp_project_dir):
         """Test performance component diagnosis with missing data."""
@@ -275,7 +298,9 @@ class TestCIHealthMonitor:
         """Test security component diagnosis."""
         monitor = CIHealthMonitor(project_path=temp_project_dir)
 
-        with patch.object(monitor.dependency_analyzer, "detect_package_managers") as mock_detect:
+        with patch.object(
+            monitor.dependency_analyzer, "detect_package_managers"
+        ) as mock_detect:
             mock_detect.return_value = ["pip", "pixi"]
 
             diagnosis = monitor._diagnose_security_component()
@@ -304,7 +329,9 @@ class TestCIHealthMonitor:
             patch.object(monitor, "collect_health_metrics") as mock_collect,
             patch.object(monitor, "_determine_overall_status") as mock_status,
             patch.object(monitor, "_get_component_summary") as mock_summary,
-            patch.object(monitor, "_generate_health_recommendations") as mock_recommendations,
+            patch.object(
+                monitor, "_generate_health_recommendations"
+            ) as mock_recommendations,
         ):
             mock_collect.return_value = {"test": "data"}
             mock_status.return_value = "healthy"
@@ -340,7 +367,10 @@ class TestCIHealthMonitor:
         monitor.metrics = {
             "system_info": {"cpu_usage_percent": 85, "memory_usage_percent": 90},
             "performance_status": {"status": "no_data"},
-            "security_status": {"status": "critical", "severity_breakdown": {"critical": 2}},
+            "security_status": {
+                "status": "critical",
+                "severity_breakdown": {"critical": 2},
+            },
             "storage_usage": {"project_root": {"usage_percent": 90}},
         }
 
@@ -349,5 +379,7 @@ class TestCIHealthMonitor:
         assert any("CPU usage" in rec for rec in recommendations)
         assert any("memory usage" in rec for rec in recommendations)
         assert any("performance benchmarks" in rec for rec in recommendations)
-        assert any("Critical security vulnerabilities" in rec for rec in recommendations)
+        assert any(
+            "Critical security vulnerabilities" in rec for rec in recommendations
+        )
         assert any("storage usage" in rec for rec in recommendations)
