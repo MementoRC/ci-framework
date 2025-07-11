@@ -1,0 +1,110 @@
+name: Cleanup Dev Files on Main Branch Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+      - master  
+      - development
+
+jobs:
+  cleanup-dev-files:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Remove dev files
+        run: |
+          echo "Cleaning up dev files from ${{ github.event.pull_request.base.ref }} branch..."
+          
+          # Common dev files to remove
+          files_to_remove=(
+            ".claude"
+            ".mcp.json"
+            ".taskmaster"
+            ".cursor"
+            ".aider*"
+            "*.dev"
+            "*.tmp"
+            ".DS_Store"
+            "Thumbs.db"
+            "dev-outputs"
+            "tmp"
+            ".vscode/settings.json"
+            ".idea"
+          )
+          
+          removed_files=()
+          
+          for pattern in "${files_to_remove[@]}"; do
+            if [[ "$pattern" == *"*"* ]]; then
+              # Handle patterns with wildcards
+              for file in $pattern; do
+                if [[ -e "$file" ]]; then
+                  echo "Removing: $file"
+                  rm -rf "$file"
+                  removed_files+=("$file")
+                fi
+              done
+            else
+              # Handle exact file/directory names
+              if [[ -e "$pattern" ]]; then
+                echo "Removing: $pattern"
+                rm -rf "$pattern"
+                removed_files+=("$pattern")
+              fi
+            fi
+          done
+          
+          # Log what was removed
+          if [ ${#removed_files[@]} -gt 0 ]; then
+            echo "Removed files/directories:"
+            printf '%s\n' "${removed_files[@]}"
+          else
+            echo "No dev files found to remove"
+          fi
+          
+      - name: Commit cleanup if files were removed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Check if there are any changes
+          if [[ -n $(git status --porcelain) ]]; then
+            git add -A
+            git commit -m "chore: cleanup dev files after PR merge
+
+            Automatically removed development files that shouldn't be in ${{ github.event.pull_request.base.ref }} branch:
+            - .claude, .mcp.json, .taskmaster (AI dev tools)
+            - .cursor, .aider* (Editor configs)
+            - *.dev, *.tmp (Temporary files)
+            - .DS_Store, Thumbs.db (OS files)
+            - dev-outputs/, tmp/ (Development directories)
+            
+            PR: #${{ github.event.pull_request.number }}
+            Source: ${{ github.event.pull_request.head.ref }}"
+            
+            git push origin ${{ github.event.pull_request.base.ref }}
+            echo "✅ Dev files cleanup committed to ${{ github.event.pull_request.base.ref }}"
+          else
+            echo "✅ No dev files to cleanup"
+          fi
+
+      - name: Add cleanup comment to PR
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🧹 **Dev Files Cleanup Complete**\n\nDevelopment files have been automatically removed from the `${{ github.event.pull_request.base.ref }}` branch after merge.\n\n*This keeps your main branches clean while preserving dev files in feature branches.*'
+            })
