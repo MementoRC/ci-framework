@@ -21,16 +21,22 @@ jobs:
         with:
           pixi-version: latest
           manifest-path: pyproject.toml
-      - name: "Install Python dependencies"
+      - name: "Install Quality Dependencies"
         run: |
-          pixi install -e dev || exit 1
+          pixi install -e quality || exit 1
           ls -la .pixi
       - name: "Run Ruff (linting)"
         run: |
-          pixi run -e dev lint
-      - name: "Run Black (formatting)"
+          pixi run -e quality lint
+      - name: "Run Ruff Format Check"
         run: |
-          pixi run -e dev format
+          pixi run -e quality format-check
+      - name: "Run Type Checking"
+        run: |
+          pixi run -e quality typecheck
+      - name: "Install Dev Dependencies for YAML/Action Lint"
+        run: |
+          pixi install -e dev || exit 1
       - name: "Run Yamllint (workflow YAMLs)"
         run: |
           pixi run -e dev yaml-lint
@@ -47,18 +53,21 @@ jobs:
         with:
           pixi-version: latest
           manifest-path: pyproject.toml
-      - name: "Install Python dependencies"
+      - name: "Install Security Dependencies"
         run: |
-          pixi install -e dev || exit 1
+          pixi install -e quality-extended || exit 1
           ls -la .pixi
       - name: "Run pip-audit (dependency vulnerabilities)"
         run: |
-          pixi run -e dev security-audit
+          pixi run -e quality-extended safety-check
         continue-on-error: true
       - name: "Run Bandit (static analysis)"
         run: |
-          pixi run -e dev bandit-scan
+          pixi run -e quality-extended security-scan
         continue-on-error: true
+      - name: "Install Dev Dependencies for detect-secrets"
+        run: |
+          pixi install -e dev || exit 1
       - name: "Run detect-secrets"
         run: |
           pixi run -e dev detect-secrets
@@ -80,13 +89,13 @@ jobs:
         with:
           pixi-version: latest
           manifest-path: pyproject.toml
-      - name: "Install Python dependencies"
+      - name: "Install CI Dependencies"
         run: |
-          pixi install -e default || exit 1
+          pixi install -e ci || exit 1
           ls -la .pixi
-      - name: "Run Unit Tests for Framework Scripts"
+      - name: "Run Unit Tests with Coverage"
         run: |
-          pixi run -e default unit-test
+          pixi run -e ci ci-test
 
   # Placeholder for more advanced integration tests of reusable workflows
   # This would involve creating a dummy repository and calling the reusable
@@ -132,9 +141,11 @@ jobs:
 
           if [[ "${{ needs.lint-and-format.result }}" == "success" && \
                 "${{ needs.security-scan.result }}" == "success" && \
-                "${{ needs.unit-tests.result }}" == "success" ]]; then
-            echo -e "\n**Overall Status: ✅ Core CI Framework checks passed.**" \
+                "${{ needs.unit-tests.result }}" == "success" && \
+                "${{ needs.integration-tests-reusable-workflows.result }}" == "success" ]]; then
+            echo -e "\n**Overall Status: ✅ All CI Framework checks passed.**" \
               >> $GITHUB_STEP_SUMMARY
+            exit 0
           else
             echo -e "\n**Overall Status: ❌ Some CI Framework checks failed.**" \
               >> $GITHUB_STEP_SUMMARY
