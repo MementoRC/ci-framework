@@ -617,9 +617,13 @@ class SBOMGenerator:
 
         # Add recommendations
         if vulnerable_count > 0:
-            report["recommendations"].append("Address all known vulnerabilities in dependencies")  # type: ignore[attr-defined]
+            report["recommendations"].append(
+                "Address all known vulnerabilities in dependencies"
+            )  # type: ignore[attr-defined]
         if unlicensed_count > 0:
-            report["recommendations"].append("Document license information for all dependencies")  # type: ignore[attr-defined]
+            report["recommendations"].append(
+                "Document license information for all dependencies"
+            )  # type: ignore[attr-defined]
 
         # Save report if path provided
         if output_path:
