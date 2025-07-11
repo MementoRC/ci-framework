@@ -27,13 +27,13 @@ jobs:
           ls -la .pixi
       - name: "Run Ruff (linting)"
         run: |
-          pixi run -e quality lint
+          pixi run -e quality lint-impl
       - name: "Run Ruff Format Check"
         run: |
           pixi run -e quality format-check
       - name: "Run Type Checking"
         run: |
-          pixi run -e quality typecheck
+          pixi run -e quality typecheck-impl
       - name: "Install Dev Dependencies for YAML/Action Lint"
         run: |
           pixi install -e dev || exit 1

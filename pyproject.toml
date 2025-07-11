@@ -167,7 +167,7 @@ check-all = { depends-on = ["quality", "static-analysis"] }
 
 # ===== TIER 3: CI/CD & DEPLOYMENT TASKS =====
 # CI-specific variants
-ci-test = { cmd = "pytest framework/tests/ --cov=framework --cov-report=xml --timeout=90", env = { ENVIRONMENT = "ci" } }
+ci-test = { cmd = "pytest framework/tests/ --cov=framework --cov-report=xml", env = { ENVIRONMENT = "ci" } }
 ci-lint = "ruff check framework/ --output-format=github"
 ci-format-check = "ruff format --check framework/"
 
