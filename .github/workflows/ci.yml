@@ -36,13 +36,34 @@ jobs:
           pixi run -e quality which ruff || echo "Ruff not found in quality environment"
       - name: "Run Ruff (linting)"
         run: |
-          pixi run -e quality ruff check framework/ --select=F,E9 || pixi run lint
+          echo "Testing ruff availability..."
+          if pixi run -e quality which ruff > /dev/null 2>&1; then
+            echo "Using pixi quality environment ruff"
+            pixi run -e quality ruff check framework/ --select=F,E9
+          else
+            echo "Falling back to default pixi lint task"
+            pixi run lint
+          fi
       - name: "Run Ruff Format Check"
         run: |
-          pixi run -e quality ruff format --check framework/ || pixi run format-check
+          echo "Testing ruff format availability..."
+          if pixi run -e quality which ruff > /dev/null 2>&1; then
+            echo "Using pixi quality environment ruff format"
+            pixi run -e quality ruff format --check framework/
+          else
+            echo "Falling back to default pixi format-check task"
+            pixi run format-check
+          fi
       - name: "Run Type Checking"
         run: |
-          pixi run -e quality mypy framework/ || echo "Mypy check failed, continuing..."
+          echo "Testing mypy availability..."
+          if pixi run -e quality which mypy > /dev/null 2>&1; then
+            echo "Using pixi quality environment mypy"
+            pixi run -e quality mypy framework/ || echo "Mypy check failed, continuing..."
+          else
+            echo "Falling back to default pixi typecheck task"
+            pixi run typecheck || echo "Typecheck failed, continuing..."
+          fi
       - name: "Skip YAML Lint (Environment Issues)"
         run: |
           echo "Temporarily skipping yamllint due to CI environment setup issues"
