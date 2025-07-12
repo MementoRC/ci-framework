@@ -5,6 +5,7 @@
       "Bash(gh:*)",
       "Bash(git:*)",
       "Bash(ls:*)",
+      "Bash(mkdir:*)",
       "Bash(pixi info:*)",
       "Bash(pixi list:*)",
       "Bash(pixi run:*)",
@@ -82,7 +83,7 @@
       "mcp__uckn-knowledge__recommend_setup",
       "mcp__uckn-knowledge__search_patterns",
       "mcp__uckn-knowledge__validate_solution",
-      "Bash(mkdir:*)"
+      "Bash(touch:*)"
     ],
     "deny": []
   },
