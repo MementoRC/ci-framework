@@ -1,0 +1,457 @@
+"""
+TDD Test Implementation for Python CI Workflow Template
+Methodology Step 2: Write failing tests BEFORE implementation
+
+Tests for all BDD scenarios defined in subtask 2.1
+Target: 95%+ coverage for workflow logic
+Framework: pytest with pytest-workflow for GitHub Actions testing
+"""
+import os
+import pytest
+import yaml
+from pathlib import Path
+from unittest.mock import Mock, patch, MagicMock
+from typing import Dict, List, Any
+
+# Import workflow testing framework
+pytest_plugins = ["pytest_workflow"]
+
+
+class TestWorkflowStructure:
+    """Test basic workflow YAML structure and validation"""
+    
+    def test_workflow_file_exists(self):
+        """Test that workflow template file exists"""
+        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        # This should FAIL initially (red phase)
+        assert workflow_path.exists(), "Workflow template file should exist"
+    
+    def test_workflow_yaml_valid_structure(self):
+        """Test that workflow YAML has valid structure"""
+        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        with open(workflow_path) as f:
+            workflow = yaml.safe_load(f)
+        
+        # Basic structure validation - should FAIL initially
+        assert "name" in workflow
+        assert "on" in workflow
+        assert "jobs" in workflow
+        assert isinstance(workflow["jobs"], dict)
+    
+    def test_workflow_contains_all_required_stages(self):
+        """Test that all 6 required stages are present"""
+        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        with open(workflow_path) as f:
+            workflow = yaml.safe_load(f)
+        
+        required_jobs = [
+            "change-detection",
+            "quick-checks", 
+            "comprehensive-tests",
+            "security-audit",
+            "performance-check",
+            "summary"
+        ]
+        
+        # Should FAIL initially - workflow doesn't exist yet
+        for job in required_jobs:
+            assert job in workflow["jobs"], f"Job {job} should exist in workflow"
+
+
+class TestChangeDetection:
+    """Test change detection algorithm and job skipping logic"""
+    
+    def test_change_detection_identifies_python_files(self):
+        """Test that changes to Python files are correctly identified"""
+        # Mock git diff output for Python file changes
+        mock_changes = ["framework/actions/quality_gates.py", "framework/tests/test_new.py"]
+        
+        # This test should FAIL initially - no change detection logic exists
+        detected_changes = self._get_detected_changes(mock_changes)
+        assert "python" in detected_changes
+        assert "actions" in detected_changes
+    
+    def test_change_detection_skips_docs_only_changes(self):
+        """Test that documentation-only changes skip test stages"""
+        mock_changes = ["README.md", "docs/guide.md", ".gitignore"]
+        
+        # Should FAIL initially - no change detection implementation
+        detected_changes = self._get_detected_changes(mock_changes)
+        assert "docs-only" in detected_changes
+        assert "python" not in detected_changes
+    
+    def test_dependency_changes_force_full_pipeline(self):
+        """Test that dependency changes trigger all stages"""
+        mock_changes = ["pyproject.toml", "pixi.toml"]
+        
+        # Should FAIL initially
+        detected_changes = self._get_detected_changes(mock_changes)
+        assert "dependencies" in detected_changes
+        assert "force-full" in detected_changes
+    
+    def _get_detected_changes(self, changed_files: List[str]) -> Dict[str, bool]:
+        """Helper method to simulate change detection logic"""
+        # This will be implemented in subtask 2.3 - should FAIL now
+        raise NotImplementedError("Change detection logic not implemented yet")
+
+
+class TestQuickChecks:
+    """Test quick checks stage implementation and timing"""
+    
+    def test_quick_checks_runs_critical_lint_only(self):
+        """Test that quick checks only run F,E9 lint violations"""
+        # Mock ruff command execution
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = ""
+            
+            # Should FAIL initially - no quick checks implementation
+            self._run_quick_checks()
+            
+            # Verify only critical checks were run
+            mock_run.assert_called_with(
+                ["ruff", "check", "--select=F,E9", "framework/"],
+                capture_output=True,
+                text=True
+            )
+    
+    def test_quick_checks_timing_under_2_minutes(self):
+        """Test that quick checks complete within 2 minutes"""
+        import time
+        
+        start_time = time.time()
+        # Should FAIL initially - no implementation
+        self._run_quick_checks()
+        execution_time = time.time() - start_time
+        
+        assert execution_time < 120, f"Quick checks took {execution_time}s, should be <120s"
+    
+    def _run_quick_checks(self):
+        """Helper method to run quick checks stage"""
+        # This will be implemented in subtask 2.3 - should FAIL now
+        raise NotImplementedError("Quick checks implementation not ready")
+
+
+class TestMatrixConfiguration:
+    """Test matrix strategy for Python versions and OS"""
+    
+    def test_matrix_includes_all_python_versions(self):
+        """Test that matrix includes Python 3.10, 3.11, 3.12"""
+        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        with open(workflow_path) as f:
+            workflow = yaml.safe_load(f)
+        
+        # Should FAIL initially - no workflow file exists
+        matrix_job = workflow["jobs"]["comprehensive-tests"]
+        matrix = matrix_job["strategy"]["matrix"]
+        
+        expected_python_versions = ["3.10", "3.11", "3.12"]
+        assert "python-version" in matrix
+        assert set(matrix["python-version"]) == set(expected_python_versions)
+    
+    def test_matrix_includes_all_operating_systems(self):
+        """Test that matrix includes ubuntu-latest and macos-latest"""
+        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        with open(workflow_path) as f:
+            workflow = yaml.safe_load(f)
+        
+        # Should FAIL initially
+        matrix_job = workflow["jobs"]["comprehensive-tests"]
+        matrix = matrix_job["strategy"]["matrix"]
+        
+        expected_os = ["ubuntu-latest", "macos-latest"]
+        assert "os" in matrix
+        assert set(matrix["os"]) == set(expected_os)
+    
+    def test_matrix_combinations_total_six(self):
+        """Test that matrix expands to exactly 6 combinations"""
+        # 3 Python versions × 2 OS = 6 combinations
+        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        with open(workflow_path) as f:
+            workflow = yaml.safe_load(f)
+        
+        # Should FAIL initially
+        matrix_job = workflow["jobs"]["comprehensive-tests"]
+        matrix = matrix_job["strategy"]["matrix"]
+        
+        python_count = len(matrix["python-version"])
+        os_count = len(matrix["os"])
+        total_combinations = python_count * os_count
+        
+        assert total_combinations == 6, f"Expected 6 matrix combinations, got {total_combinations}"
+
+
+class TestPerformanceBenchmarking:
+    """Test performance benchmarking and regression detection"""
+    
+    def test_performance_benchmark_detects_regression(self):
+        """Test that >10% performance regression is detected"""
+        # Mock baseline performance data
+        baseline_metrics = {"execution_time": 100.0, "memory_usage": 512}
+        current_metrics = {"execution_time": 120.0, "memory_usage": 520}  # 20% slower
+        
+        # Should FAIL initially - no performance comparison logic
+        regression_detected = self._compare_performance(baseline_metrics, current_metrics)
+        assert regression_detected is True
+        
+        # Test within acceptable limits
+        current_metrics = {"execution_time": 105.0, "memory_usage": 520}  # 5% slower
+        regression_detected = self._compare_performance(baseline_metrics, current_metrics)
+        assert regression_detected is False
+    
+    def test_performance_improvement_recognition(self):
+        """Test that performance improvements are recognized"""
+        baseline_metrics = {"execution_time": 100.0, "memory_usage": 512}
+        current_metrics = {"execution_time": 90.0, "memory_usage": 480}  # 10% faster
+        
+        # Should FAIL initially
+        improvement_detected = self._detect_performance_improvement(baseline_metrics, current_metrics)
+        assert improvement_detected is True
+    
+    def _compare_performance(self, baseline: Dict[str, float], current: Dict[str, float]) -> bool:
+        """Helper method to compare performance metrics"""
+        # This will be implemented in subtask 2.3 - should FAIL now
+        raise NotImplementedError("Performance comparison logic not implemented")
+    
+    def _detect_performance_improvement(self, baseline: Dict[str, float], current: Dict[str, float]) -> bool:
+        """Helper method to detect performance improvements"""
+        # This will be implemented in subtask 2.3 - should FAIL now
+        raise NotImplementedError("Performance improvement detection not implemented")
+
+
+class TestSecurityIntegration:
+    """Test security audit integration and SARIF reporting"""
+    
+    def test_security_audit_runs_all_tools(self):
+        """Test that security audit runs safety, bandit, and pip-audit"""
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = ""
+            
+            # Should FAIL initially - no security audit implementation
+            self._run_security_audit()
+            
+            # Verify all security tools were called
+            actual_calls = [call[0][0] for call in mock_run.call_args_list]
+            for expected_tool in ["safety", "bandit", "pip-audit"]:
+                assert any(expected_tool in str(call) for call in actual_calls)
+    
+    def test_security_sarif_report_generation(self):
+        """Test that security results are converted to SARIF format"""
+        mock_security_results = {
+            "safety": {"vulnerabilities": []},
+            "bandit": {"results": []},
+            "pip_audit": {"vulnerabilities": []}
+        }
+        
+        # Should FAIL initially - no SARIF conversion logic
+        sarif_report = self._convert_to_sarif(mock_security_results)
+        
+        assert "version" in sarif_report
+        assert "runs" in sarif_report
+        assert sarif_report["version"] == "2.1.0"
+    
+    def _run_security_audit(self):
+        """Helper method to run security audit"""
+        # This will be implemented in subtask 2.3 - should FAIL now
+        raise NotImplementedError("Security audit implementation not ready")
+    
+    def _convert_to_sarif(self, security_results: Dict[str, Any]) -> Dict[str, Any]:
+        """Helper method to convert security results to SARIF"""
+        # This will be implemented in subtask 2.3 - should FAIL now
+        raise NotImplementedError("SARIF conversion not implemented")
+
+
+class TestGitHubStatusAPI:
+    """Test GitHub Status API integration"""
+    
+    @patch('requests.post')
+    def test_status_api_updates_on_stage_completion(self, mock_post):
+        """Test that GitHub Status API is updated when stages complete"""
+        mock_post.return_value.status_code = 201
+        
+        # Should FAIL initially - no GitHub API integration
+        self._update_github_status("change-detection", "success", "Change detection completed")
+        
+        # Verify API call was made
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        assert "state" in call_args[1]["json"]
+        assert call_args[1]["json"]["state"] == "success"
+    
+    @patch('requests.post')
+    def test_status_api_reports_failures(self, mock_post):
+        """Test that failures are reported via Status API"""
+        mock_post.return_value.status_code = 201
+        
+        # Should FAIL initially
+        self._update_github_status("quick-checks", "failure", "Lint violations found")
+        
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        assert call_args[1]["json"]["state"] == "failure"
+    
+    def _update_github_status(self, stage: str, state: str, description: str):
+        """Helper method to update GitHub status"""
+        # This will be implemented in subtask 2.3 - should FAIL now
+        raise NotImplementedError("GitHub Status API integration not implemented")
+
+
+class TestArtifactManagement:
+    """Test artifact collection and summary reporting"""
+    
+    def test_artifacts_collected_from_all_stages(self):
+        """Test that artifacts are collected from all successful stages"""
+        mock_stage_artifacts = {
+            "quick-checks": ["lint-report.json"],
+            "comprehensive-tests": ["coverage.xml", "test-results.xml"],
+            "security-audit": ["security-report.sarif"],
+            "performance-check": ["benchmark-results.json"]
+        }
+        
+        # Should FAIL initially - no artifact collection logic
+        consolidated_artifacts = self._collect_artifacts(mock_stage_artifacts)
+        
+        assert len(consolidated_artifacts) == 5  # Total artifacts across stages
+        assert "lint-report.json" in consolidated_artifacts
+        assert "coverage.xml" in consolidated_artifacts
+        assert "security-report.sarif" in consolidated_artifacts
+    
+    def test_summary_report_includes_all_metrics(self):
+        """Test that summary report includes all required metrics"""
+        mock_stage_results = {
+            "execution_time": 450.0,
+            "coverage_percentage": 94.5,
+            "security_vulnerabilities": 0,
+            "performance_regression": False,
+            "matrix_results": {"passed": 6, "failed": 0}
+        }
+        
+        # Should FAIL initially - no summary generation logic
+        summary_report = self._generate_summary_report(mock_stage_results)
+        
+        required_sections = [
+            "execution_time", "coverage_percentage", "security_vulnerabilities",
+            "performance_regression", "matrix_results"
+        ]
+        for section in required_sections:
+            assert section in summary_report
+    
+    def _collect_artifacts(self, stage_artifacts: Dict[str, List[str]]) -> List[str]:
+        """Helper method to collect artifacts from stages"""
+        # This will be implemented in subtask 2.3 - should FAIL now
+        raise NotImplementedError("Artifact collection not implemented")
+    
+    def _generate_summary_report(self, stage_results: Dict[str, Any]) -> Dict[str, Any]:
+        """Helper method to generate summary report"""
+        # This will be implemented in subtask 2.3 - should FAIL now
+        raise NotImplementedError("Summary report generation not implemented")
+
+
+class TestEnvironmentConsistency:
+    """Test PIXI_VERSION and environment consistency"""
+    
+    def test_pixi_version_consistent_across_jobs(self):
+        """Test that all jobs use same PIXI_VERSION"""
+        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        with open(workflow_path) as f:
+            workflow = yaml.safe_load(f)
+        
+        # Should FAIL initially - no workflow exists
+        pixi_versions = []
+        for job_name, job_config in workflow["jobs"].items():
+            if "env" in job_config and "PIXI_VERSION" in job_config["env"]:
+                pixi_versions.append(job_config["env"]["PIXI_VERSION"])
+        
+        # All jobs should use the same PIXI_VERSION
+        assert len(set(pixi_versions)) == 1, "All jobs should use same PIXI_VERSION"
+    
+    def test_environment_setup_consistency(self):
+        """Test that environment setup is consistent between stages"""
+        # Mock environment variables across different jobs
+        job_environments = {
+            "quick-checks": {"PIXI_VERSION": "0.49.0", "PYTHON_VERSION": "3.11"},
+            "comprehensive-tests": {"PIXI_VERSION": "0.49.0", "PYTHON_VERSION": "3.11"},
+            "security-audit": {"PIXI_VERSION": "0.49.0", "PYTHON_VERSION": "3.11"}
+        }
+        
+        # Should FAIL initially - no environment consistency logic
+        consistency_check = self._validate_environment_consistency(job_environments)
+        assert consistency_check is True
+    
+    def _validate_environment_consistency(self, environments: Dict[str, Dict[str, str]]) -> bool:
+        """Helper method to validate environment consistency"""
+        # This will be implemented in subtask 2.3 - should FAIL now
+        raise NotImplementedError("Environment consistency validation not implemented")
+
+
+class TestWorkflowIntegration:
+    """Integration tests for complete workflow execution"""
+    
+    def test_workflow_execution_with_pytest_workflow(self):
+        """Test complete workflow execution using pytest-workflow"""
+        # This test uses pytest-workflow plugin to actually run GitHub Actions
+        # Should FAIL initially - no workflow file exists
+        
+        # Create a minimal test setup
+        test_repo_structure = {
+            "pyproject.toml": self._create_minimal_pyproject(),
+            "framework/tests/test_sample.py": "def test_pass(): assert True",
+            ".github/workflows/python-ci-template.yml": None  # Will be missing initially
+        }
+        
+        # This should fail because workflow template doesn't exist yet
+        with pytest.raises(FileNotFoundError):
+            self._run_workflow_test(test_repo_structure)
+    
+    def _create_minimal_pyproject(self) -> str:
+        """Create minimal pyproject.toml for testing"""
+        return """
+[project]
+name = "test-project"
+version = "0.1.0"
+dependencies = []
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+"""
+    
+    def _run_workflow_test(self, repo_structure: Dict[str, str]):
+        """Helper method to run workflow with pytest-workflow"""
+        # This will be implemented when workflow template exists
+        raise NotImplementedError("Workflow testing not implemented")
+
+
+# Test configuration and fixtures
+@pytest.fixture
+def temp_workflow_dir(tmp_path):
+    """Create temporary directory with workflow structure"""
+    workflow_dir = tmp_path / ".github" / "workflows"
+    workflow_dir.mkdir(parents=True)
+    return workflow_dir
+
+
+@pytest.fixture
+def mock_github_context():
+    """Mock GitHub context for testing"""
+    return {
+        "repository": "test-org/test-repo",
+        "ref": "refs/heads/feature-branch",
+        "sha": "abc123def456",
+        "actor": "test-user"
+    }
+
+
+# Test execution configuration
+if __name__ == "__main__":
+    # Configure pytest to run with high verbosity and fail fast
+    pytest.main([
+        __file__,
+        "-v",
+        "--tb=short",
+        "-x",  # Stop on first failure (expected for TDD red phase)
+        "--cov=framework",
+        "--cov-report=term-missing",
+        "--cov-fail-under=95"
+    ])
