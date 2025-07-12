@@ -169,6 +169,20 @@ class QualityGatesAction:
             elif "pyright" in config["tool"]:
                 patterns["type_checker"] = "pyright"
         
+        # Also check for type checkers in pixi dependencies
+        if "tool" in config and "pixi" in config["tool"]:
+            pixi_config = config["tool"]["pixi"]
+            
+            # Check feature dependencies
+            if "feature" in pixi_config:
+                for feature_name, feature_config in pixi_config["feature"].items():
+                    if "dependencies" in feature_config:
+                        deps = feature_config["dependencies"]
+                        if "pyright" in deps:
+                            patterns["type_checker"] = "pyright"
+                        elif "mypy" in deps and "type_checker" not in patterns:
+                            patterns["type_checker"] = "mypy"
+        
         return patterns
     
     def _get_tier_commands(self, tier: str, manager: PackageManager) -> List[str]:
@@ -428,11 +442,14 @@ class QualityGatesAction:
             failed_checks = []
             successful_checks = []
             
+            failed_command_details = []
+            
             for cmd_name, cmd_result in command_results.items():
                 if cmd_result["success"]:
                     successful_checks.append(cmd_name)
                 else:
                     failed_checks.append(cmd_name)
+                    failed_command_details.append(f"{cmd_name}: {cmd_result.get('stderr', 'Command failed')}")
                     
                     # Check for critical violations
                     if "F821" in cmd_result.get("stderr", "") or "E9" in cmd_result.get("stderr", ""):
@@ -445,6 +462,10 @@ class QualityGatesAction:
                         result.failure_reason = "timeout"
                         result.error_details = f"Command {cmd_name} timed out"
                         break
+            
+            # Set error details for general failures if not already set
+            if failed_checks and not result.error_details:
+                result.error_details = "; ".join(failed_command_details)
             
             result.failed_checks = failed_checks
             result.successful_checks = successful_checks

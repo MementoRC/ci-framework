@@ -277,7 +277,10 @@ ruff = "*"
         """
         # Mock commands that take known time
         with patch('subprocess.run') as mock_run:
-            mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+            def slow_mock(*args, **kwargs):
+                time.sleep(0.1)  # Simulate command taking 100ms
+                return Mock(returncode=0, stdout="", stderr="")
+            mock_run.side_effect = slow_mock
             
             # Sequential execution
             start_time = time.time()
@@ -342,9 +345,10 @@ ruff = "*"
         # Mock a scenario where tests pass but lint fails
         with patch('subprocess.run') as mock_run:
             def side_effect(cmd, *args, **kwargs):
-                if "pytest" in cmd[0] if isinstance(cmd, list) else cmd:
+                cmd_str = cmd[0] if isinstance(cmd, list) else cmd
+                if "test" in cmd_str:
                     return Mock(returncode=0, stdout="tests passed", stderr="")
-                elif "ruff" in cmd[0] if isinstance(cmd, list) else cmd:
+                elif "lint" in cmd_str:
                     return Mock(returncode=1, stdout="", stderr="lint failed")
                 else:
                     return Mock(returncode=0, stdout="", stderr="")
