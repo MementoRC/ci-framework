@@ -1,0 +1,29 @@
+---
+# Node.js project specific example
+name: Cleanup Dev Files - Node.js
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+      - master
+      - development
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Cleanup dev files
+        uses: MementoRC/ci-framework@v1
+        with:
+          additional_patterns: '.env.local,.cache,node_modules/.tmp,dist/dev,coverage/dev,*.log'
+          skip_comment: false

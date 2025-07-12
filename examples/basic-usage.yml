@@ -1,0 +1,26 @@
+---
+# Basic usage example - minimal configuration
+name: Cleanup Dev Files - Basic
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+      - master
+      - development
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Cleanup dev files
+        uses: MementoRC/ci-framework@v1

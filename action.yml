@@ -1,0 +1,143 @@
+---
+name: 'Cleanup Dev Files'
+description: 'Automatically remove development files from main branches after PR merge'
+author: 'MementoRC'
+
+branding:
+  icon: 'trash-2'
+  color: 'orange'
+
+inputs:
+  additional_patterns:
+    description: 'Additional file patterns to remove (comma-separated)'
+    required: false
+    default: ''
+  skip_comment:
+    description: 'Skip adding cleanup comment to PR'
+    required: false
+    default: 'false'
+  github_token:
+    description: 'GitHub token for authentication'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  files_removed:
+    description: 'Number of files/directories removed'
+    value: ${{ steps.cleanup.outputs.files_removed }}
+  cleanup_needed:
+    description: 'Whether cleanup was needed (true/false)'
+    value: ${{ steps.cleanup.outputs.cleanup_needed }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Remove dev files
+      id: cleanup
+      shell: bash
+      run: |
+        echo "Cleaning up dev files from ${{ github.event.pull_request.base.ref }} branch..."
+
+        # Default dev files to remove
+        files_to_remove=(
+          ".claude"
+          ".mcp.json"
+          ".taskmaster"
+          ".cursor"
+          ".aider*"
+          "*.dev"
+          "*.tmp"
+          ".DS_Store"
+          "Thumbs.db"
+          "dev-outputs"
+          "tmp"
+          ".vscode/settings.json"
+          ".idea"
+        )
+
+        # Add additional patterns if provided
+        if [[ -n "${{ inputs.additional_patterns }}" ]]; then
+          IFS=',' read -ra ADDITIONAL <<< "${{ inputs.additional_patterns }}"
+          for pattern in "${ADDITIONAL[@]}"; do
+            files_to_remove+=("$(echo "$pattern" | xargs)")
+          done
+        fi
+
+        removed_files=()
+
+        for pattern in "${files_to_remove[@]}"; do
+          if [[ "$pattern" == *"*"* ]]; then
+            # Handle patterns with wildcards
+            for file in $pattern; do
+              if [[ -e "$file" ]]; then
+                echo "Removing: $file"
+                rm -rf "$file"
+                removed_files+=("$file")
+              fi
+            done
+          else
+            # Handle exact file/directory names
+            if [[ -e "$pattern" ]]; then
+              echo "Removing: $pattern"
+              rm -rf "$pattern"
+              removed_files+=("$pattern")
+            fi
+          fi
+        done
+
+        # Log what was removed and set outputs
+        if [ ${#removed_files[@]} -gt 0 ]; then
+          echo "Removed files/directories:"
+          printf '%s\n' "${removed_files[@]}"
+          echo "files_removed=${#removed_files[@]}" >> $GITHUB_OUTPUT
+          echo "cleanup_needed=true" >> $GITHUB_OUTPUT
+        else
+          echo "No dev files found to remove"
+          echo "files_removed=0" >> $GITHUB_OUTPUT
+          echo "cleanup_needed=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Commit cleanup if files were removed
+      shell: bash
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        # Check if there are any changes
+        if [[ -n $(git status --porcelain) ]]; then
+          git add -A
+          git commit -m "chore: cleanup dev files after PR merge
+
+          Automatically removed development files that shouldn't be in the branch:
+          - .claude, .mcp.json, .taskmaster (AI dev tools)
+          - .cursor, .aider* (Editor configs)
+          - *.dev, *.tmp (Temporary files)
+          - .DS_Store, Thumbs.db (OS files)
+          - dev-outputs/, tmp/ (Development directories)
+
+          PR: #${{ github.event.pull_request.number }}
+          Source: ${{ github.event.pull_request.head.ref }}"
+
+          git push origin ${{ github.event.pull_request.base.ref }}
+          echo "✅ Dev files cleanup committed to ${{ github.event.pull_request.base.ref }}"
+        else
+          echo "✅ No dev files to cleanup"
+        fi
+
+    - name: Add cleanup comment to PR
+      if: inputs.skip_comment != 'true'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github_token }}
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: |
+              🧹 **Dev Files Cleanup Complete**
+              
+              Development files have been automatically removed from the `${{ github.event.pull_request.base.ref }}` branch after merge.
+              
+              *This keeps your main branches clean while preserving dev files in feature branches.*
+          })
