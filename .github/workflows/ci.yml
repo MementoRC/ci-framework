@@ -32,7 +32,7 @@ jobs:
           ls -la .pixi
       - name: "Debug pixi environment"
         run: |
-          pixi info --environment quality || echo "Quality environment not found"
+          pixi list -e quality || echo "Quality environment not found"
           pixi run -e quality which ruff || echo "Ruff not found in quality environment"
       - name: "Run Ruff (linting)"
         run: |
