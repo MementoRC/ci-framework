@@ -10,6 +10,11 @@ on:
     - cron: '0 0 * * *'  # Nightly build
   workflow_dispatch:
 
+permissions:
+  actions: read
+  contents: read
+  security-events: write  # Required for CodeQL SARIF uploads
+
 jobs:
   lint-and-format:
     name: "🧹 Lint & Format"
