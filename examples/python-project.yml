@@ -1,0 +1,29 @@
+---
+# Python project specific example
+name: Cleanup Dev Files - Python
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+      - master
+      - development
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Cleanup dev files
+        uses: MementoRC/ci-framework@v1
+        with:
+          additional_patterns: '.env.local,__pycache__/dev,*.pyc,dist/dev,.pytest_cache/dev,.coverage.dev'
+          skip_comment: false

@@ -1,0 +1,19 @@
+---
+# Example: How other repos would use the reusable workflow
+name: Cleanup Dev Files (Example Usage)
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+      - master
+      - development
+
+jobs:
+  cleanup:
+    uses: MementoRC/ci-framework/.github/workflows/reusable-cleanup-dev-files.yml@main
+    with:
+      target_branches: 'main,master,development'
+      additional_patterns: '.env.local,.cache,node_modules/.tmp'
+      skip_comment: false

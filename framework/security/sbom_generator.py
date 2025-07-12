@@ -154,7 +154,8 @@ class SBOMGenerator:
             # Add dependency relationships
             if dep.dependencies:
                 component["dependencies"] = [
-                    f"{dep.package_manager}:{dep_name}@unknown" for dep_name in dep.dependencies
+                    f"{dep.package_manager}:{dep_name}@unknown"
+                    for dep_name in dep.dependencies
                 ]
 
             sbom["components"].append(component)
@@ -166,7 +167,11 @@ class SBOMGenerator:
                         "bom-ref": f"vuln-{vuln.id}",
                         "id": vuln.id,
                         "source": {
-                            "name": "pip-audit" if dep.package_manager == "pip" else "unknown",
+                            "name": (
+                                "pip-audit"
+                                if dep.package_manager == "pip"
+                                else "unknown"
+                            ),
                         },
                         "ratings": [
                             {
@@ -424,7 +429,9 @@ class SBOMGenerator:
             if output_format != "spdx":
                 raise ValueError("YAML output only supported for SPDX format")
             with open(output_path, "w", encoding="utf-8") as f:
-                yaml.safe_dump(sbom_data, f, default_flow_style=False, allow_unicode=True)
+                yaml.safe_dump(
+                    sbom_data, f, default_flow_style=False, allow_unicode=True
+                )
         elif output_type == "xml":
             if output_format != "cyclonedx":
                 raise ValueError("XML output only supported for CycloneDX format")
@@ -490,8 +497,12 @@ class SBOMGenerator:
             "project_path": str(self.dependency_analyzer.project_path),
             "summary": {
                 "total_dependencies": len(dependencies),
-                "vulnerable_dependencies": len([d for d in dependencies if d.has_vulnerabilities]),
-                "total_vulnerabilities": sum(len(d.vulnerabilities) for d in dependencies),
+                "vulnerable_dependencies": len(
+                    [d for d in dependencies if d.has_vulnerabilities]
+                ),
+                "total_vulnerabilities": sum(
+                    len(d.vulnerabilities) for d in dependencies
+                ),
                 "severity_breakdown": {"low": 0, "medium": 0, "high": 0, "critical": 0},
             },
             "vulnerable_packages": [],
@@ -606,9 +617,13 @@ class SBOMGenerator:
 
         # Add recommendations
         if vulnerable_count > 0:
-            report["recommendations"].append("Address all known vulnerabilities in dependencies")  # type: ignore[attr-defined]
+            report["recommendations"].append(
+                "Address all known vulnerabilities in dependencies"
+            )  # type: ignore[attr-defined]
         if unlicensed_count > 0:
-            report["recommendations"].append("Document license information for all dependencies")  # type: ignore[attr-defined]
+            report["recommendations"].append(
+                "Document license information for all dependencies"
+            )  # type: ignore[attr-defined]
 
         # Save report if path provided
         if output_path:
@@ -640,15 +655,21 @@ class SBOMGenerator:
         if framework == "NIST":
             # NIST focuses on cybersecurity
             risk_score = min(100, len(vulnerable_deps) * 10)
-            compliance_level = "high" if risk_score < 20 else "medium" if risk_score < 50 else "low"
+            compliance_level = (
+                "high" if risk_score < 20 else "medium" if risk_score < 50 else "low"
+            )
         elif framework == "SOX":
             # SOX focuses on financial controls
             risk_score = min(100, (len(vulnerable_deps) + len(unlicensed_deps)) * 8)
-            compliance_level = "high" if risk_score < 25 else "medium" if risk_score < 60 else "low"
+            compliance_level = (
+                "high" if risk_score < 25 else "medium" if risk_score < 60 else "low"
+            )
         else:
             # Generic assessment
             risk_score = min(100, len(vulnerable_deps) * 12)
-            compliance_level = "high" if risk_score < 30 else "medium" if risk_score < 70 else "low"
+            compliance_level = (
+                "high" if risk_score < 30 else "medium" if risk_score < 70 else "low"
+            )
 
         return {
             "compliance_level": compliance_level,

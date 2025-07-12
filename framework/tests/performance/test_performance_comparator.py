@@ -72,15 +72,22 @@ class TestPerformanceComparator:
         comparator = PerformanceComparator()
 
         # Create baseline metrics
-        baseline_metrics = PerformanceMetrics(build_id="baseline_build", timestamp=datetime.now())
+        baseline_metrics = PerformanceMetrics(
+            build_id="baseline_build", timestamp=datetime.now()
+        )
         baseline_metrics.add_result(
             BenchmarkResult(
-                name="test_benchmark", execution_time=1.0, memory_usage=100.0, throughput=1000.0
+                name="test_benchmark",
+                execution_time=1.0,
+                memory_usage=100.0,
+                throughput=1000.0,
             )
         )
 
         # Create current metrics (5% improvement)
-        current_metrics = PerformanceMetrics(build_id="current_build", timestamp=datetime.now())
+        current_metrics = PerformanceMetrics(
+            build_id="current_build", timestamp=datetime.now()
+        )
         current_metrics.add_result(
             BenchmarkResult(
                 name="test_benchmark",
@@ -104,11 +111,17 @@ class TestPerformanceComparator:
         comparator = PerformanceComparator()
 
         # Create baseline metrics
-        baseline_metrics = PerformanceMetrics(build_id="baseline_build", timestamp=datetime.now())
-        baseline_metrics.add_result(BenchmarkResult(name="test_benchmark", execution_time=1.0))
+        baseline_metrics = PerformanceMetrics(
+            build_id="baseline_build", timestamp=datetime.now()
+        )
+        baseline_metrics.add_result(
+            BenchmarkResult(name="test_benchmark", execution_time=1.0)
+        )
 
         # Create current metrics (15% slower - triggers regression)
-        current_metrics = PerformanceMetrics(build_id="current_build", timestamp=datetime.now())
+        current_metrics = PerformanceMetrics(
+            build_id="current_build", timestamp=datetime.now()
+        )
         current_metrics.add_result(
             BenchmarkResult(
                 name="test_benchmark",
@@ -124,14 +137,20 @@ class TestPerformanceComparator:
         alert = result.alerts[0]
         assert alert.metric_name == "execution_time"
         assert alert.benchmark_name == "test_benchmark"
-        assert alert.severity == AlertSeverity.CRITICAL  # Both relative and absolute exceeded
-        assert abs(alert.change_percent - 15.0) < 0.01  # Allow for floating point precision
+        assert (
+            alert.severity == AlertSeverity.CRITICAL
+        )  # Both relative and absolute exceeded
+        assert (
+            abs(alert.change_percent - 15.0) < 0.01
+        )  # Allow for floating point precision
 
     def test_memory_usage_regression_detection(self):
         """Test detection of memory usage regression."""
         comparator = PerformanceComparator()
 
-        baseline_metrics = PerformanceMetrics(build_id="baseline_build", timestamp=datetime.now())
+        baseline_metrics = PerformanceMetrics(
+            build_id="baseline_build", timestamp=datetime.now()
+        )
         baseline_metrics.add_result(
             BenchmarkResult(
                 name="test_benchmark",
@@ -141,7 +160,9 @@ class TestPerformanceComparator:
         )
 
         # 20% more memory usage - triggers regression
-        current_metrics = PerformanceMetrics(build_id="current_build", timestamp=datetime.now())
+        current_metrics = PerformanceMetrics(
+            build_id="current_build", timestamp=datetime.now()
+        )
         current_metrics.add_result(
             BenchmarkResult(
                 name="test_benchmark",
@@ -164,7 +185,9 @@ class TestPerformanceComparator:
         """Test detection of throughput regression."""
         comparator = PerformanceComparator()
 
-        baseline_metrics = PerformanceMetrics(build_id="baseline_build", timestamp=datetime.now())
+        baseline_metrics = PerformanceMetrics(
+            build_id="baseline_build", timestamp=datetime.now()
+        )
         baseline_metrics.add_result(
             BenchmarkResult(
                 name="test_benchmark",
@@ -174,7 +197,9 @@ class TestPerformanceComparator:
         )
 
         # 15% lower throughput - triggers regression
-        current_metrics = PerformanceMetrics(build_id="current_build", timestamp=datetime.now())
+        current_metrics = PerformanceMetrics(
+            build_id="current_build", timestamp=datetime.now()
+        )
         current_metrics.add_result(
             BenchmarkResult(
                 name="test_benchmark",
@@ -197,7 +222,9 @@ class TestPerformanceComparator:
         """Test detection of warning-level regression."""
         comparator = PerformanceComparator()
 
-        baseline_metrics = PerformanceMetrics(build_id="baseline_build", timestamp=datetime.now())
+        baseline_metrics = PerformanceMetrics(
+            build_id="baseline_build", timestamp=datetime.now()
+        )
         baseline_metrics.add_result(
             BenchmarkResult(
                 name="test_benchmark",
@@ -206,7 +233,9 @@ class TestPerformanceComparator:
         )
 
         # 12% slower - triggers relative threshold but not absolute (60ms absolute < 100ms threshold)
-        current_metrics = PerformanceMetrics(build_id="current_build", timestamp=datetime.now())
+        current_metrics = PerformanceMetrics(
+            build_id="current_build", timestamp=datetime.now()
+        )
         current_metrics.add_result(
             BenchmarkResult(
                 name="test_benchmark",
@@ -227,12 +256,22 @@ class TestPerformanceComparator:
         """Test comparison with multiple benchmarks."""
         comparator = PerformanceComparator()
 
-        baseline_metrics = PerformanceMetrics(build_id="baseline_build", timestamp=datetime.now())
-        baseline_metrics.add_result(BenchmarkResult(name="fast_benchmark", execution_time=0.1))
-        baseline_metrics.add_result(BenchmarkResult(name="slow_benchmark", execution_time=2.0))
-        baseline_metrics.add_result(BenchmarkResult(name="stable_benchmark", execution_time=1.0))
+        baseline_metrics = PerformanceMetrics(
+            build_id="baseline_build", timestamp=datetime.now()
+        )
+        baseline_metrics.add_result(
+            BenchmarkResult(name="fast_benchmark", execution_time=0.1)
+        )
+        baseline_metrics.add_result(
+            BenchmarkResult(name="slow_benchmark", execution_time=2.0)
+        )
+        baseline_metrics.add_result(
+            BenchmarkResult(name="stable_benchmark", execution_time=1.0)
+        )
 
-        current_metrics = PerformanceMetrics(build_id="current_build", timestamp=datetime.now())
+        current_metrics = PerformanceMetrics(
+            build_id="current_build", timestamp=datetime.now()
+        )
         current_metrics.add_result(
             BenchmarkResult(name="fast_benchmark", execution_time=0.08)  # Improvement
         )
@@ -255,7 +294,9 @@ class TestPerformanceComparator:
         """Test statistical summary calculation."""
         comparator = PerformanceComparator()
 
-        baseline_metrics = PerformanceMetrics(build_id="baseline_build", timestamp=datetime.now())
+        baseline_metrics = PerformanceMetrics(
+            build_id="baseline_build", timestamp=datetime.now()
+        )
         for i in range(5):
             baseline_metrics.add_result(
                 BenchmarkResult(
@@ -265,7 +306,9 @@ class TestPerformanceComparator:
                 )
             )
 
-        current_metrics = PerformanceMetrics(build_id="current_build", timestamp=datetime.now())
+        current_metrics = PerformanceMetrics(
+            build_id="current_build", timestamp=datetime.now()
+        )
         for i in range(5):
             current_metrics.add_result(
                 BenchmarkResult(
@@ -295,7 +338,9 @@ class TestPerformanceComparator:
         # Create historical metrics (declining performance trend)
         historical_metrics = []
         for i in range(5):
-            metrics = PerformanceMetrics(build_id=f"build_{i}", timestamp=datetime.now())
+            metrics = PerformanceMetrics(
+                build_id=f"build_{i}", timestamp=datetime.now()
+            )
             metrics.add_result(
                 BenchmarkResult(
                     name="trending_benchmark",
@@ -304,7 +349,9 @@ class TestPerformanceComparator:
             )
             historical_metrics.append(metrics)
 
-        current_metrics = PerformanceMetrics(build_id="current_build", timestamp=datetime.now())
+        current_metrics = PerformanceMetrics(
+            build_id="current_build", timestamp=datetime.now()
+        )
         current_metrics.add_result(
             BenchmarkResult(
                 name="trending_benchmark",
@@ -320,7 +367,9 @@ class TestPerformanceComparator:
         trend_details = result.statistical_summary["trend_details"]
         if "trending_benchmark" in trend_details:
             benchmark_trend = trend_details["trending_benchmark"]
-            assert benchmark_trend["direction"] == "increasing"  # Execution time increasing
+            assert (
+                benchmark_trend["direction"] == "increasing"
+            )  # Execution time increasing
             assert benchmark_trend["correlation"] > 0.8  # Strong positive correlation
 
     def test_correlation_calculation(self):
@@ -369,7 +418,9 @@ class TestPerformanceComparator:
             throughput=1100.0,  # Better
         )
 
-        assert comparator._is_improvement(current_mixed, baseline) is True  # Any improvement counts
+        assert (
+            comparator._is_improvement(current_mixed, baseline) is True
+        )  # Any improvement counts
 
         # No improvement case
         current_no_improvement = BenchmarkResult(
@@ -385,14 +436,22 @@ class TestPerformanceComparator:
         """Test markdown report generation."""
         comparator = PerformanceComparator()
 
-        baseline_metrics = PerformanceMetrics(build_id="baseline_build", timestamp=datetime.now())
+        baseline_metrics = PerformanceMetrics(
+            build_id="baseline_build", timestamp=datetime.now()
+        )
         baseline_metrics.add_result(
-            BenchmarkResult(name="test_benchmark", execution_time=1.0, memory_usage=100.0)
+            BenchmarkResult(
+                name="test_benchmark", execution_time=1.0, memory_usage=100.0
+            )
         )
 
-        current_metrics = PerformanceMetrics(build_id="current_build", timestamp=datetime.now())
+        current_metrics = PerformanceMetrics(
+            build_id="current_build", timestamp=datetime.now()
+        )
         current_metrics.add_result(
-            BenchmarkResult(name="test_benchmark", execution_time=1.15, memory_usage=120.0)
+            BenchmarkResult(
+                name="test_benchmark", execution_time=1.15, memory_usage=120.0
+            )
         )
 
         result = comparator.compare_with_baseline(current_metrics, baseline_metrics)
@@ -408,11 +467,19 @@ class TestPerformanceComparator:
         """Test JSON report generation."""
         comparator = PerformanceComparator()
 
-        baseline_metrics = PerformanceMetrics(build_id="baseline_build", timestamp=datetime.now())
-        baseline_metrics.add_result(BenchmarkResult(name="test_benchmark", execution_time=1.0))
+        baseline_metrics = PerformanceMetrics(
+            build_id="baseline_build", timestamp=datetime.now()
+        )
+        baseline_metrics.add_result(
+            BenchmarkResult(name="test_benchmark", execution_time=1.0)
+        )
 
-        current_metrics = PerformanceMetrics(build_id="current_build", timestamp=datetime.now())
-        current_metrics.add_result(BenchmarkResult(name="test_benchmark", execution_time=1.05))
+        current_metrics = PerformanceMetrics(
+            build_id="current_build", timestamp=datetime.now()
+        )
+        current_metrics.add_result(
+            BenchmarkResult(name="test_benchmark", execution_time=1.05)
+        )
 
         result = comparator.compare_with_baseline(current_metrics, baseline_metrics)
         report = comparator.generate_report(result, "json")
@@ -429,11 +496,19 @@ class TestPerformanceComparator:
         comparator = PerformanceComparator()
 
         # Test with regression
-        baseline_metrics = PerformanceMetrics(build_id="baseline_build", timestamp=datetime.now())
-        baseline_metrics.add_result(BenchmarkResult(name="test_benchmark", execution_time=1.0))
+        baseline_metrics = PerformanceMetrics(
+            build_id="baseline_build", timestamp=datetime.now()
+        )
+        baseline_metrics.add_result(
+            BenchmarkResult(name="test_benchmark", execution_time=1.0)
+        )
 
-        current_metrics = PerformanceMetrics(build_id="current_build", timestamp=datetime.now())
-        current_metrics.add_result(BenchmarkResult(name="test_benchmark", execution_time=1.15))
+        current_metrics = PerformanceMetrics(
+            build_id="current_build", timestamp=datetime.now()
+        )
+        current_metrics.add_result(
+            BenchmarkResult(name="test_benchmark", execution_time=1.15)
+        )
 
         result = comparator.compare_with_baseline(current_metrics, baseline_metrics)
         report = comparator.generate_report(result, "github")
@@ -445,13 +520,19 @@ class TestPerformanceComparator:
         """Test handling of zero baseline values."""
         comparator = PerformanceComparator()
 
-        baseline_metrics = PerformanceMetrics(build_id="baseline_build", timestamp=datetime.now())
+        baseline_metrics = PerformanceMetrics(
+            build_id="baseline_build", timestamp=datetime.now()
+        )
         baseline_metrics.add_result(
             BenchmarkResult(name="test_benchmark", execution_time=0.0)  # Zero baseline
         )
 
-        current_metrics = PerformanceMetrics(build_id="current_build", timestamp=datetime.now())
-        current_metrics.add_result(BenchmarkResult(name="test_benchmark", execution_time=1.0))
+        current_metrics = PerformanceMetrics(
+            build_id="current_build", timestamp=datetime.now()
+        )
+        current_metrics.add_result(
+            BenchmarkResult(name="test_benchmark", execution_time=1.0)
+        )
 
         result = comparator.compare_with_baseline(current_metrics, baseline_metrics)
 
@@ -463,11 +544,19 @@ class TestPerformanceComparator:
         """Test handling of benchmarks missing in baseline."""
         comparator = PerformanceComparator()
 
-        baseline_metrics = PerformanceMetrics(build_id="baseline_build", timestamp=datetime.now())
-        baseline_metrics.add_result(BenchmarkResult(name="existing_benchmark", execution_time=1.0))
+        baseline_metrics = PerformanceMetrics(
+            build_id="baseline_build", timestamp=datetime.now()
+        )
+        baseline_metrics.add_result(
+            BenchmarkResult(name="existing_benchmark", execution_time=1.0)
+        )
 
-        current_metrics = PerformanceMetrics(build_id="current_build", timestamp=datetime.now())
-        current_metrics.add_result(BenchmarkResult(name="existing_benchmark", execution_time=1.0))
+        current_metrics = PerformanceMetrics(
+            build_id="current_build", timestamp=datetime.now()
+        )
+        current_metrics.add_result(
+            BenchmarkResult(name="existing_benchmark", execution_time=1.0)
+        )
         current_metrics.add_result(
             BenchmarkResult(name="new_benchmark", execution_time=2.0)  # Not in baseline
         )
@@ -501,11 +590,17 @@ class TestPerformanceComparator:
             baseline_metrics = PerformanceMetrics(
                 build_id="baseline_build", timestamp=datetime.now()
             )
-            baseline_metrics.add_result(BenchmarkResult(name="test_benchmark", execution_time=1.0))
+            baseline_metrics.add_result(
+                BenchmarkResult(name="test_benchmark", execution_time=1.0)
+            )
 
-            current_metrics = PerformanceMetrics(build_id="current_build", timestamp=datetime.now())
+            current_metrics = PerformanceMetrics(
+                build_id="current_build", timestamp=datetime.now()
+            )
             current_metrics.add_result(
-                BenchmarkResult(name="test_benchmark", execution_time=1.005)  # 0.5% slower
+                BenchmarkResult(
+                    name="test_benchmark", execution_time=1.005
+                )  # 0.5% slower
             )
 
             result = comparator.compare_with_baseline(current_metrics, baseline_metrics)
@@ -521,7 +616,9 @@ class TestThresholdConfig:
     def test_threshold_config_creation(self):
         """Test creating threshold configuration."""
         config = ThresholdConfig(
-            relative_increase=0.15, absolute_increase=50.0, statistical_significance=0.99
+            relative_increase=0.15,
+            absolute_increase=50.0,
+            statistical_significance=0.99,
         )
 
         assert config.relative_increase == 0.15

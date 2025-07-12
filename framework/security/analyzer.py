@@ -1,12 +1,71 @@
 """Core dependency analysis and vulnerability scanning functionality."""
 
 import json
-import subprocess
+
+# Security: subprocess is used with strict validation and shell=False
+import subprocess  # Used securely via _run_secure_subprocess wrapper
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 
 from .models import DependencyInfo, VulnerabilityInfo
+
+
+def _run_secure_subprocess(
+    command: List[str], cwd: Path | str, timeout: int = 60
+) -> subprocess.CompletedProcess:
+    """
+    Securely run subprocess with proper validation and constraints.
+
+    Args:
+        command: List of command arguments (no shell expansion)
+        cwd: Working directory
+        timeout: Command timeout in seconds
+
+    Returns:
+        CompletedProcess result
+
+    Raises:
+        ValueError: If command validation fails
+        subprocess.TimeoutExpired: If command times out
+        subprocess.CalledProcessError: If command fails
+    """
+    # Validate command is a list (prevents shell injection)
+    if not isinstance(command, list) or not command:
+        raise ValueError("Command must be a non-empty list")
+
+    # Validate first argument is a known safe command
+    allowed_commands = {
+        "pip-audit",
+        "pip",
+        "pixi",
+        "poetry",
+        "hatch",
+        "ruff",
+        "black",
+        "bandit",
+        "mypy",
+    }
+    if command[0] not in allowed_commands:
+        raise ValueError(
+            f"Command '{command[0]}' not in allowed list: {allowed_commands}"
+        )
+
+    # Validate working directory exists
+    cwd_path = Path(cwd)
+    if not cwd_path.exists():
+        raise ValueError(f"Working directory does not exist: {cwd}")
+
+    # Run with security constraints
+    return subprocess.run(
+        command,  # List format prevents shell injection
+        cwd=cwd_path,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        shell=False,  # Explicit shell=False for security
+        check=False,  # We'll handle return codes ourselves
+    )
 
 
 class DependencyAnalyzer:
@@ -38,7 +97,9 @@ class DependencyAnalyzer:
             detected.append("pip")
 
         # Check for pixi (pixi.toml, pixi.lock)
-        if (self.project_path / "pixi.toml").exists() or (self.project_path / "pixi.lock").exists():
+        if (self.project_path / "pixi.toml").exists() or (
+            self.project_path / "pixi.lock"
+        ).exists():
             detected.append("pixi")
 
         # Check for conda (environment.yml, conda-lock.yml)
@@ -59,11 +120,9 @@ class DependencyAnalyzer:
 
         try:
             # Use pip-audit to get vulnerability information
-            result = subprocess.run(
+            result = _run_secure_subprocess(
                 ["pip-audit", "--format=json", "--progress-spinner=off"],
                 cwd=self.project_path,
-                capture_output=True,
-                text=True,
                 timeout=300,
             )
 
@@ -94,11 +153,9 @@ class DependencyAnalyzer:
         dependencies = []
 
         try:
-            result = subprocess.run(
+            result = _run_secure_subprocess(
                 ["pip", "list", "--format=json"],
                 cwd=self.project_path,
-                capture_output=True,
-                text=True,
                 timeout=60,
             )
 
@@ -128,11 +185,9 @@ class DependencyAnalyzer:
 
         try:
             # Get pixi environment information
-            result = subprocess.run(
+            result = _run_secure_subprocess(
                 ["pixi", "list", "--json"],
                 cwd=self.project_path,
-                capture_output=True,
-                text=True,
                 timeout=60,
             )
 
@@ -151,7 +206,9 @@ class DependencyAnalyzer:
 
         return dependencies
 
-    def scan_dependencies(self, package_managers: list[str] | None = None) -> list[DependencyInfo]:
+    def scan_dependencies(
+        self, package_managers: list[str] | None = None
+    ) -> list[DependencyInfo]:
         """Scan dependencies for specified package managers.
 
         Args:
@@ -177,7 +234,9 @@ class DependencyAnalyzer:
 
         return all_dependencies
 
-    def _parse_pip_audit_output(self, audit_data: dict[str, Any]) -> list[DependencyInfo]:
+    def _parse_pip_audit_output(
+        self, audit_data: dict[str, Any]
+    ) -> list[DependencyInfo]:
         """Parse pip-audit JSON output into DependencyInfo objects.
 
         Args:
@@ -198,7 +257,9 @@ class DependencyAnalyzer:
                     id=vuln_data.get("id", ""),
                     package_name=dep_data.get("name", ""),
                     package_version=dep_data.get("version", ""),
-                    severity=self._normalize_severity(vuln_data.get("severity", "unknown")),
+                    severity=self._normalize_severity(
+                        vuln_data.get("severity", "unknown")
+                    ),
                     description=vuln_data.get("description", ""),
                     fix_versions=vuln_data.get("fix_versions", []),
                     aliases=vuln_data.get("aliases", []),
@@ -287,7 +348,9 @@ class DependencyAnalyzer:
             "dependencies": {dep.name: dep.to_dict() for dep in dependencies},
             "summary": {
                 "total_dependencies": len(dependencies),
-                "vulnerable_dependencies": len([d for d in dependencies if d.has_vulnerabilities]),
+                "vulnerable_dependencies": len(
+                    [d for d in dependencies if d.has_vulnerabilities]
+                ),
                 "package_manager_distribution": pm_distribution,
             },
         }

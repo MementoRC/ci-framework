@@ -78,6 +78,11 @@ class TemplateEngine:
 
         markdown = "# ⚡ Performance Benchmark Report\n\n"
 
+        # Handle None metrics gracefully
+        if metrics is None:
+            markdown += "⚠️ No performance metrics available.\n\n"
+            return markdown
+
         # Check for regression alerts first
         if metrics.get("regressions_detected"):
             markdown += "## 🚨 Performance Regressions Detected\n\n"
@@ -158,7 +163,9 @@ class TemplateEngine:
                     thr = comp["throughput"]
                     change_icon = self._get_performance_icon(thr["change_direction"])
                     markdown += f"- **Throughput**: {change_icon} {thr['change_percent']:+.1f}% "
-                    markdown += f"({thr['current']:.0f} vs {thr['baseline']:.0f} ops/sec)\n"
+                    markdown += (
+                        f"({thr['current']:.0f} vs {thr['baseline']:.0f} ops/sec)\n"
+                    )
 
                 markdown += "\n"
 
@@ -234,7 +241,9 @@ class TemplateEngine:
             vulnerable_deps = [dep for dep in dependencies if dep.get("vulns")]
 
             if vulnerable_deps:
-                markdown += f"⚠️ **{len(vulnerable_deps)} vulnerable dependencies found!**\n\n"
+                markdown += (
+                    f"⚠️ **{len(vulnerable_deps)} vulnerable dependencies found!**\n\n"
+                )
 
                 for dep in vulnerable_deps[:5]:  # Limit to first 5
                     name = dep.get("name", "Unknown")
@@ -250,16 +259,18 @@ class TemplateEngine:
 
                         markdown += f"- **{vuln_id}**: {description[:100]}{'...' if len(description) > 100 else ''}\n"
                         if fix_versions:
-                            markdown += f"  - Fix available in: {', '.join(fix_versions)}\n"
+                            markdown += (
+                                f"  - Fix available in: {', '.join(fix_versions)}\n"
+                            )
                         markdown += "\n"
 
                 if len(vulnerable_deps) > 5:
-                    markdown += (
-                        f"*... and {len(vulnerable_deps) - 5} more vulnerable dependencies*\n\n"
-                    )
+                    markdown += f"*... and {len(vulnerable_deps) - 5} more vulnerable dependencies*\n\n"
             else:
                 total_deps = len(dependencies)
-                markdown += f"✅ **No vulnerabilities found in {total_deps} dependencies.**\n\n"
+                markdown += (
+                    f"✅ **No vulnerabilities found in {total_deps} dependencies.**\n\n"
+                )
 
         markdown += f"\n---\n*Report generated at {self._format_timestamp(timestamp)}*"
 
@@ -342,11 +353,11 @@ class TemplateEngine:
                 if high > 0:
                     markdown += f"- **Static Analysis**: ⚠️ {high} high, {medium} medium, {low} low severity issues\n"
                 elif medium > 0:
-                    markdown += (
-                        f"- **Static Analysis**: ⚠️ {medium} medium, {low} low severity issues\n"
-                    )
+                    markdown += f"- **Static Analysis**: ⚠️ {medium} medium, {low} low severity issues\n"
                 else:
-                    markdown += "- **Static Analysis**: ✅ No high/medium severity issues\n"
+                    markdown += (
+                        "- **Static Analysis**: ✅ No high/medium severity issues\n"
+                    )
 
         # Vulnerability summary
         if "pip_audit_results" in security_data:
@@ -355,7 +366,9 @@ class TemplateEngine:
             vulnerable = [dep for dep in dependencies if dep.get("vulns")]
 
             if vulnerable:
-                markdown += f"- **Dependencies**: ⚠️ {len(vulnerable)} vulnerable packages\n"
+                markdown += (
+                    f"- **Dependencies**: ⚠️ {len(vulnerable)} vulnerable packages\n"
+                )
             else:
                 markdown += f"- **Dependencies**: ✅ {len(dependencies)} packages scanned, no vulnerabilities\n"
 

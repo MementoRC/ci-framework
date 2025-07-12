@@ -73,8 +73,12 @@ class PerformanceMetrics:
         if not self.results:
             return {}
 
-        execution_times = [r.execution_time for r in self.results if r.execution_time is not None]
-        memory_usages = [r.memory_usage for r in self.results if r.memory_usage is not None]
+        execution_times = [
+            r.execution_time for r in self.results if r.execution_time is not None
+        ]
+        memory_usages = [
+            r.memory_usage for r in self.results if r.memory_usage is not None
+        ]
         throughputs = [r.throughput for r in self.results if r.throughput is not None]
 
         stats = {}
