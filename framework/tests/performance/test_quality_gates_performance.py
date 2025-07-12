@@ -127,14 +127,14 @@ class Class_{j}:
             
             # Measure package manager detection time
             start_time = time.time()
-            manager = quality_gates_action.detect_package_manager(small_mock_project)
+            _ = quality_gates_action.detect_package_manager(small_mock_project)
             detection_time = time.time() - start_time
             
             assert detection_time < 0.1, f"Package manager detection took {detection_time}s, should be <0.1s"
             
             # Measure pattern detection time
             start_time = time.time()
-            patterns = quality_gates_action._detect_project_patterns(small_mock_project)
+            _ = quality_gates_action._detect_project_patterns(small_mock_project)
             pattern_time = time.time() - start_time
             
             assert pattern_time < 0.1, f"Pattern detection took {pattern_time}s, should be <0.1s"
@@ -332,7 +332,7 @@ class Class_{j}:
             
             # Benchmark pattern detection
             start_time = time.time()
-            patterns = quality_gates_action._detect_project_patterns(project_path)
+            _ = quality_gates_action._detect_project_patterns(project_path)
             pattern_time = time.time() - start_time
             
             # Benchmark dry-run execution
