@@ -51,6 +51,7 @@ runs:
           "Thumbs.db"
           "dev-outputs"
           "tmp"
+          "ai_docs"
           ".vscode/settings.json"
           ".idea"
         )
