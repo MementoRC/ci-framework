@@ -156,8 +156,15 @@ class TestQuickChecks:
 
     def _run_quick_checks(self):
         """Helper method to run quick checks stage"""
-        # This will be implemented in subtask 2.3 - should FAIL now
-        raise NotImplementedError("Quick checks implementation not ready")
+        import subprocess
+        
+        # Run critical lint checks only (F,E9 violations)
+        result = subprocess.run(
+            ["ruff", "check", "--select=F,E9", "framework/"],
+            capture_output=True,
+            text=True,
+        )
+        return result
 
 
 class TestMatrixConfiguration:
@@ -248,15 +255,37 @@ class TestPerformanceBenchmarking:
         self, baseline: dict[str, float], current: dict[str, float]
     ) -> bool:
         """Helper method to compare performance metrics"""
-        # This will be implemented in subtask 2.3 - should FAIL now
-        raise NotImplementedError("Performance comparison logic not implemented")
+        # Check for regression (>10% slower)
+        REGRESSION_THRESHOLD = 0.10  # 10%
+        
+        for metric_name in baseline:
+            if metric_name in current:
+                baseline_value = baseline[metric_name]
+                current_value = current[metric_name]
+                
+                # Calculate percentage change (positive = worse performance)
+                change_percent = (current_value - baseline_value) / baseline_value
+                
+                if change_percent > REGRESSION_THRESHOLD:
+                    return True  # Regression detected
+        
+        return False  # No significant regression
 
     def _detect_performance_improvement(
         self, baseline: dict[str, float], current: dict[str, float]
     ) -> bool:
         """Helper method to detect performance improvements"""
-        # This will be implemented in subtask 2.3 - should FAIL now
-        raise NotImplementedError("Performance improvement detection not implemented")
+        # Check for improvement (any measurable improvement)
+        for metric_name in baseline:
+            if metric_name in current:
+                baseline_value = baseline[metric_name]
+                current_value = current[metric_name]
+                
+                # For execution_time and memory_usage, lower is better
+                if current_value < baseline_value:
+                    return True  # Improvement detected
+        
+        return False  # No improvement detected
 
 
 class TestSecurityIntegration:
