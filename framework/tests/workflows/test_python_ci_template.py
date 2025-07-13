@@ -399,7 +399,7 @@ class TestGitHubStatusAPI:
         import requests
         
         # Mock GitHub Status API endpoint  
-        url = f"https://api.github.com/repos/owner/repo/statuses/sha"
+        url = "https://api.github.com/repos/owner/repo/statuses/sha"
         
         payload = {
             "state": state,
