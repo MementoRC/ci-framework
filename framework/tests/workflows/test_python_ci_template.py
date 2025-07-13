@@ -96,8 +96,29 @@ class TestChangeDetection:
 
     def _get_detected_changes(self, changed_files: list[str]) -> dict[str, bool]:
         """Helper method to simulate change detection logic"""
-        # This will be implemented in subtask 2.3 - should FAIL now
-        raise NotImplementedError("Change detection logic not implemented yet")
+        changes = {}
+        
+        # Check for Python files
+        python_files = [f for f in changed_files if f.endswith('.py')]
+        if python_files:
+            changes["python"] = True
+            
+            # Check for action-specific changes
+            if any('actions' in f for f in python_files):
+                changes["actions"] = True
+        
+        # Check for dependency files
+        dependency_files = [f for f in changed_files if f in ['pyproject.toml', 'pixi.toml', 'requirements.txt', 'Pipfile', 'poetry.lock']]
+        if dependency_files:
+            changes["dependencies"] = True
+            changes["force-full"] = True
+        
+        # Check for docs-only changes
+        doc_files = [f for f in changed_files if f.endswith(('.md', '.rst', '.txt')) or f.startswith('docs/') or f in ['.gitignore', 'LICENSE']]
+        if doc_files and not python_files and not dependency_files:
+            changes["docs-only"] = True
+        
+        return changes
 
 
 class TestQuickChecks:
