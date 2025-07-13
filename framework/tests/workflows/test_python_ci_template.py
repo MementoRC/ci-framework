@@ -481,19 +481,30 @@ class TestEnvironmentConsistency:
     """Test PIXI_VERSION and environment consistency"""
 
     def test_pixi_version_consistent_across_jobs(self):
-        """Test that all jobs use same PIXI_VERSION"""
+        """Test that workflow has global PIXI_VERSION and jobs use it consistently"""
         workflow_path = Path(".github/workflows/python-ci-template.yml")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
-        # Should FAIL initially - no workflow exists
-        pixi_versions = []
+        # Check that global PIXI_VERSION is defined
+        assert "env" in workflow, "Workflow should have global env section"
+        assert "PIXI_VERSION" in workflow["env"], "Global PIXI_VERSION should be defined"
+        global_pixi_version = workflow["env"]["PIXI_VERSION"]
+        
+        # Check that all jobs using pixi reference the global version
+        jobs_using_pixi = []
         for job_name, job_config in workflow["jobs"].items():
-            if "env" in job_config and "PIXI_VERSION" in job_config["env"]:
-                pixi_versions.append(job_config["env"]["PIXI_VERSION"])
-
-        # All jobs should use the same PIXI_VERSION
-        assert len(set(pixi_versions)) == 1, "All jobs should use same PIXI_VERSION"
+            if "steps" in job_config:
+                for step in job_config["steps"]:
+                    if "uses" in step and "setup-pixi" in step["uses"]:
+                        jobs_using_pixi.append(job_name)
+                        # Verify the job uses ${{ env.PIXI_VERSION }}
+                        if "with" in step and "pixi-version" in step["with"]:
+                            pixi_version_ref = step["with"]["pixi-version"]
+                            assert pixi_version_ref == "${{ env.PIXI_VERSION }}", f"Job {job_name} should use global PIXI_VERSION"
+        
+        # Ensure we found at least one job using pixi
+        assert len(jobs_using_pixi) > 0, "At least one job should use pixi"
 
     def test_environment_setup_consistency(self):
         """Test that environment setup is consistent between stages"""
