@@ -5,16 +5,18 @@ These tests establish performance baselines and ensure the Quality Gates Action
 meets or exceeds performance requirements across different project sizes.
 """
 
-import pytest
-import time
-import tempfile
 import shutil
-import subprocess
-from pathlib import Path
-from framework.actions.quality_gates import QualityGatesAction
-from typing import Dict, List, Any
 import statistics
-from unittest.mock import patch, Mock
+import subprocess
+import tempfile
+import time
+from pathlib import Path
+from typing import Any, Dict, List
+from unittest.mock import Mock, patch
+
+import pytest
+
+from framework.actions.quality_gates import QualityGatesAction
 
 
 class TestQualityGatesPerformance:
@@ -38,7 +40,8 @@ class TestQualityGatesPerformance:
             project_dir.mkdir()
 
             # Create pyproject.toml
-            (project_dir / "pyproject.toml").write_text("""
+            (project_dir / "pyproject.toml").write_text(
+                """
 [tool.pixi.project]
 name = "small-project"
 channels = ["conda-forge"]
@@ -52,7 +55,8 @@ test = "pytest"
 lint = "ruff check --select=F,E9"
 typecheck = "mypy ."
 quality = { depends-on = ["test", "lint", "typecheck"] }
-""")
+"""
+            )
 
             # Create small codebase
             src_dir = project_dir / "src"
@@ -75,7 +79,8 @@ quality = { depends-on = ["test", "lint", "typecheck"] }
             project_dir.mkdir()
 
             # Create pyproject.toml
-            (project_dir / "pyproject.toml").write_text("""
+            (project_dir / "pyproject.toml").write_text(
+                """
 [tool.pixi.project]
 name = "medium-project"
 channels = ["conda-forge"]
@@ -92,7 +97,8 @@ typecheck = "mypy ."
 security-scan = "bandit -r ."
 quality = { depends-on = ["test", "lint", "typecheck"] }
 check-all = { depends-on = ["quality", "security-scan"] }
-""")
+"""
+            )
 
             # Create medium codebase
             for i in range(10):
@@ -101,14 +107,16 @@ check-all = { depends-on = ["quality", "security-scan"] }
                 (module_dir / "__init__.py").write_text("")
 
                 for j in range(5):
-                    (module_dir / f"file_{j}.py").write_text(f"""
+                    (module_dir / f"file_{j}.py").write_text(
+                        f"""
 def function_{j}():
     return {j}
 
 class Class_{j}:
     def method(self):
         return {j}
-""")
+"""
+                    )
 
             # Create tests
             test_dir = project_dir / "tests"
@@ -257,8 +265,9 @@ class Class_{j}:
 
     def test_memory_efficiency(self, quality_gates_action, medium_mock_project):
         """Test memory efficiency of Quality Gates Action"""
-        import psutil
         import os
+
+        import psutil
 
         process = psutil.Process(os.getpid())
 
@@ -383,8 +392,8 @@ class Class_{j}:
 
     def test_concurrent_execution_performance(self, quality_gates_action):
         """Test performance under concurrent execution scenarios"""
-        import threading
         import concurrent.futures
+        import threading
 
         def execute_quality_gates(project_dir, tier):
             with patch("subprocess.run") as mock_run:
@@ -400,13 +409,15 @@ class Class_{j}:
                 project_dir = Path(temp_dir) / f"project_{i}"
                 project_dir.mkdir()
 
-                (project_dir / "pyproject.toml").write_text("""
+                (project_dir / "pyproject.toml").write_text(
+                    """
 [tool.pixi.project]
 name = "test-project"
 [tool.pixi.tasks]
 test = "pytest"
 lint = "ruff check"
-""")
+"""
+                )
                 projects.append(project_dir)
 
             # Test concurrent execution
@@ -513,8 +524,9 @@ def measure_execution_time(func, *args, **kwargs):
 
 def measure_memory_usage(func, *args, **kwargs):
     """Utility to measure memory usage during function execution"""
-    import psutil
     import os
+
+    import psutil
 
     process = psutil.Process(os.getpid())
     memory_before = process.memory_info().rss

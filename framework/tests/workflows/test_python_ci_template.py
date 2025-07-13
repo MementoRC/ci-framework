@@ -6,6 +6,7 @@ Tests for all BDD scenarios defined in subtask 2.1
 Target: 95%+ coverage for workflow logic
 Framework: pytest with pytest-workflow for GitHub Actions testing
 """
+
 import os
 from pathlib import Path
 from typing import Any, Dict, List
@@ -97,27 +98,44 @@ class TestChangeDetection:
     def _get_detected_changes(self, changed_files: list[str]) -> dict[str, bool]:
         """Helper method to simulate change detection logic"""
         changes = {}
-        
+
         # Check for Python files
-        python_files = [f for f in changed_files if f.endswith('.py')]
+        python_files = [f for f in changed_files if f.endswith(".py")]
         if python_files:
             changes["python"] = True
-            
+
             # Check for action-specific changes
-            if any('actions' in f for f in python_files):
+            if any("actions" in f for f in python_files):
                 changes["actions"] = True
-        
+
         # Check for dependency files
-        dependency_files = [f for f in changed_files if f in ['pyproject.toml', 'pixi.toml', 'requirements.txt', 'Pipfile', 'poetry.lock']]
+        dependency_files = [
+            f
+            for f in changed_files
+            if f
+            in [
+                "pyproject.toml",
+                "pixi.toml",
+                "requirements.txt",
+                "Pipfile",
+                "poetry.lock",
+            ]
+        ]
         if dependency_files:
             changes["dependencies"] = True
             changes["force-full"] = True
-        
+
         # Check for docs-only changes
-        doc_files = [f for f in changed_files if f.endswith(('.md', '.rst', '.txt')) or f.startswith('docs/') or f in ['.gitignore', 'LICENSE']]
+        doc_files = [
+            f
+            for f in changed_files
+            if f.endswith((".md", ".rst", ".txt"))
+            or f.startswith("docs/")
+            or f in [".gitignore", "LICENSE"]
+        ]
         if doc_files and not python_files and not dependency_files:
             changes["docs-only"] = True
-        
+
         return changes
 
 
@@ -150,14 +168,14 @@ class TestQuickChecks:
         self._run_quick_checks()
         execution_time = time.time() - start_time
 
-        assert (
-            execution_time < 120
-        ), f"Quick checks took {execution_time}s, should be <120s"
+        assert execution_time < 120, (
+            f"Quick checks took {execution_time}s, should be <120s"
+        )
 
     def _run_quick_checks(self):
         """Helper method to run quick checks stage"""
         import subprocess
-        
+
         # Run critical lint checks only (F,E9 violations)
         result = subprocess.run(
             ["ruff", "check", "--select=F,E9", "framework/"],
@@ -213,9 +231,9 @@ class TestMatrixConfiguration:
         os_count = len(matrix["os"])
         total_combinations = python_count * os_count
 
-        assert (
-            total_combinations == 6
-        ), f"Expected 6 matrix combinations, got {total_combinations}"
+        assert total_combinations == 6, (
+            f"Expected 6 matrix combinations, got {total_combinations}"
+        )
 
 
 class TestPerformanceBenchmarking:
@@ -257,18 +275,18 @@ class TestPerformanceBenchmarking:
         """Helper method to compare performance metrics"""
         # Check for regression (>10% slower)
         REGRESSION_THRESHOLD = 0.10  # 10%
-        
+
         for metric_name in baseline:
             if metric_name in current:
                 baseline_value = baseline[metric_name]
                 current_value = current[metric_name]
-                
+
                 # Calculate percentage change (positive = worse performance)
                 change_percent = (current_value - baseline_value) / baseline_value
-                
+
                 if change_percent > REGRESSION_THRESHOLD:
                     return True  # Regression detected
-        
+
         return False  # No significant regression
 
     def _detect_performance_improvement(
@@ -280,11 +298,11 @@ class TestPerformanceBenchmarking:
             if metric_name in current:
                 baseline_value = baseline[metric_name]
                 current_value = current[metric_name]
-                
+
                 # For execution_time and memory_usage, lower is better
                 if current_value < baseline_value:
                     return True  # Improvement detected
-        
+
         return False  # No improvement detected
 
 
@@ -323,21 +341,21 @@ class TestSecurityIntegration:
     def _run_security_audit(self):
         """Helper method to run security audit"""
         import subprocess
-        
+
         # Run safety check for vulnerabilities
         subprocess.run(
             ["safety", "check", "--json"],
             capture_output=True,
             text=True,
         )
-        
+
         # Run bandit security linting
         subprocess.run(
             ["bandit", "-r", "framework/", "-f", "json"],
             capture_output=True,
             text=True,
         )
-        
+
         # Run pip-audit for package vulnerabilities
         subprocess.run(
             ["pip-audit", "--format=json"],
@@ -351,15 +369,10 @@ class TestSecurityIntegration:
             "version": "2.1.0",
             "runs": [
                 {
-                    "tool": {
-                        "driver": {
-                            "name": "security-audit",
-                            "version": "1.0.0"
-                        }
-                    },
-                    "results": []
+                    "tool": {"driver": {"name": "security-audit", "version": "1.0.0"}},
+                    "results": [],
                 }
-            ]
+            ],
         }
 
 
@@ -397,16 +410,12 @@ class TestGitHubStatusAPI:
     def _update_github_status(self, stage: str, state: str, description: str):
         """Helper method to update GitHub status"""
         import requests
-        
-        # Mock GitHub Status API endpoint  
+
+        # Mock GitHub Status API endpoint
         url = "https://api.github.com/repos/owner/repo/statuses/sha"
-        
-        payload = {
-            "state": state,
-            "description": description,
-            "context": f"ci/{stage}"
-        }
-        
+
+        payload = {"state": state, "description": description, "context": f"ci/{stage}"}
+
         # Make the API call
         response = requests.post(url, json=payload)
         return response
@@ -505,16 +514,16 @@ class TestEnvironmentConsistency:
         """Helper method to validate environment consistency"""
         if not environments:
             return True
-            
+
         # Get the first environment as reference
         reference_env = next(iter(environments.values()))
-        
+
         # Check all environments match the reference
         for job_name, env in environments.items():
             for key, value in reference_env.items():
                 if key not in env or env[key] != value:
                     return False
-        
+
         return True
 
 
@@ -553,9 +562,12 @@ build-backend = "setuptools.build_meta"
     def _run_workflow_test(self, repo_structure: dict[str, str]):
         """Helper method to run workflow with pytest-workflow"""
         # Check if workflow file is missing as expected by the test
-        if ".github/workflows/python-ci-template.yml" in repo_structure and repo_structure[".github/workflows/python-ci-template.yml"] is None:
+        if (
+            ".github/workflows/python-ci-template.yml" in repo_structure
+            and repo_structure[".github/workflows/python-ci-template.yml"] is None
+        ):
             raise FileNotFoundError("Workflow template file not found")
-        
+
         # Would implement actual pytest-workflow execution here
         return True
 

@@ -5,16 +5,17 @@ Tests written BEFORE implementation to drive development.
 These tests will initially FAIL and guide the minimal implementation.
 """
 
-import pytest
-import subprocess
-import tempfile
-import yaml
 import json
 import os
-from pathlib import Path
-from typing import Dict, List, Any, Optional
-from unittest.mock import Mock, patch, MagicMock
+import subprocess
+import tempfile
 import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+import yaml
 
 
 class TestQualityGatesAction:
@@ -62,13 +63,15 @@ check-all = { depends-on = ["quality", "security-scan"] }
             # Create test files
             (project_dir / "tests").mkdir()
             (project_dir / "tests" / "__init__.py").write_text("")
-            (project_dir / "tests" / "test_main.py").write_text("""
+            (project_dir / "tests" / "test_main.py").write_text(
+                """
 import pytest
 from src.main import hello
 
 def test_hello():
     assert hello() == 'world'
-""")
+"""
+            )
 
             yield project_dir
 
@@ -229,7 +232,8 @@ def test_hello():
         """
         # Modify project to use poetry
         pyproject = mock_project_dir / "pyproject.toml"
-        pyproject.write_text("""
+        pyproject.write_text(
+            """
 [tool.poetry]
 name = "test-project"
 version = "0.1.0"
@@ -240,7 +244,8 @@ python = "^3.10"
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
 ruff = "*"
-""")
+"""
+        )
 
         manager = quality_gates_action.detect_package_manager(mock_project_dir)
 
@@ -479,18 +484,18 @@ class MockQualityResult:
     def __init__(self):
         self.success: bool = False
         self.tier: str = ""
-        self.executed_checks: List[str] = []
-        self.failed_checks: List[str] = []
-        self.successful_checks: List[str] = []
+        self.executed_checks: list[str] = []
+        self.failed_checks: list[str] = []
+        self.successful_checks: list[str] = []
         self.failure_reason: Optional[str] = None
         self.error_details: Optional[str] = None
         self.failed_fast: bool = False
         self.timeout_seconds: Optional[int] = None
         self.partial_success: bool = False
         self.environment: Optional[str] = None
-        self.dependencies: List[str] = []
+        self.dependencies: list[str] = []
         self.compatibility_check: bool = False
-        self.detected_patterns: Dict[str, Any] = {}
+        self.detected_patterns: dict[str, Any] = {}
         self.config: Any = None
 
 

@@ -4,6 +4,7 @@ Part of TDD Test Implementation (Step 2)
 
 These tests should ALL FAIL initially (red phase of TDD)
 """
+
 import json
 from pathlib import Path
 from typing import Any, Dict, List
@@ -400,9 +401,9 @@ class TestTimeoutConfiguration:
         for job_name, expected_timeout in expected_timeouts.items():
             job = workflow["jobs"][job_name]
             assert "timeout-minutes" in job, f"{job_name} should have timeout"
-            assert (
-                job["timeout-minutes"] <= expected_timeout
-            ), f"{job_name} timeout should be <= {expected_timeout} minutes"
+            assert job["timeout-minutes"] <= expected_timeout, (
+                f"{job_name} timeout should be <= {expected_timeout} minutes"
+            )
 
 
 if __name__ == "__main__":

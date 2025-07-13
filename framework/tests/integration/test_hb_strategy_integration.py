@@ -5,11 +5,13 @@ Testing the Quality Gates Action against the primary integration target
 to ensure no breaking changes and enhanced functionality.
 """
 
-import pytest
-from pathlib import Path
-from framework.actions.quality_gates import QualityGatesAction
-import tempfile
 import shutil
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from framework.actions.quality_gates import QualityGatesAction
 
 
 class TestHBStrategyIntegration:

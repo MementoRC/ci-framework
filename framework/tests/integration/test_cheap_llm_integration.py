@@ -5,8 +5,10 @@ Testing the Quality Gates Action against the second integration target
 to ensure compatibility with different project patterns and configurations.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from framework.actions.quality_gates import QualityGatesAction
 
 
@@ -66,9 +68,10 @@ class TestCheapLLMIntegration:
         # cheap-llm uses pyright instead of mypy
         if "type_checker" in patterns:
             type_checker = patterns["type_checker"]
-            assert type_checker in ["pyright", "mypy"], (
-                f"Unexpected type checker: {type_checker}"
-            )
+            assert type_checker in [
+                "pyright",
+                "mypy",
+            ], f"Unexpected type checker: {type_checker}"
 
     def test_dry_run_compatibility_check(self, quality_gates_action, cheap_llm_path):
         """Test dry-run compatibility check with cheap-llm"""
