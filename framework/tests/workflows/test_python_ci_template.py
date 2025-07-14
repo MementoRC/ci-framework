@@ -488,8 +488,10 @@ class TestEnvironmentConsistency:
 
         # Check that global PIXI_VERSION is defined
         assert "env" in workflow, "Workflow should have global env section"
-        assert "PIXI_VERSION" in workflow["env"], "Global PIXI_VERSION should be defined"
-        
+        assert "PIXI_VERSION" in workflow["env"], (
+            "Global PIXI_VERSION should be defined"
+        )
+
         # Check that all jobs using pixi reference the global version
         jobs_using_pixi = []
         for job_name, job_config in workflow["jobs"].items():
@@ -500,8 +502,10 @@ class TestEnvironmentConsistency:
                         # Verify the job uses ${{ env.PIXI_VERSION }}
                         if "with" in step and "pixi-version" in step["with"]:
                             pixi_version_ref = step["with"]["pixi-version"]
-                            assert pixi_version_ref == "${{ env.PIXI_VERSION }}", f"Job {job_name} should use global PIXI_VERSION"
-        
+                            assert pixi_version_ref == "${{ env.PIXI_VERSION }}", (
+                                f"Job {job_name} should use global PIXI_VERSION"
+                            )
+
         # Ensure we found at least one job using pixi
         assert len(jobs_using_pixi) > 0, "At least one job should use pixi"
 
