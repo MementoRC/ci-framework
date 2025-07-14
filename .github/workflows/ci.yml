@@ -69,7 +69,7 @@ jobs:
           echo "Temporarily skipping yamllint due to CI environment setup issues"
           echo "This does not affect core Quality Gates Action functionality"
       - name: "Run Actionlint (workflow syntax)"
-        uses: reviewdog/action-actionlint@v1
+        uses: reviewdog/action-actionlint@v1.57.0
 
   security-scan:
     name: "🛡️ Security Scan"
