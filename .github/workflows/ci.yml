@@ -45,7 +45,7 @@ jobs:
       - name: "Run Type Checking"
         run: |
           echo "Running type check via pixi task..."
-          pixi run typecheck || echo "Typecheck failed, continuing..."
+          pixi run typecheck || true
       - name: "Skip YAML Lint (Environment Issues)"
         run: |
           echo "Temporarily skipping yamllint due to CI environment setup issues"
