@@ -489,7 +489,6 @@ class TestEnvironmentConsistency:
         # Check that global PIXI_VERSION is defined
         assert "env" in workflow, "Workflow should have global env section"
         assert "PIXI_VERSION" in workflow["env"], "Global PIXI_VERSION should be defined"
-        global_pixi_version = workflow["env"]["PIXI_VERSION"]
         
         # Check that all jobs using pixi reference the global version
         jobs_using_pixi = []
