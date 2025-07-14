@@ -5,9 +5,8 @@ Analyzes git diff to determine which CI stages should run
 """
 
 import subprocess
-import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 
 def analyze_changes() -> Dict[str, any]:
