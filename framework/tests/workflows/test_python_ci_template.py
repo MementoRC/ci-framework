@@ -24,13 +24,13 @@ class TestWorkflowStructure:
 
     def test_workflow_file_exists(self):
         """Test that workflow template file exists"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         # This should FAIL initially (red phase)
         assert workflow_path.exists(), "Workflow template file should exist"
 
     def test_workflow_yaml_valid_structure(self):
         """Test that workflow YAML has valid structure"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -43,7 +43,7 @@ class TestWorkflowStructure:
 
     def test_workflow_contains_all_required_stages(self):
         """Test that all 6 required stages are present"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -190,7 +190,7 @@ class TestMatrixConfiguration:
 
     def test_matrix_includes_all_python_versions(self):
         """Test that matrix includes Python 3.10, 3.11, 3.12"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -204,7 +204,7 @@ class TestMatrixConfiguration:
 
     def test_matrix_includes_all_operating_systems(self):
         """Test that matrix includes ubuntu-latest and macos-latest"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -219,7 +219,7 @@ class TestMatrixConfiguration:
     def test_matrix_combinations_total_six(self):
         """Test that matrix expands to exactly 6 combinations"""
         # 3 Python versions × 2 OS = 6 combinations
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -482,7 +482,7 @@ class TestEnvironmentConsistency:
 
     def test_pixi_version_consistent_across_jobs(self):
         """Test that workflow has global PIXI_VERSION and jobs use it consistently"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
