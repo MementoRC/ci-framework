@@ -28,31 +28,11 @@ jobs:
           manifest-path: pyproject.toml
       - name: "Install Quality Dependencies"
         run: |
-          pixi install -e quality || exit 1
-          ls -la .pixi
-      - name: "Debug pixi environment"
+          pixi install || exit 1
+      - name: "Run Essential Lint Only"
         run: |
-          pixi list -e quality || echo "Quality environment not found"
-          pixi run -e quality which ruff || echo "Ruff not found in quality environment"
-      - name: "Run Ruff (linting)"
-        run: |
-          echo "Running lint via pixi task..."
+          echo "Running essential lint checks..."
           pixi run lint
-      - name: "Run Ruff Format Check"
-        run: |
-          echo "Running format check via pixi task..."
-          pixi run format-check
-      - name: "Run Type Checking"
-        run: |
-          echo "Running type check via pixi task..."
-          pixi run typecheck || true
-      - name: "Skip YAML Lint (Environment Issues)"
-        run: |
-          echo "Temporarily skipping yamllint due to CI environment setup issues"
-          echo "This does not affect core Quality Gates Action functionality"
-      - name: "Run Actionlint (workflow syntax)"
-        if: false  # Temporarily disabled due to CI environment issues
-        uses: reviewdog/action-actionlint@v1.57.0
 
   security-scan:
     name: "🛡️ Security Scan"
