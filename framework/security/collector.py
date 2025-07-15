@@ -14,7 +14,7 @@ from .models import SecurityMetrics
 class SecurityCollector:
     """Collects, processes, and stores security metrics and vulnerability scan results."""
 
-    def __init__(self, storage_path: str | Path = None):
+    def __init__(self, storage_path: str | Path | None = None):
         """Initialize the security collector.
 
         Args:

@@ -6,9 +6,10 @@ Target: Quality Gates Action supporting 3-tier quality validation
 Integration Projects: hb-strategy-sandbox, cheap-llm, ci-framework
 """
 
-import pytest
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any
+
+import pytest
 
 
 class TestQualityGatesBDD:
@@ -179,7 +180,7 @@ class TestQualityGatesBDD:
         ],
     )
     def test_integration_project_compatibility(
-        self, project_path: str, expected_patterns: List[str]
+        self, project_path: str, expected_patterns: list[str]
     ):
         """
         Scenario: Compatibility with target integration projects

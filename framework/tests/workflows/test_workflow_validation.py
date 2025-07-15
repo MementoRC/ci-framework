@@ -7,7 +7,7 @@ These tests should ALL FAIL initially (red phase of TDD)
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -59,7 +59,7 @@ class TestWorkflowValidation:
             assert "PIXI_VERSION" in workflow["env"]
 
         # Check that jobs also have consistent env vars
-        for job_name, job_config in workflow["jobs"].items():
+        for _job_name, job_config in workflow["jobs"].items():
             if "env" in job_config:
                 # All jobs should use consistent PIXI_VERSION
                 pass  # Will be implemented in minimal implementation

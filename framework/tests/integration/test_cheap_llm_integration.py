@@ -182,7 +182,7 @@ class TestCheapLLMIntegration:
                     or "model context protocol" in content.lower()
                 ):
                     mcp_content_files.append(py_file.name)
-            except:
+            except (OSError, UnicodeDecodeError):
                 pass
 
         print(
@@ -296,7 +296,7 @@ class TestMultiProjectCompatibility:
             print(f"  {project_name}: {patterns}")
 
         # Both should detect pixi but may have different characteristics
-        for project_name, patterns in projects:
+        for _project_name, patterns in projects:
             assert patterns["package_manager"] == "pixi"
 
         # Document differences for adaptation logic

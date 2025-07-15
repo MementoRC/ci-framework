@@ -249,8 +249,8 @@ class TestHBStrategyDropInReplacement:
 
             # Simulate that backup can be restored
             # (We won't actually modify the real project)
-            original_files = set(f.name for f in framework_dir.glob("**/*.py"))
-            backup_files = set(f.name for f in backup_dir.glob("**/*.py"))
+            original_files = {f.name for f in framework_dir.glob("**/*.py")}
+            backup_files = {f.name for f in backup_dir.glob("**/*.py")}
 
             assert original_files == backup_files, (
                 "Backup should contain all original files"
@@ -357,7 +357,7 @@ class TestHBStrategyPerformanceBaseline:
                         baseline_metrics["configuration_complexity"][
                             "environment_count"
                         ] = len(config["tool"]["pixi"]["environments"])
-            except:
+            except (OSError, ImportError, tomllib.TOMLDecodeError):
                 pass
 
         # Document baseline for performance comparison

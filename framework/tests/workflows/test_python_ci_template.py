@@ -9,7 +9,7 @@ Framework: pytest with pytest-workflow for GitHub Actions testing
 
 import os
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -467,7 +467,7 @@ class TestArtifactManagement:
     def _collect_artifacts(self, stage_artifacts: dict[str, list[str]]) -> list[str]:
         """Helper method to collect artifacts from stages"""
         consolidated = []
-        for stage, artifacts in stage_artifacts.items():
+        for _stage, artifacts in stage_artifacts.items():
             consolidated.extend(artifacts)
         return consolidated
 
@@ -533,7 +533,7 @@ class TestEnvironmentConsistency:
         reference_env = next(iter(environments.values()))
 
         # Check all environments match the reference
-        for job_name, env in environments.items():
+        for _job_name, env in environments.items():
             for key, value in reference_env.items():
                 if key not in env or env[key] != value:
                     return False

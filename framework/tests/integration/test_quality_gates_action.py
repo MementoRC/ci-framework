@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -487,12 +487,12 @@ class MockQualityResult:
         self.executed_checks: list[str] = []
         self.failed_checks: list[str] = []
         self.successful_checks: list[str] = []
-        self.failure_reason: Optional[str] = None
-        self.error_details: Optional[str] = None
+        self.failure_reason: str | None = None
+        self.error_details: str | None = None
         self.failed_fast: bool = False
-        self.timeout_seconds: Optional[int] = None
+        self.timeout_seconds: int | None = None
         self.partial_success: bool = False
-        self.environment: Optional[str] = None
+        self.environment: str | None = None
         self.dependencies: list[str] = []
         self.compatibility_check: bool = False
         self.detected_patterns: dict[str, Any] = {}

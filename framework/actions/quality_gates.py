@@ -5,15 +5,15 @@ Minimal implementation to pass TDD tests and provide core functionality
 for tiered quality validation across projects.
 """
 
+import json
+import os
+import signal
 import subprocess
 import time
-import json
-from pathlib import Path
-from typing import Dict, List, Any, Optional, Union
-from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import signal
-import os
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Union
 
 
 @dataclass
@@ -22,18 +22,18 @@ class QualityResult:
 
     success: bool = False
     tier: str = ""
-    executed_checks: List[str] = field(default_factory=list)
-    failed_checks: List[str] = field(default_factory=list)
-    successful_checks: List[str] = field(default_factory=list)
-    failure_reason: Optional[str] = None
-    error_details: Optional[str] = None
+    executed_checks: list[str] = field(default_factory=list)
+    failed_checks: list[str] = field(default_factory=list)
+    successful_checks: list[str] = field(default_factory=list)
+    failure_reason: str | None = None
+    error_details: str | None = None
     failed_fast: bool = False
-    timeout_seconds: Optional[int] = None
+    timeout_seconds: int | None = None
     partial_success: bool = False
-    environment: Optional[str] = None
-    dependencies: List[str] = field(default_factory=list)
+    environment: str | None = None
+    dependencies: list[str] = field(default_factory=list)
     compatibility_check: bool = False
-    detected_patterns: Dict[str, Any] = field(default_factory=dict)
+    detected_patterns: dict[str, Any] = field(default_factory=dict)
     config: Any = None
     execution_time: float = 0.0
 
@@ -46,14 +46,14 @@ class PackageManager:
     quality_command: str = ""
     test_command: str = ""
     environment_support: bool = False
-    detected_files: List[str] = field(default_factory=list)
+    detected_files: list[str] = field(default_factory=list)
 
 
 @dataclass
 class QualityConfig:
     """Quality gate configuration"""
 
-    timeouts: Dict[str, int] = field(
+    timeouts: dict[str, int] = field(
         default_factory=lambda: {
             "test": 120,
             "lint": 60,
@@ -61,10 +61,10 @@ class QualityConfig:
             "security": 180,
         }
     )
-    thresholds: Dict[str, float] = field(
+    thresholds: dict[str, float] = field(
         default_factory=lambda: {"coverage": 90.0, "complexity": 10}
     )
-    tools: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    tools: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
 class QualityGatesAction:
@@ -77,7 +77,7 @@ class QualityGatesAction:
 
     def __init__(self):
         self.config = QualityConfig()
-        self._running_processes: List[subprocess.Popen] = []
+        self._running_processes: list[subprocess.Popen] = []
 
     def detect_package_manager(self, project_dir: Path) -> PackageManager:
         """
@@ -128,7 +128,7 @@ class QualityGatesAction:
             detected_files=[],
         )
 
-    def _load_project_config(self, project_dir: Path) -> Dict[str, Any]:
+    def _load_project_config(self, project_dir: Path) -> dict[str, Any]:
         """Load project-specific configuration"""
         pyproject_path = project_dir / "pyproject.toml"
         if not pyproject_path.exists():
@@ -152,7 +152,7 @@ class QualityGatesAction:
         except Exception:
             return {}
 
-    def _detect_project_patterns(self, project_dir: Path) -> Dict[str, Any]:
+    def _detect_project_patterns(self, project_dir: Path) -> dict[str, Any]:
         """Detect project patterns for compatibility checking"""
         patterns = {}
 
@@ -181,7 +181,7 @@ class QualityGatesAction:
 
             # Check feature dependencies
             if "feature" in pixi_config:
-                for feature_name, feature_config in pixi_config["feature"].items():
+                for _feature_name, feature_config in pixi_config["feature"].items():
                     if "dependencies" in feature_config:
                         deps = feature_config["dependencies"]
                         if "pyright" in deps:
@@ -191,7 +191,7 @@ class QualityGatesAction:
 
         return patterns
 
-    def _get_tier_commands(self, tier: str, manager: PackageManager) -> List[str]:
+    def _get_tier_commands(self, tier: str, manager: PackageManager) -> list[str]:
         """Get commands for specific quality tier"""
         base_commands = {
             "essential": ["test", "lint", "typecheck"],
@@ -213,7 +213,7 @@ class QualityGatesAction:
 
     def _execute_command(
         self, cmd: str, project_dir: Path, timeout: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Execute a single command with timeout and error handling"""
         # Check if subprocess.run is patched (for tests)
         import subprocess
@@ -279,13 +279,13 @@ class QualityGatesAction:
                 try:
                     os.killpg(os.getpgid(process.pid), signal.SIGTERM)
                     process.wait(timeout=5)
-                except:
+                except (OSError, ProcessLookupError):
                     try:
                         os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-                    except:
+                    except (OSError, ProcessLookupError):
                         pass
 
-                raise subprocess.TimeoutExpired(cmd, timeout)
+                raise subprocess.TimeoutExpired(cmd, timeout) from None
             finally:
                 if process in self._running_processes:
                     self._running_processes.remove(process)
@@ -308,8 +308,8 @@ class QualityGatesAction:
             }
 
     def _execute_commands_parallel(
-        self, commands: List[str], project_dir: Path, timeout: int
-    ) -> Dict[str, Dict[str, Any]]:
+        self, commands: list[str], project_dir: Path, timeout: int
+    ) -> dict[str, dict[str, Any]]:
         """Execute commands in parallel"""
         results = {}
 
@@ -339,11 +339,11 @@ class QualityGatesAction:
 
     def _execute_commands_sequential(
         self,
-        commands: List[str],
+        commands: list[str],
         project_dir: Path,
         timeout: int,
         fail_fast: bool = True,
-    ) -> Dict[str, Dict[str, Any]]:
+    ) -> dict[str, dict[str, Any]]:
         """Execute commands sequentially with optional fail-fast"""
         results = {}
 
@@ -363,7 +363,7 @@ class QualityGatesAction:
         return results
 
     def _generate_reports(
-        self, project_dir: Path, results: Dict[str, Dict[str, Any]], tier: str
+        self, project_dir: Path, results: dict[str, dict[str, Any]], tier: str
     ) -> None:
         """Generate standardized reports"""
         reports_dir = project_dir / "reports"
@@ -403,9 +403,9 @@ class QualityGatesAction:
         self,
         project_dir: Union[str, Path],
         tier: str,
-        timeout: Optional[int] = None,
+        timeout: int | None = None,
         parallel: bool = True,
-        config_overrides: Optional[Dict[str, Any]] = None,
+        config_overrides: dict[str, Any] | None = None,
         dry_run: bool = False,
     ) -> QualityResult:
         """
@@ -536,10 +536,10 @@ class QualityGatesAction:
                 if process.poll() is None:  # Still running
                     os.killpg(os.getpgid(process.pid), signal.SIGTERM)
                     process.wait(timeout=5)
-            except:
+            except (OSError, ProcessLookupError):
                 try:
                     os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-                except:
+                except (OSError, ProcessLookupError):
                     pass
             finally:
                 if process in self._running_processes:
