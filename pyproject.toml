@@ -153,6 +153,8 @@ test-maintenance = "pytest framework/tests/maintenance/ -v"
 # Quality Gates (CRITICAL - MUST PASS)
 lint = "pixi run -e quality lint-impl"
 lint-impl = "ruff check framework/ --select=F,E9"
+lint-full = "pixi run -e quality lint-full-impl"
+lint-full-impl = "ruff check framework/"
 lint-fix = "ruff check --fix framework/"
 format = "ruff format framework/"
 format-check = "ruff format --check framework/"
