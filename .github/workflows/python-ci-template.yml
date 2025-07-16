@@ -165,6 +165,7 @@ jobs:
         with:
           pattern: "*-results*"
           merge-multiple: true
+          path: ./artifacts/
           
       - name: Generate Consolidated Report
         run: |
