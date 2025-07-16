@@ -102,9 +102,9 @@ jobs:
       
       - name: Run Security Audit
         run: |
-          pixi run safety-check
-          pixi run bandit-scan
-          pixi run security-audit
+          pixi exec safety check
+          pixi exec bandit -r framework/
+          pixi exec pip-audit
           
       - name: Upload SARIF results
         uses: github/codeql-action/upload-sarif@v3
