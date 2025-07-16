@@ -19,7 +19,7 @@ class TestWorkflowValidation:
 
     def test_workflow_syntax_is_valid_yaml(self):
         """Test that workflow template is valid YAML"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
 
         # Should FAIL - file doesn't exist yet
         assert workflow_path.exists(), "Workflow template must exist"
@@ -33,7 +33,7 @@ class TestWorkflowValidation:
 
     def test_workflow_has_required_metadata(self):
         """Test that workflow has all required metadata"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -50,7 +50,7 @@ class TestWorkflowValidation:
 
     def test_workflow_env_variables_present(self):
         """Test that required environment variables are defined"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -70,7 +70,7 @@ class TestJobDependencies:
 
     def test_job_dependencies_are_correct(self):
         """Test that job dependencies form valid DAG"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -102,7 +102,7 @@ class TestJobDependencies:
 
     def test_conditional_job_execution(self):
         """Test that jobs have proper conditional execution"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -120,7 +120,7 @@ class TestMatrixStrategy:
 
     def test_matrix_strategy_complete(self):
         """Test that matrix strategy includes all required combinations"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -144,7 +144,7 @@ class TestMatrixStrategy:
 
     def test_matrix_excludes_invalid_combinations(self):
         """Test that matrix excludes any invalid combinations"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -171,7 +171,7 @@ class TestChangeDetectionLogic:
 
     def test_change_detection_outputs_defined(self):
         """Test that change detection job defines required outputs"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -210,7 +210,7 @@ class TestSecurityAuditConfiguration:
 
     def test_security_audit_runs_all_tools(self):
         """Test that security audit job includes all required security tools"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -228,7 +228,7 @@ class TestSecurityAuditConfiguration:
 
     def test_security_sarif_upload_configured(self):
         """Test that SARIF upload is properly configured"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -253,7 +253,7 @@ class TestPerformanceConfiguration:
 
     def test_performance_job_uses_pytest_benchmark(self):
         """Test that performance job uses pytest-benchmark"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -272,7 +272,7 @@ class TestPerformanceConfiguration:
 
     def test_performance_baseline_comparison(self):
         """Test that performance job compares against baseline"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -295,7 +295,7 @@ class TestSummaryReporting:
 
     def test_summary_job_always_runs(self):
         """Test that summary job runs even if other jobs fail"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -308,7 +308,7 @@ class TestSummaryReporting:
 
     def test_summary_collects_all_artifacts(self):
         """Test that summary job downloads artifacts from all stages"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -327,7 +327,7 @@ class TestSummaryReporting:
 
     def test_summary_generates_consolidated_report(self):
         """Test that summary generates consolidated report"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -350,7 +350,7 @@ class TestArtifactUpload:
 
     def test_all_jobs_upload_artifacts(self):
         """Test that all jobs upload their artifacts"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
@@ -384,7 +384,7 @@ class TestTimeoutConfiguration:
 
     def test_all_jobs_have_timeouts(self):
         """Test that all jobs have appropriate timeout values"""
-        workflow_path = Path(".github/workflows/python-ci-template.yml")
+        workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 

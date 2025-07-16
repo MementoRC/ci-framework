@@ -7,62 +7,57 @@ on:
     branches: [ main, develop ]
 
 env:
-  PIXI_VERSION: "0.49.0"
+  PIXI_VERSION: v0.49.0
 
 jobs:
   change-detection:
-    name: "Detect Changes"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      run-tests: ${{ steps.changes.outputs.python }}
-      run-security: ${{ steps.changes.outputs.dependencies || steps.changes.outputs.python }}
-      run-performance: ${{ steps.changes.outputs.python }}
+      run-tests: ${{ steps.changes.outputs.run-tests }}
+      run-security: ${{ steps.changes.outputs.run-security }}
+      run-performance: ${{ steps.changes.outputs.run-performance }}
       changed-files: ${{ steps.changes.outputs.changed-files }}
       test-modules: ${{ steps.changes.outputs.test-modules }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Detect file changes
+      
+      - name: Detect Changes
         id: changes
         run: |
-          # Simple change detection for minimal implementation
-          echo "python=true" >> "$GITHUB_OUTPUT"
-          echo "dependencies=false" >> "$GITHUB_OUTPUT" 
-          echo "changed-files=framework/" >> "$GITHUB_OUTPUT"
-          echo "test-modules=all" >> "$GITHUB_OUTPUT"
+          echo "run-tests=true" >> $GITHUB_OUTPUT
+          echo "run-security=true" >> $GITHUB_OUTPUT
+          echo "run-performance=true" >> $GITHUB_OUTPUT
+          echo "changed-files=all" >> $GITHUB_OUTPUT
+          echo "test-modules=all" >> $GITHUB_OUTPUT
 
   quick-checks:
-    name: "Quick Checks"
     runs-on: ubuntu-latest
     timeout-minutes: 2
     needs: change-detection
-    if: always()
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup pixi
-        uses: prefix-dev/setup-pixi@v0.8.1
+      - uses: actions/checkout@v4
+      
+      - name: Setup Pixi
+        uses: prefix-dev/setup-pixi@v0.8.11
         with:
           pixi-version: ${{ env.PIXI_VERSION }}
-
-      - name: Run critical lint checks
-        run: |
-          pixi run -e quality ruff check framework/ --select=F,E9
-
-      - name: Upload lint results
+      
+      - name: Run Quick Lint
+        run: pixi run lint
+        
+      - name: Upload Quick Check Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: lint-results
-          path: .ruff_cache/
+          name: quick-checks-results
+          path: |
+            .ruff_cache/
+            artifacts/reports/
 
   comprehensive-tests:
-    name: "Comprehensive Tests"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     needs: [change-detection, quick-checks]
@@ -73,141 +68,114 @@ jobs:
         python-version: ["3.10", "3.11", "3.12"]
         os: [ubuntu-latest, macos-latest]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup pixi
-        uses: prefix-dev/setup-pixi@v0.8.1
+      - uses: actions/checkout@v4
+      
+      - name: Setup Pixi
+        uses: prefix-dev/setup-pixi@v0.8.11
         with:
           pixi-version: ${{ env.PIXI_VERSION }}
-
-      - name: Run comprehensive test suite
-        run: |
-          pixi run -e quality pytest framework/tests/ -v --cov=framework --cov-report=xml
-
-      - name: Upload test results
+      
+      - name: Run Comprehensive Tests
+        run: pixi run test
+        
+      - name: Upload Test Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results-${{ matrix.python-version }}-${{ matrix.os }}
           path: |
-            coverage.xml
-            .coverage
+            artifacts/reports/
             .pytest_cache/
 
   security-audit:
-    name: "Security Audit"
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [change-detection, quick-checks]
+    needs: change-detection
     if: needs.change-detection.outputs.run-security == 'true'
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup pixi
-        uses: prefix-dev/setup-pixi@v0.8.1
+      - uses: actions/checkout@v4
+      
+      - name: Setup Pixi
+        uses: prefix-dev/setup-pixi@v0.8.11
         with:
           pixi-version: ${{ env.PIXI_VERSION }}
-
-      - name: Run security audit
+      
+      - name: Run Security Audit
         run: |
-          # Safety check for vulnerabilities
-          pixi run -e quality safety check --json > safety-report.json || true
-
-          # Bandit security linting
-          pixi run -e quality bandit -r framework/ -f json -o bandit-report.json || true
-
-          # pip-audit for package vulnerabilities
-          pixi run -e quality pip-audit --format=json --output=pip-audit-report.json || true
-
-      - name: Generate SARIF report
-        run: |
-          # Minimal SARIF conversion for now
-          echo '{"version": "2.1.0", "runs": []}' > security-report.sarif
-
-      - name: Upload security results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: security-results
-          path: |
-            safety-report.json
-            bandit-report.json
-            pip-audit-report.json
-            security-report.sarif
-
-      - name: Upload SARIF to GitHub Security
+          pixi run safety-check
+          pixi run bandit-scan
+          pixi run security-audit
+          
+      - name: Upload SARIF results
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: security-report.sarif
+          sarif_file: security-results.sarif
+          
+      - name: Upload Security Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-audit-results
+          path: |
+            security-results.sarif
+            artifacts/reports/
 
   performance-check:
-    name: "Performance Check"
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [change-detection, quick-checks]
+    needs: change-detection
     if: needs.change-detection.outputs.run-performance == 'true'
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup pixi
-        uses: prefix-dev/setup-pixi@v0.8.1
+      - uses: actions/checkout@v4
+      
+      - name: Setup Pixi
+        uses: prefix-dev/setup-pixi@v0.8.11
         with:
           pixi-version: ${{ env.PIXI_VERSION }}
-
-      - name: Run performance benchmarks
+      
+      - name: Run Performance Benchmarks
         run: |
-          # Minimal benchmark implementation
-          pixi run -e quality pytest framework/tests/ -k "benchmark" --benchmark-json=benchmark-results.json || true
-
-      - name: Compare to baseline
+          pixi run pytest --benchmark-only
+          
+      - name: Compare Against Baseline
         run: |
-          # Minimal baseline comparison
-          echo "Performance check completed" > performance-summary.txt
-
-      - name: Upload performance results
+          echo "Comparing performance against baseline..."
+          # baseline comparison logic will be implemented
+          
+      - name: Upload Performance Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: performance-results
           path: |
-            benchmark-results.json
-            performance-summary.txt
+            performance_data/
+            artifacts/reports/
 
   summary:
-    name: "Summary Report"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [change-detection, quick-checks, comprehensive-tests, security-audit, performance-check]
     if: always()
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download all artifacts
+      - uses: actions/checkout@v4
+      
+      - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts/
-
-      - name: Generate summary report
+          pattern: "*-results*"
+          merge-multiple: true
+          path: ./artifacts/
+          
+      - name: Generate Consolidated Report
         run: |
-          {
-            echo "# CI Pipeline Summary"
-            echo "## Execution completed at: $(date)"
-            echo "## Stages:"
-            echo "- Change Detection: ${{ needs.change-detection.result }}"
-            echo "- Quick Checks: ${{ needs.quick-checks.result }}"
-            echo "- Comprehensive Tests: ${{ needs.comprehensive-tests.result }}"
-            echo "- Security Audit: ${{ needs.security-audit.result }}"
-            echo "- Performance Check: ${{ needs.performance-check.result }}"
-          } > summary-report.md
-
-      - name: Upload summary report
+          echo "Generating consolidated CI report..."
+          mkdir -p artifacts/reports/
+          # report generation logic will be implemented
+          
+      - name: Upload Summary Report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: summary-report
-          path: summary-report.md
+          name: ci-summary-report
+          path: artifacts/reports/

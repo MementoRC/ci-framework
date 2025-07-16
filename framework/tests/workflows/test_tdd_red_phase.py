@@ -10,7 +10,7 @@ import pytest
 
 def test_workflow_template_exists():
     """Test that workflow template file exists - should FAIL in red phase"""
-    workflow_path = Path(".github/workflows/python-ci-template.yml")
+    workflow_path = Path(".github/workflows/python-ci-template.yml.template")
     assert workflow_path.exists(), (
         "Workflow template should exist but doesn't yet (TDD red phase)"
     )
