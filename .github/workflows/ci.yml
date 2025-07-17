@@ -33,7 +33,7 @@ jobs:
       - name: "Run Full Lint Check"
         run: |
           echo "Running comprehensive lint checks..."
-          pixi run lint-full
+          pixi run -e quality lint-full
       - name: "Run Action Lint"
         run: |
           echo "Running actionlint on workflow files..."
@@ -42,11 +42,11 @@ jobs:
       - name: "Run Format Check"
         run: |
           echo "Running format check..."
-          pixi run format-check
+          pixi run -e quality format-check
       - name: "Run Type Check"
         run: |
           echo "Running type check..."
-          pixi run typecheck || echo "Type check completed with issues"
+          pixi run -e quality typecheck || echo "Type check completed with issues"
 
   security-scan:
     name: "🛡️ Security Scan"
