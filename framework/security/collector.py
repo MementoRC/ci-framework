@@ -295,7 +295,8 @@ class SecurityCollector:
         # Add baseline comparison if requested
         if include_baseline_comparison:
             comparison = self.compare_with_baseline(metrics, baseline_name)
-            report["baseline_comparison"] = comparison
+            if comparison is not None:
+                report["baseline_comparison"] = comparison
 
         # Save report if output path specified
         if output_path:
