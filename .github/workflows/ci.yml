@@ -37,7 +37,7 @@ jobs:
       - name: "Run Action Lint"
         run: |
           echo "Running actionlint on workflow files..."
-          pixi info -e dev
+          pixi info
           pixi run -e dev actionlint || echo "Actionlint failed but continuing..."
       - name: "Run Format Check"
         run: |
@@ -100,7 +100,7 @@ jobs:
           ls -la .pixi
       - name: "Debug CI environment"
         run: |
-          pixi info --environment ci || echo "CI environment not found"
+          pixi info || echo "Pixi info failed"
           pixi run -e ci which pytest || echo "Pytest not found in CI environment"
       - name: "Run Unit Tests with Coverage"
         run: |
