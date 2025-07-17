@@ -5,13 +5,15 @@ Tests across Python versions, platforms, and different project configurations
 to ensure broad compatibility as specified in the methodology requirements.
 """
 
-import pytest
 import platform
 import sys
 import tempfile
 from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
+
 from framework.actions.quality_gates import QualityGatesAction
-from unittest.mock import patch, Mock
 
 
 class TestPythonVersionCompatibility:
@@ -34,7 +36,8 @@ class TestPythonVersionCompatibility:
             project_dir.mkdir()
 
             # Create pyproject.toml with Python version requirements
-            (project_dir / "pyproject.toml").write_text("""
+            (project_dir / "pyproject.toml").write_text(
+                """
 [tool.pixi.project]
 name = "compat-project"
 channels = ["conda-forge"]
@@ -51,7 +54,8 @@ test = "pytest"
 lint = "ruff check --select=F,E9"
 typecheck = "mypy ."
 quality = { depends-on = ["test", "lint", "typecheck"] }
-""")
+"""
+            )
 
             yield project_dir
 
@@ -61,12 +65,14 @@ quality = { depends-on = ["test", "lint", "typecheck"] }
         current_version = sys.version_info
 
         # Verify we're running on a supported Python version
-        assert current_version >= (3, 10), (
-            f"Running on Python {current_version}, need >=3.10"
-        )
-        assert current_version < (3, 13), (
-            f"Running on Python {current_version}, tested up to 3.12"
-        )
+        assert current_version >= (
+            3,
+            10,
+        ), f"Running on Python {current_version}, need >=3.10"
+        assert current_version < (
+            3,
+            13,
+        ), f"Running on Python {current_version}, tested up to 3.12"
 
         # Test basic functionality works
         manager = quality_gates_action.detect_package_manager(test_project)
@@ -163,23 +169,27 @@ class TestPlatformCompatibility:
         print(f"Platform info: {platform_info}")
 
         # Should support Linux (primary) and macOS
-        assert current_platform in ["linux", "darwin", "windows"], (
-            f"Unsupported platform: {current_platform}"
-        )
+        assert current_platform in [
+            "linux",
+            "darwin",
+            "windows",
+        ], f"Unsupported platform: {current_platform}"
 
         # Test basic functionality works on current platform
         with tempfile.TemporaryDirectory() as temp_dir:
             project_dir = Path(temp_dir) / "platform_test"
             project_dir.mkdir()
 
-            (project_dir / "pyproject.toml").write_text("""
+            (project_dir / "pyproject.toml").write_text(
+                """
 [tool.pixi.project]
 name = "platform-test"
 platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
 
 [tool.pixi.tasks]
 test = "pytest"
-""")
+"""
+            )
 
             # Should work regardless of platform
             manager = quality_gates_action.detect_package_manager(project_dir)
@@ -227,14 +237,16 @@ test = "pytest"
             project_dir = Path(temp_dir) / "platform_adapt_test"
             project_dir.mkdir()
 
-            (project_dir / "pyproject.toml").write_text("""
+            (project_dir / "pyproject.toml").write_text(
+                """
 [tool.pixi.project]
 name = "platform-adapt-test"
 
 [tool.pixi.tasks]
 test = "pytest"
 lint = "ruff check"
-""")
+"""
+            )
 
             manager = quality_gates_action.detect_package_manager(project_dir)
             commands = quality_gates_action._get_tier_commands("essential", manager)
@@ -359,10 +371,12 @@ class TestConfigurationCompatibility:
             project_dir.mkdir()
 
             # Minimal pixi configuration
-            (project_dir / "pyproject.toml").write_text("""
+            (project_dir / "pyproject.toml").write_text(
+                """
 [tool.pixi.project]
 name = "minimal"
-""")
+"""
+            )
 
             # Should handle minimal config gracefully
             manager = quality_gates_action.detect_package_manager(project_dir)

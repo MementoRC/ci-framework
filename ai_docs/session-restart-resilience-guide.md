@@ -1,8 +1,8 @@
 # Session-Restart Resilient Development Guide
 
-**Purpose**: Practical guide for maintaining development consistency across session restarts  
-**Integration**: TaskMaster + UCKN + Local CLAUDE.md + ai_docs  
-**Date**: 2025-07-12  
+**Purpose**: Practical guide for maintaining development consistency across session restarts
+**Integration**: TaskMaster + UCKN + Local CLAUDE.md + ai_docs
+**Date**: 2025-07-12
 
 ---
 
@@ -17,7 +17,7 @@
 ### **Solution Strategy**
 Make methodology **persistent and self-contained** in multiple layers:
 1. **TaskMaster tasks** with embedded methodology context
-2. **UCKN patterns** for methodology retrieval  
+2. **UCKN patterns** for methodology retrieval
 3. **Local CLAUDE.md** for immediate context
 4. **ai_docs** for comprehensive documentation
 
@@ -120,7 +120,7 @@ Given hb-strategy-sandbox project
 When quality gates action applied
 Then existing framework integration maintained
 
-Given cheap-llm project  
+Given cheap-llm project
 When quality gates action applied
 Then tiered quality approach works seamlessly"
 ```
@@ -183,7 +183,7 @@ mcp__uckn-knowledge__search_patterns \
   --pattern-type="best_practice" \
   --limit=10
 
-# Get integration testing patterns  
+# Get integration testing patterns
 mcp__uckn-knowledge__search_patterns \
   --query="integration-first testing meta-tooling" \
   --pattern-type="best_practice" \
@@ -252,7 +252,7 @@ $ mcp__uckn-knowledge__search_patterns --query="tdd implementation minimal"
 ```
 
 #### **Resume Development (what you'd do)**
-1. **Understand current state**: Subtask 1.3 "TDD Implementation" 
+1. **Understand current state**: Subtask 1.3 "TDD Implementation"
 2. **Read methodology context**: Write minimal code to pass tests only
 3. **Check dependencies**: Subtask 1.2 (TDD Tests) completed
 4. **Review acceptance criteria**: All unit tests passing, no over-engineering

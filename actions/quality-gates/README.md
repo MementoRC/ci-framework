@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Run Essential Quality Gates
         uses: ./actions/quality-gates
         with:
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Essential Quality Gates
         uses: ./actions/quality-gates
         with:
@@ -41,27 +41,27 @@ jobs:
           timeout: 300
           parallel: true
           fail-fast: true
-  
+
   extended:
     runs-on: ubuntu-latest
     needs: essential
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Extended Quality Gates
         uses: ./actions/quality-gates
         with:
           tier: extended
           timeout: 600
           reports-dir: extended-reports
-  
+
   full:
     runs-on: ubuntu-latest
     needs: extended
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Full Quality Gates
         uses: ./actions/quality-gates
         with:
@@ -103,7 +103,7 @@ jobs:
 - Critical lint checks (F,E9 violations)
 - Type checking
 
-### Extended (≤10 minutes) 
+### Extended (≤10 minutes)
 - All essential checks
 - Security scanning (Bandit)
 - Dependency audit (Safety)
@@ -135,7 +135,7 @@ strict = true
 ## Package Manager Support
 
 - **Pixi**: Primary support with environment isolation
-- **Poetry**: Full support with virtual environments  
+- **Poetry**: Full support with virtual environments
 - **Hatch**: Basic support
 - **Pip**: Fallback support
 
@@ -158,7 +158,7 @@ strategy:
 
 steps:
   - uses: actions/checkout@v4
-  
+
   - name: Quality Gates - ${{ matrix.tier }}
     uses: ./actions/quality-gates
     with:
@@ -184,7 +184,7 @@ steps:
   with:
     tier: extended
     reports-dir: custom-reports
-    
+
 - name: Archive Quality Reports
   uses: actions/upload-artifact@v3
   with:
@@ -201,7 +201,7 @@ steps:
   uses: ./actions/quality-gates
   with:
     tier: extended
-    
+
 - name: Upload Security Results
   uses: github/codeql-action/upload-sarif@v2
   with:
@@ -215,7 +215,7 @@ steps:
   uses: ./actions/quality-gates
   with:
     tier: full
-    
+
 - name: Upload Coverage to Codecov
   uses: codecov/codecov-action@v3
   with:
@@ -248,7 +248,7 @@ steps:
   run: |
     pixi install
     pixi shell-hook | source
-    
+
 - name: Quality Gates
   uses: ./actions/quality-gates
 ```

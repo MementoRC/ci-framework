@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Run Quality Gates
         uses: ./framework/actions/quality-gates
         with:
@@ -323,7 +323,7 @@ shutil.copytree(project_path / "framework", backup_dir)
 # Test Quality Gates Action compatibility
 result = quality_gates.execute_tier(
     project_dir=project_path,
-    tier="essential", 
+    tier="essential",
     dry_run=True
 )
 
@@ -359,7 +359,7 @@ result_seq = quality_gates.execute_tier(
 # Parallel execution (default)
 result_par = quality_gates.execute_tier(
     project_dir=project_path,
-    tier="essential", 
+    tier="essential",
     parallel=True
 )
 
@@ -369,7 +369,7 @@ result_par = quality_gates.execute_tier(
 ### Memory Usage
 
 - Small projects: <10MB memory increase
-- Medium projects: <50MB memory increase  
+- Medium projects: <50MB memory increase
 - Large projects: <100MB memory increase
 - Automatic cleanup on completion
 
@@ -412,7 +412,7 @@ if result.failure_reason == "timeout":
 
 ### Python Versions
 - ✅ Python 3.10 (Supported)
-- ✅ Python 3.11 (Supported)  
+- ✅ Python 3.11 (Supported)
 - ✅ Python 3.12 (Supported)
 - 🟡 Python 3.13 (Not tested)
 - ❌ Python 3.9 (Not supported)
@@ -591,6 +591,6 @@ Part of the CI Framework project. See main project license for details.
 
 ---
 
-**Generated with Quality Gates Action v0.0.1**  
-**Validated against production projects: hb-strategy-sandbox, cheap-llm**  
+**Generated with Quality Gates Action v0.0.1**
+**Validated against production projects: hb-strategy-sandbox, cheap-llm**
 **Performance tested on projects up to 18,320 files**

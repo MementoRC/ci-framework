@@ -5,8 +5,9 @@ Uses hypothesis to test framework components with generated data
 to verify properties and invariants hold across a wide range of inputs.
 """
 
-import pytest
 import string
+
+import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 

@@ -1,8 +1,8 @@
 # CI Framework Development Context
 
-**Project**: MementoRC CI Framework  
-**Methodology**: Integration-First BDD/TDD Hybrid  
-**Memory Strategy**: TaskMaster + UCKN + This Document  
+**Project**: MementoRC CI Framework
+**Methodology**: Integration-First BDD/TDD Hybrid
+**Memory Strategy**: TaskMaster + UCKN + This Document
 
 ---
 
@@ -17,7 +17,7 @@
 ### **9-STEP CYCLE (Mandatory Order):**
 ```
 1. BDD Scenario Definition     ← User acceptance criteria
-2. TDD Test Implementation     ← Write failing tests first  
+2. TDD Test Implementation     ← Write failing tests first
 3. Minimal Implementation      ← Code to pass tests only
 4. Integration Test #1         ← hb-strategy-sandbox
 5. Integration Test #2         ← cheap-llm or other project
@@ -64,7 +64,7 @@
 ### **What We Have:**
 - ✅ Comprehensive PRD in `ai_docs/ci-framework-comprehensive-prd.md`
 - ✅ Development methodology in `ai_docs/development-methodology.md`
-- ✅ Current cleanup action in `action.yml` 
+- ✅ Current cleanup action in `action.yml`
 - ✅ Existing framework separation pattern in hb-strategy-sandbox
 - ✅ Tiered pyproject.toml guidelines in `.claude/commands/references/`
 
@@ -182,7 +182,7 @@ pixi run quality
 - Test with: hb-strategy-sandbox framework/ replacement
 - Validation: Same CLI interface, enhanced capabilities
 
-### **Option 2: Remote GitHub Actions** 
+### **Option 2: Remote GitHub Actions**
 - Target: Pure GitHub Actions approach
 - Test with: Remote action workflows
 - Validation: No local dependencies, centralized maintenance

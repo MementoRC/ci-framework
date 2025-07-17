@@ -1,16 +1,27 @@
 {
   "permissions": {
     "allow": [
+      "Bash(chmod:*)",
+      "Bash(echo:*)",
       "Bash(find:*)",
       "Bash(gh:*)",
       "Bash(git:*)",
+      "Bash(grep:*)",
       "Bash(ls:*)",
       "Bash(mkdir:*)",
+      "Bash(mv:*)",
       "Bash(pixi info:*)",
+      "Bash(pixi install:*)",
       "Bash(pixi list:*)",
       "Bash(pixi run:*)",
       "Bash(pixi search:*)",
       "Bash(pixi task:*)",
+      "Bash(python -m pytest test_python_ci_template.py::TestWorkflowStructure::test_workflow_file_exists -v)",
+      "Bash(python:*)",
+      "Bash(task-master show:*)",
+      "Bash(timeout 10s pixi run -e dev python -m mcp_server_cheap_llm --help)",
+      "Bash(touch:*)",
+      "Bash(yamllint:*)",
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:modelcontextprotocol.io)",
       "mcp__aider__aider_ai_ask",
@@ -66,8 +77,11 @@
       "mcp__github__search_users",
       "mcp__github__update_issue",
       "mcp__github__update_pull_request_branch",
+      "mcp__pytest-analyzer__get_failure_summary",
+      "mcp__pytest-analyzer__nl_query",
       "mcp__sequential-thinking__sequentialthinking",
       "mcp__task-master-ai__add_tag",
+      "mcp__task-master-ai__expand_task",
       "mcp__task-master-ai__get_task",
       "mcp__task-master-ai__get_tasks",
       "mcp__task-master-ai__initialize_project",
@@ -75,6 +89,7 @@
       "mcp__task-master-ai__parse_prd",
       "mcp__task-master-ai__remove_task",
       "mcp__task-master-ai__set_task_status",
+      "mcp__task-master-ai__update_subtask",
       "mcp__task-master-ai__update_task",
       "mcp__task-master-ai__use_tag",
       "mcp__uckn-knowledge__contribute_pattern",
@@ -83,9 +98,11 @@
       "mcp__uckn-knowledge__recommend_setup",
       "mcp__uckn-knowledge__search_patterns",
       "mcp__uckn-knowledge__validate_solution",
-      "Bash(touch:*)"
+      "Bash(sed:*)"
     ],
-    "deny": []
+    "deny": [
+      "Bash(/usr/bin/:*)"
+    ]
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [

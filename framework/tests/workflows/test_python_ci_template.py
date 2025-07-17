@@ -409,7 +409,7 @@ class TestGitHubStatusAPI:
 
     def _update_github_status(self, stage: str, state: str, description: str):
         """Helper method to update GitHub status"""
-        import requests
+        import requests  # type: ignore[import-untyped]
 
         # Mock GitHub Status API endpoint
         url = "https://api.github.com/repos/owner/repo/statuses/sha"

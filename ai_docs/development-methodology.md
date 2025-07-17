@@ -1,9 +1,9 @@
 # CI Framework Development Methodology
 
-**Version**: 1.0  
-**Date**: 2025-07-12  
-**Purpose**: Session-restart resilient development methodology for CI Framework PRD implementation  
-**Integration**: TaskMaster AI + UCKN + CLAUDE.md  
+**Version**: 1.0
+**Date**: 2025-07-12
+**Purpose**: Session-restart resilient development methodology for CI Framework PRD implementation
+**Integration**: TaskMaster AI + UCKN + CLAUDE.md
 
 ---
 
@@ -64,7 +64,7 @@ Task X: [Feature Name]
     7. Compatibility: Test Python 3.10-3.12, ubuntu/macos
     8. Document: Update docs with examples
     9. Gate Check: ALL criteria must pass before next task
-    
+
     🎯 QUALITY GATES (ALL mandatory):
     - Unit tests: 100% pass, 95%+ coverage
     - Integration: Works with 2+ real projects
@@ -72,10 +72,10 @@ Task X: [Feature Name]
     - Compatibility: Cross-platform validation
     - CI: All automated checks passing
     - Docs: Current and complete
-  
+
   description: "[Specific task description]"
   acceptance_criteria: "[BDD scenarios]"
-  
+
   subtasks:
     X.1:
       title: "BDD - Define acceptance scenarios"
@@ -84,10 +84,10 @@ Task X: [Feature Name]
         📝 BDD METHODOLOGY STEP 1:
         Define clear Given/When/Then scenarios for this feature
         Focus on user experience and real-world usage patterns
-        
+
         ACCEPTANCE CRITERIA:
         - [Specific scenarios for this feature]
-      
+
     X.2:
       title: "TDD - Write component tests"
       methodology_step: "TDD_TESTS"
@@ -96,12 +96,12 @@ Task X: [Feature Name]
         🧪 TDD METHODOLOGY STEP 2:
         Write failing tests BEFORE implementation
         Tests should cover all scenarios from X.1
-        
+
         MANDATORY REQUIREMENTS:
         - All tests initially failing (red state)
         - 95%+ code coverage target
         - Error condition testing included
-      
+
     X.3:
       title: "Implement minimal solution"
       methodology_step: "TDD_IMPLEMENTATION"
@@ -110,12 +110,12 @@ Task X: [Feature Name]
         ⚙️ TDD METHODOLOGY STEP 3:
         Write MINIMAL code to make tests pass (green state)
         No additional features beyond test requirements
-        
+
         SUCCESS CRITERIA:
         - All unit tests passing
         - No over-engineering beyond test needs
         - Code ready for integration testing
-      
+
     X.4:
       title: "Integration test - hb-strategy-sandbox"
       methodology_step: "INTEGRATION_PRIMARY"
@@ -124,15 +124,15 @@ Task X: [Feature Name]
         🔗 INTEGRATION METHODOLOGY STEP 4:
         Test against PRIMARY target project
         Real-world validation of implementation
-        
+
         TARGET PROJECT: /home/memento/ClaudeCode/Project/hb-strategy-sandbox/worktrees/feat-workspace-phase2
-        
+
         VALIDATION REQUIREMENTS:
         - Feature works with existing framework structure
         - No breaking changes to current workflows
         - Performance comparable to current implementation
         - Integration success documented with examples
-      
+
     X.5:
       title: "Integration test - second project"
       methodology_step: "INTEGRATION_SECONDARY"
@@ -141,16 +141,16 @@ Task X: [Feature Name]
         🔗 INTEGRATION METHODOLOGY STEP 5:
         Test against SECONDARY target project
         Validate cross-project compatibility
-        
+
         SUGGESTED TARGETS:
         - /home/memento/ClaudeCode/Servers/cheap-llm/worktrees/feat-phase1
         - /home/memento/ClaudeCode/Servers/claude-code-knowledge-framework/worktrees/feat-task-3
-        
+
         VALIDATION REQUIREMENTS:
         - Works with different project patterns
         - Maintains functionality across diverse setups
         - Performance acceptable across project types
-      
+
     X.6:
       title: "Performance benchmark"
       methodology_step: "PERFORMANCE_VALIDATION"
@@ -159,17 +159,17 @@ Task X: [Feature Name]
         📊 PERFORMANCE METHODOLOGY STEP 6:
         Benchmark against baseline performance
         Prevent performance regressions
-        
+
         BENCHMARK REQUIREMENTS:
         - Installation time ≤ current baseline
         - Execution time within 5% of current (or improvement)
         - Memory usage comparable to current
         - CI pipeline duration impact measured
-        
+
         BASELINE PROJECTS for comparison:
         - Current hb-strategy-sandbox CI times
         - Current quality gate execution times
-      
+
     X.7:
       title: "Compatibility matrix test"
       methodology_step: "COMPATIBILITY_VALIDATION"
@@ -178,17 +178,17 @@ Task X: [Feature Name]
         🌐 COMPATIBILITY METHODOLOGY STEP 7:
         Cross-environment validation
         Ensure broad platform support
-        
+
         MANDATORY TEST MATRIX:
         - Python 3.10, 3.11, 3.12
         - Ubuntu latest, macOS latest
         - Different pixi versions (v0.49.0+)
-        
+
         SUCCESS CRITERIA:
         - 100% functionality across all matrix combinations
         - No platform-specific issues
         - Consistent behavior across environments
-      
+
     X.8:
       title: "Documentation and examples"
       methodology_step: "DOCUMENTATION"
@@ -197,14 +197,14 @@ Task X: [Feature Name]
         📚 DOCUMENTATION METHODOLOGY STEP 8:
         Complete and current documentation
         Real-world usage examples
-        
+
         DOCUMENTATION REQUIREMENTS:
         - Usage examples for all features
         - Integration guide for existing projects
         - Troubleshooting section with common issues
         - Performance characteristics documented
         - API reference if applicable
-      
+
     X.9:
       title: "Gate validation checkpoint"
       methodology_step: "GATE_VALIDATION"
@@ -213,7 +213,7 @@ Task X: [Feature Name]
         ✅ GATE VALIDATION METHODOLOGY STEP 9:
         MANDATORY checkpoint before next task
         Verify ALL gates passed
-        
+
         GATE CHECKLIST (ALL must be ✅):
         - [ ] Unit tests: 100% pass rate, 95%+ coverage
         - [ ] Integration: Works with 2+ target projects
@@ -221,11 +221,11 @@ Task X: [Feature Name]
         - [ ] Compatibility: Python 3.10-3.12, ubuntu/macos
         - [ ] CI Validation: All automated checks passing
         - [ ] Documentation: Complete and current
-        
+
         ONLY AFTER ALL GATES PASS:
         - Update TaskMaster task status to "completed"
         - Proceed to next task/subtask
-        
+
         IF ANY GATE FAILS:
         - Fix issues immediately
         - Re-run all validation steps
