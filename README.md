@@ -7,6 +7,28 @@
 
 A GitHub Action that automatically removes development files from main branches when pull requests are merged, while preserving them in feature branches for developer productivity.
 
+## 🚨 Quality Gates - Zero CI Failures
+
+**Before committing, ALWAYS run:**
+```bash
+pixi run quality    # Tests + lint + typecheck - must pass
+```
+
+**If you get lint errors in CI:**
+```bash
+./scripts/fix-lint-violations.sh    # Emergency fix script
+```
+
+**Full quality workflow:**
+```bash
+pixi run quality           # Full quality check
+pixi run lint-fix          # Auto-fix lint issues  
+pixi run format            # Format code
+git add . && git commit    # Pre-commit hooks run automatically
+```
+
+See [Quality Gates Prevention Guide](docs/QUALITY_GATES_PREVENTION.md) for details.
+
 ## 🎯 Problem Solved
 
 Ever accidentally merged development configuration files like `.claude`, `.mcp.json`, `.taskmaster`, or `.cursor` into your main branch? This action prevents that by automatically cleaning up these files after PR merges, keeping your production branches clean while maintaining developer workflow flexibility.
@@ -40,14 +62,14 @@ jobs:
   cleanup:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout target branch
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.base.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Cleanup dev files
         uses: MementoRC/ci-framework@v1
         with:
@@ -167,14 +189,14 @@ jobs:
   cleanup:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout target branch
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.base.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Cleanup dev files
         uses: MementoRC/ci-framework@v1
         with:
@@ -187,20 +209,20 @@ jobs:
   cleanup:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout target branch
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.base.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Cleanup dev files
         id: cleanup
         uses: MementoRC/ci-framework@v1
         with:
           additional_patterns: '.env.local,.cache'
-          
+
       - name: Notify team if cleanup occurred
         if: steps.cleanup.outputs.cleanup_needed == 'true'
         run: |
