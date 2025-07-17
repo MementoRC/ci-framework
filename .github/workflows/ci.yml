@@ -29,6 +29,7 @@ jobs:
       - name: "Install Quality Dependencies"
         run: |
           pixi install -e quality || exit 1
+          pixi install -e dev || exit 1
       - name: "Run Full Lint Check"
         run: |
           echo "Running comprehensive lint checks..."
