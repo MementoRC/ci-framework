@@ -1,0 +1,269 @@
+# Tiered Quality Features pyproject.toml Template
+# This template provides the new tiered approach for quality features using pixi
+# Based on the proven approach from mcp-server-cheap-llm project
+#
+# Last Updated: 2025-07-11
+# Version: 1.0 (Tiered Quality Features)
+#
+# USAGE INSTRUCTIONS:
+# 1. Copy this template to your project root as pyproject.toml
+# 2. Update project-specific fields (name, description, authors, etc.)
+# 3. Adjust dependencies based on your project needs
+# 4. Replace "your-project-name" and "your_package" with actual names
+# 5. Customize project-specific tasks as needed
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "your-project-name"
+version = "0.1.0"
+description = "Your project description"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Your Name", email = "your.email@example.com" }]
+maintainers = [{ name = "Your Name", email = "your.email@example.com" }]
+keywords = ["python", "project", "template"]
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+]
+
+dependencies = [
+    # Add your core runtime dependencies here
+    # Example: "aiohttp>=3.8.0",
+    # Example: "click>=8.1.7",
+    # Example: "pydantic>=2.0.0",
+]
+
+[project.scripts]
+your-project-name = "your_package:main"
+
+[project.urls]
+Homepage = "https://github.com/your-org/your-project-name"
+Repository = "https://github.com/your-org/your-project-name"
+Issues = "https://github.com/your-org/your-project-name/issues"
+
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["linux-64"]  # Start with linux-64 only for CI compatibility
+
+[tool.pixi.dependencies]
+# Core runtime dependencies
+python = ">=3.10"
+# Add your core dependencies here (they should match the [project] dependencies)
+
+[tool.pixi.pypi-dependencies]
+your-project-name = { path = ".", editable = true }
+
+# ===== TIERED QUALITY FEATURES =====
+# TIER 1: Essential Quality Gates (ZERO-TOLERANCE)
+[tool.pixi.feature.quality.dependencies]
+# Core Testing Framework
+pytest = ">=8.0.0"
+pytest-cov = ">=4.0.0"
+pytest-timeout = ">=2.1.0"
+pytest-asyncio = ">=0.21.0"
+pytest-xdist = ">=3.3.0"
+
+# Linting & Formatting
+ruff = ">=0.7.3"
+
+# Type Checking
+pyright = ">=1.1.402"
+
+[tool.pixi.feature.quality.pypi-dependencies]
+toml = ">=0.10.2"  # For test fixtures
+
+# TIER 2: Extended Quality & Security
+[tool.pixi.feature.quality-extended.dependencies]
+# Security Scanning
+bandit = ">=1.7.0"
+safety = ">=2.3.0"
+
+# Code Quality Analysis
+hypothesis = ">=6.0.0"
+
+# Git Hooks
+pre-commit = ">=3.0.0"
+
+# TIER 3: CI/CD & Build
+[tool.pixi.feature.quality-ci.dependencies]
+# Build Tools
+python-build = ">=1.0.0"
+pip-audit = ">=2.6.0"
+twine = ">=4.0.0"
+
+# CI Reporting
+coverage = ">=7.0.0"
+
+# ===== DEVELOPMENT FEATURES =====
+# Keep existing dev feature for specialized tools
+[tool.pixi.feature.dev-specialized.dependencies]
+# Development tools not needed for CI
+memory_profiler = "*"
+pytest-benchmark = "*"
+
+[tool.pixi.environments]
+# Basic runtime environment
+default = {solve-group = "default"}
+
+# Quality gate environments (tiered approach)
+quality = {features = ["quality"], solve-group = "default"}
+quality-extended = {features = ["quality", "quality-extended"], solve-group = "default"}
+quality-full = {features = ["quality", "quality-extended", "quality-ci"], solve-group = "default"}
+
+# Development environment (full quality + specialized tools)
+dev = {features = ["quality", "quality-extended", "quality-ci", "dev-specialized"], solve-group = "default"}
+
+# CI environment (quality + CI reporting)
+ci = {features = ["quality", "quality-ci"], solve-group = "default"}
+
+[tool.pixi.tasks]
+# ===== TIER 1: CORE DEVELOPMENT TASKS (ESSENTIAL) =====
+# Installation & Setup
+install-editable = "pip install -e ."
+dev-setup = "echo 'Development environment ready'"
+
+# Testing (ZERO-TOLERANCE QUALITY GATES) - with Claude Code git bypass
+test = { cmd = "pytest tests/ -v", env = { CLAUDECODE = "0" } }
+test-cov = { cmd = "pytest tests/ --cov=src/your_package --cov-report=term-missing --cov-report=xml", env = { CLAUDECODE = "0" } }
+test-unit = { cmd = "pytest tests/unit/ -v", env = { CLAUDECODE = "0" } }
+test-integration = { cmd = "pytest tests/integration/ -v", env = { CLAUDECODE = "0" } }
+test-e2e = { cmd = "pytest tests/e2e/ -v", env = { CLAUDECODE = "0" } }
+test-property = { cmd = "pytest tests/ -m property -v", env = { CLAUDECODE = "0" } }
+
+# Quality Gates (CRITICAL - MUST PASS) - PREVENT CI FAILURES
+lint = "ruff check src/ tests/ --select=F,E9"
+lint-fix = "ruff check --fix src/ tests/"    # 🚨 ESSENTIAL: Auto-fix lint violations
+format = "ruff format src/ tests/"           # 🚨 ESSENTIAL: Format code
+format-check = "ruff format --check src/ tests/"
+format-diff = "ruff format --diff src/ tests/"
+typecheck = "pyright src/"
+
+# Combined Quality Check - 🚨 MANDATORY BEFORE COMMIT
+quality = { depends-on = ["test", "lint", "typecheck"] }   # NEVER commit without this passing
+
+# Pre-commit Integration - PREVENT CI FAILURES
+pre-commit = "pre-commit run --all-files"
+install-pre-commit = "pre-commit install --install-hooks"
+
+# Emergency Quality Fix - USE FOR "Found X errors" CI FAILURES  
+emergency-fix = "ruff check --fix src/ tests/ && ruff format src/ tests/ && pytest tests/ -v"
+
+# 🚨 REFERENCE: See actual implementation in this project's pyproject.toml
+# This template should be adapted to your specific project structure
+
+# ===== TIER 2: SECURITY & COMPLIANCE TASKS =====
+# Security Scanning
+security-scan = "bandit -r src/ --severity-level high"
+safety-check = "safety check"
+
+# Static Analysis Suite
+static-analysis = { depends-on = ["security-scan", "safety-check"] }
+
+# Comprehensive Check
+check-all = { depends-on = ["quality", "static-analysis"] }
+
+# ===== TIER 3: CI/CD & DEPLOYMENT TASKS =====
+# CI-specific variants - with Claude Code git bypass
+ci-test = { cmd = "pytest tests/ --cov=src/your_package --cov-report=xml --timeout=90", env = { CLAUDECODE = "0", ENVIRONMENT = "ci" } }
+ci-lint = "ruff check src/ tests/ --output-format=github"
+ci-format-check = "ruff format --check src/ tests/"
+
+# Build & Deploy
+build = "python -m build"
+clean = "rm -rf __pycache__ .pytest_cache .coverage htmlcov .ruff_cache dist build"
+
+# Pre-commit Integration - with Claude Code git bypass
+pre-commit = { cmd = "pre-commit run --all-files", env = { CLAUDECODE = "0" } }
+install-pre-commit = { cmd = "pre-commit install --install-hooks", env = { CLAUDECODE = "0" } }
+
+# ===== PROJECT-SPECIFIC TASKS =====
+# Add your project-specific tasks here
+# Example: serve = "python -m your_package"
+# Example: migrate = "alembic upgrade head"
+
+# ===== LEGACY/SPECIALIZED TASKS =====
+# Keep existing specialized tasks
+benchmark = "pytest tests/ -m benchmark --benchmark-only --benchmark-sort=mean"
+test-coverage = "pytest tests/ --cov=src/your_package --cov-branch --cov-report=html --cov-report=xml --cov-report=json --cov-report=term-missing"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["src"]
+addopts = "-v --tb=short --timeout=30"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "e2e: marks tests as end-to-end tests",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "property: marks tests as property-based tests",
+    "performance: marks tests as performance tests",
+    "requires_external: tests that require external services",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["F", "E9", "W", "I", "B", "C4", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["F821", "F401", "F841"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+# =============================================================================
+# MAINTENANCE NOTES
+# =============================================================================
+
+# This template implements the new tiered quality features approach:
+# 
+# TIER 1 (quality): Essential quality gates that must pass
+# - pytest, pytest-cov, pytest-timeout, pytest-asyncio, pytest-xdist
+# - ruff for linting and formatting
+# - pyright for type checking
+#
+# TIER 2 (quality-extended): Extended quality and security
+# - bandit for security scanning
+# - safety for dependency vulnerability checks
+# - hypothesis for property-based testing
+# - pre-commit for git hooks
+#
+# TIER 3 (quality-ci): CI/CD and build tools
+# - python-build for package building
+# - pip-audit for additional security
+# - twine for publishing
+# - coverage for CI reporting
+#
+# ENVIRONMENTS:
+# - default: Basic runtime
+# - quality: TIER 1 only
+# - quality-extended: TIER 1 + TIER 2
+# - quality-full: TIER 1 + TIER 2 + TIER 3
+# - dev: All tiers + specialized development tools
+# - ci: TIER 1 + TIER 3 (optimized for CI)
+#
+# CRITICAL task names that must remain consistent:
+# - test, lint, typecheck, pre-commit, quality, check-all
+# These are used by AG commands and should not be renamed.

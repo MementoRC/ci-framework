@@ -161,8 +161,11 @@ format-check = "ruff format --check framework/"
 typecheck = "pixi run -e quality typecheck-impl"
 typecheck-impl = "mypy framework/"
 
-# Combined Quality Check
-quality = { depends-on = ["test", "lint", "typecheck"] }
+# Combined Quality Check - 🚨 MANDATORY BEFORE COMMIT
+quality = { depends-on = ["test", "lint", "typecheck"] }   # NEVER commit without this passing
+
+# Emergency Quality Fix - USE FOR "Found X errors" CI FAILURES  
+emergency-fix = "pixi run lint-fix && pixi run format && pixi run test"
 
 # ===== TIER 2: SECURITY & COMPLIANCE TASKS =====
 # Security Scanning
@@ -187,9 +190,9 @@ ci-format-check = "ruff format --check framework/"
 build = "python -m build"
 clean = "rm -rf __pycache__ .pytest_cache .coverage htmlcov .ruff_cache dist build"
 
-# Pre-commit Integration
+# Pre-commit Integration - PREVENT CI FAILURES
 pre-commit = "pre-commit run --all-files"
-install-pre-commit = "pre-commit install --install-hooks"
+install-pre-commit = "pre-commit install --install-hooks"   # 🚨 ESSENTIAL: Run once per developer
 
 # ===== LEGACY/SPECIALIZED TASKS =====
 # Keep existing specialized tasks for backward compatibility

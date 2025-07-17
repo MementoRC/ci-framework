@@ -16,7 +16,9 @@ pixi run quality    # Tests + lint + typecheck - must pass
 
 **If you get lint errors in CI:**
 ```bash
-./scripts/fix-lint-violations.sh    # Emergency fix script
+pixi run emergency-fix               # Quick fix: lint-fix + format + test
+# OR
+./scripts/fix-lint-violations.sh    # Guided emergency fix script
 ```
 
 **Full quality workflow:**

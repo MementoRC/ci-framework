@@ -17,15 +17,11 @@ else
 fi
 
 echo ""
-echo "🔧 Step 2: Auto-fixing lint violations..."
-pixi run lint-fix
+echo "🔧 Step 2: Running emergency fix (lint-fix + format + test)..."
+pixi run emergency-fix
 
 echo ""
-echo "🎨 Step 3: Formatting code..."
-pixi run format
-
-echo ""
-echo "📋 Step 4: Running final quality check..."
+echo "📋 Step 3: Running final quality check..."
 if pixi run quality; then
     echo "✅ All issues fixed!"
 else
@@ -56,5 +52,6 @@ echo "🎉 Lint fix process complete!"
 echo ""
 echo "💡 To prevent this in future:"
 echo "1. Always run 'pixi run quality' before committing"
-echo "2. Install pre-commit hooks: pixi run -e dev bash -c 'pre-commit install --install-hooks'"
-echo "3. Use 'pixi run lint-fix' to auto-fix issues"
+echo "2. Install pre-commit hooks: pixi run install-pre-commit"
+echo "3. Use 'pixi run emergency-fix' for quick fixes"
+echo "4. Use 'pixi run lint-fix' to auto-fix lint issues only"
