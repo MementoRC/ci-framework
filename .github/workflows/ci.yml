@@ -34,6 +34,10 @@ jobs:
         run: |
           echo "Running comprehensive lint checks..."
           pixi run lint-full
+      - name: "Run Action Lint"
+        run: |
+          echo "Running actionlint on workflow files..."
+          pixi run -e dev actionlint
       - name: "Run Format Check"
         run: |
           echo "Running format check..."
