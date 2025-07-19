@@ -1,0 +1,792 @@
+name: 'Security Scan Action'
+description: 'Comprehensive multi-tool security scanning with SARIF integration and configurable security levels'
+author: 'CI Framework'
+
+branding:
+  icon: 'shield'
+  color: 'red'
+
+inputs:
+  security-level:
+    description: 'Security level to execute (low, medium, high, critical)'
+    required: false
+    default: 'medium'
+
+  timeout:
+    description: 'Timeout in seconds for security scan execution'
+    required: false
+    default: '600'
+
+  parallel:
+    description: 'Execute security scans in parallel'
+    required: false
+    default: 'true'
+
+  project-dir:
+    description: 'Project directory to scan (default: current directory)'
+    required: false
+    default: '.'
+
+  config-file:
+    description: 'Path to custom security configuration file'
+    required: false
+    default: ''
+
+  fail-fast:
+    description: 'Fail immediately on first critical vulnerability'
+    required: false
+    default: 'true'
+
+  reports-dir:
+    description: 'Directory to store security reports'
+    required: false
+    default: 'security-reports'
+
+  package-manager:
+    description: 'Force specific package manager (pixi, poetry, hatch, pip)'
+    required: false
+    default: 'auto'
+
+  enable-bandit:
+    description: 'Enable bandit AST-based security analysis'
+    required: false
+    default: 'true'
+
+  enable-safety:
+    description: 'Enable safety dependency vulnerability scanning'
+    required: false
+    default: 'true'
+
+  enable-pip-audit:
+    description: 'Enable pip-audit package auditing'
+    required: false
+    default: 'true'
+
+  enable-semgrep:
+    description: 'Enable semgrep pattern-based security detection'
+    required: false
+    default: 'false'
+
+  enable-trivy:
+    description: 'Enable Trivy container scanning and SBOM generation'
+    required: false
+    default: 'false'
+
+  sarif-upload:
+    description: 'Upload SARIF results to GitHub Security tab'
+    required: false
+    default: 'true'
+
+  sbom-generation:
+    description: 'Generate Software Bill of Materials (SBOM)'
+    required: false
+    default: 'false'
+
+outputs:
+  success:
+    description: 'Whether all security scans passed'
+    value: ${{ steps.security-scan.outputs.success }}
+
+  security-level:
+    description: 'Security level that was executed'
+    value: ${{ steps.security-scan.outputs.security-level }}
+
+  execution-time:
+    description: 'Total execution time in seconds'
+    value: ${{ steps.security-scan.outputs.execution-time }}
+
+  vulnerabilities-found:
+    description: 'Total number of vulnerabilities found'
+    value: ${{ steps.security-scan.outputs.vulnerabilities-found }}
+
+  critical-vulnerabilities:
+    description: 'Number of critical vulnerabilities found'
+    value: ${{ steps.security-scan.outputs.critical-vulnerabilities }}
+
+  high-vulnerabilities:
+    description: 'Number of high-severity vulnerabilities found'
+    value: ${{ steps.security-scan.outputs.high-vulnerabilities }}
+
+  medium-vulnerabilities:
+    description: 'Number of medium-severity vulnerabilities found'
+    value: ${{ steps.security-scan.outputs.medium-vulnerabilities }}
+
+  low-vulnerabilities:
+    description: 'Number of low-severity vulnerabilities found'
+    value: ${{ steps.security-scan.outputs.low-vulnerabilities }}
+
+  tools-executed:
+    description: 'List of security tools that were executed'
+    value: ${{ steps.security-scan.outputs.tools-executed }}
+
+  failed-tools:
+    description: 'List of security tools that failed'
+    value: ${{ steps.security-scan.outputs.failed-tools }}
+
+  failure-reason:
+    description: 'Primary reason for failure'
+    value: ${{ steps.security-scan.outputs.failure-reason }}
+
+  reports-path:
+    description: 'Path to generated security reports'
+    value: ${{ steps.security-scan.outputs.reports-path }}
+
+  sarif-file:
+    description: 'Path to generated SARIF file'
+    value: ${{ steps.security-scan.outputs.sarif-file }}
+
+  sbom-file:
+    description: 'Path to generated SBOM file'
+    value: ${{ steps.security-scan.outputs.sbom-file }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install pixi
+      uses: prefix-dev/setup-pixi@v0.4.1
+      with:
+        pixi-version: v0.15.1
+        cache: true
+
+    - name: Install Docker (for Trivy)
+      if: inputs.enable-trivy == 'true'
+      uses: docker/setup-buildx-action@v3
+
+    - name: Install Security Tools
+      shell: bash
+      run: |
+        set -e
+        
+        echo "📦 Installing security scanning tools..."
+        
+        # Install Trivy if enabled
+        if [[ "${{ inputs.enable-trivy }}" == "true" ]]; then
+          echo "Installing Trivy..."
+          sudo apt-get update
+          sudo apt-get install wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy
+        fi
+        
+        # Install Semgrep if enabled
+        if [[ "${{ inputs.enable-semgrep }}" == "true" ]]; then
+          echo "Installing Semgrep..."
+          pip install semgrep
+        fi
+
+    - name: Cache Security Scan Dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.cache/trivy
+          ~/.cache/semgrep
+          .pixi/envs
+        key: security-scan-${{ runner.os }}-${{ hashFiles('**/pyproject.toml', '**/Dockerfile') }}
+        restore-keys: |
+          security-scan-${{ runner.os }}-
+
+    - name: Execute Security Scans
+      id: security-scan
+      shell: bash
+      run: |
+        set -e
+
+        # Set default values
+        SECURITY_LEVEL="${{ inputs.security-level }}"
+        TIMEOUT="${{ inputs.timeout }}"
+        PARALLEL="${{ inputs.parallel }}"
+        PROJECT_DIR="${{ inputs.project-dir }}"
+        CONFIG_FILE="${{ inputs.config-file }}"
+        FAIL_FAST="${{ inputs.fail-fast }}"
+        REPORTS_DIR="${{ inputs.reports-dir }}"
+        PACKAGE_MANAGER="${{ inputs.package-manager }}"
+
+        echo "🛡️ Security Scan Action v0.0.1"
+        echo "🔒 Security Level: $SECURITY_LEVEL"
+        echo "⏱️  Timeout: ${TIMEOUT}s"
+        echo "🔄 Parallel: $PARALLEL"
+        echo "📁 Project: $PROJECT_DIR"
+
+        # Create reports directory
+        mkdir -p "$REPORTS_DIR"
+
+        # Install security environment
+        if [[ -f "pyproject.toml" ]] && grep -q "\[tool\.pixi\]" pyproject.toml; then
+          echo "📦 Using pixi environment"
+          pixi install -e quality-extended
+        elif [[ -f "pyproject.toml" ]] && grep -q "\[tool\.poetry\]" pyproject.toml; then
+          echo "📦 Using poetry environment"
+          pip install poetry
+          poetry install --extras security
+        else
+          echo "📦 Using pip environment"
+          pip install bandit safety pip-audit
+        fi
+
+        # Execute security scans using Python
+        python3 << 'EOF'
+        import sys
+        import json
+        import time
+        import subprocess
+        import concurrent.futures
+        from pathlib import Path
+        from typing import Dict, List, Any, Optional
+        import tempfile
+        import os
+
+        # Configuration based on security level
+        SECURITY_CONFIGS = {
+            "low": {
+                "bandit_severity": "low",
+                "timeout_per_tool": 60,
+                "fail_on_vulnerabilities": False,
+                "required_tools": ["bandit"]
+            },
+            "medium": {
+                "bandit_severity": "medium", 
+                "timeout_per_tool": 120,
+                "fail_on_vulnerabilities": True,
+                "required_tools": ["bandit", "safety", "pip-audit"]
+            },
+            "high": {
+                "bandit_severity": "high",
+                "timeout_per_tool": 300,
+                "fail_on_vulnerabilities": True,
+                "required_tools": ["bandit", "safety", "pip-audit", "semgrep"]
+            },
+            "critical": {
+                "bandit_severity": "high",
+                "timeout_per_tool": 600,
+                "fail_on_vulnerabilities": True,
+                "required_tools": ["bandit", "safety", "pip-audit", "semgrep", "trivy"]
+            }
+        }
+
+        class SecurityScanner:
+            def __init__(self, security_level: str, project_dir: Path, reports_dir: Path):
+                self.security_level = security_level
+                self.project_dir = project_dir
+                self.reports_dir = reports_dir
+                self.config = SECURITY_CONFIGS.get(security_level, SECURITY_CONFIGS["medium"])
+                self.results = {}
+                self.vulnerabilities = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+                self.tools_executed = []
+                self.failed_tools = []
+
+            def run_bandit(self) -> Dict[str, Any]:
+                """Run bandit AST-based security analysis."""
+                print("🔍 Running bandit security analysis...")
+                
+                output_file = self.reports_dir / "bandit-results.json"
+                sarif_file = self.reports_dir / "bandit.sarif"
+                
+                try:
+                    # Run bandit with JSON output
+                    cmd = [
+                        "bandit", "-r", str(self.project_dir),
+                        "-f", "json",
+                        "-o", str(output_file),
+                        "--severity-level", self.config["bandit_severity"],
+                        "-x", "**/tests/**,**/test_**"
+                    ]
+                    
+                    result = subprocess.run(
+                        cmd, 
+                        timeout=self.config["timeout_per_tool"],
+                        capture_output=True,
+                        text=True
+                    )
+                    
+                    # Also generate SARIF format
+                    sarif_cmd = [
+                        "bandit", "-r", str(self.project_dir),
+                        "-f", "sarif",
+                        "-o", str(sarif_file),
+                        "--severity-level", self.config["bandit_severity"],
+                        "-x", "**/tests/**,**/test_**"
+                    ]
+                    
+                    subprocess.run(sarif_cmd, timeout=60, capture_output=True)
+                    
+                    # Parse results
+                    if output_file.exists():
+                        with open(output_file) as f:
+                            data = json.load(f)
+                            
+                        # Count vulnerabilities by severity
+                        for issue in data.get("results", []):
+                            severity = issue.get("issue_severity", "").lower()
+                            if severity in self.vulnerabilities:
+                                self.vulnerabilities[severity] += 1
+                        
+                        self.tools_executed.append("bandit")
+                        return {"success": True, "data": data}
+                    else:
+                        self.failed_tools.append("bandit")
+                        return {"success": False, "error": "No output file generated"}
+                        
+                except subprocess.TimeoutExpired:
+                    self.failed_tools.append("bandit")
+                    return {"success": False, "error": "Timeout"}
+                except Exception as e:
+                    self.failed_tools.append("bandit")
+                    return {"success": False, "error": str(e)}
+
+            def run_safety(self) -> Dict[str, Any]:
+                """Run safety dependency vulnerability scanning."""
+                print("🔍 Running safety vulnerability scan...")
+                
+                output_file = self.reports_dir / "safety-results.json"
+                
+                try:
+                    cmd = ["safety", "check", "--json", "--output", str(output_file)]
+                    
+                    result = subprocess.run(
+                        cmd,
+                        timeout=self.config["timeout_per_tool"],
+                        capture_output=True,
+                        text=True
+                    )
+                    
+                    # Parse results
+                    if output_file.exists():
+                        with open(output_file) as f:
+                            data = json.load(f)
+                        
+                        # Count vulnerabilities
+                        vuln_count = len(data) if isinstance(data, list) else 0
+                        self.vulnerabilities["high"] += vuln_count  # Safety vulnerabilities are typically high
+                        
+                        self.tools_executed.append("safety")
+                        return {"success": True, "data": data}
+                    else:
+                        self.failed_tools.append("safety")
+                        return {"success": False, "error": "No output file generated"}
+                        
+                except subprocess.TimeoutExpired:
+                    self.failed_tools.append("safety")
+                    return {"success": False, "error": "Timeout"}
+                except Exception as e:
+                    self.failed_tools.append("safety")
+                    return {"success": False, "error": str(e)}
+
+            def run_pip_audit(self) -> Dict[str, Any]:
+                """Run pip-audit package auditing."""
+                print("🔍 Running pip-audit package audit...")
+                
+                output_file = self.reports_dir / "pip-audit-results.json"
+                
+                try:
+                    cmd = ["pip-audit", "--format=json", "--output", str(output_file)]
+                    
+                    result = subprocess.run(
+                        cmd,
+                        timeout=self.config["timeout_per_tool"],
+                        capture_output=True,
+                        text=True
+                    )
+                    
+                    # Parse results
+                    if output_file.exists():
+                        with open(output_file) as f:
+                            data = json.load(f)
+                        
+                        # Count vulnerabilities
+                        for dep in data.get("dependencies", []):
+                            vuln_count = len(dep.get("vulnerabilities", []))
+                            self.vulnerabilities["medium"] += vuln_count
+                        
+                        self.tools_executed.append("pip-audit")
+                        return {"success": True, "data": data}
+                    else:
+                        self.failed_tools.append("pip-audit")
+                        return {"success": False, "error": "No output file generated"}
+                        
+                except subprocess.TimeoutExpired:
+                    self.failed_tools.append("pip-audit")
+                    return {"success": False, "error": "Timeout"}
+                except Exception as e:
+                    self.failed_tools.append("pip-audit")
+                    return {"success": False, "error": str(e)}
+
+            def run_semgrep(self) -> Dict[str, Any]:
+                """Run semgrep pattern-based security detection."""
+                if "${{ inputs.enable-semgrep }}" != "true":
+                    return {"success": True, "data": {}, "skipped": True}
+                    
+                print("🔍 Running semgrep security analysis...")
+                
+                output_file = self.reports_dir / "semgrep-results.json"
+                sarif_file = self.reports_dir / "semgrep.sarif"
+                
+                try:
+                    # Run with auto config for security rules
+                    cmd = [
+                        "semgrep", "--config=auto",
+                        "--json", "--output", str(output_file),
+                        str(self.project_dir)
+                    ]
+                    
+                    result = subprocess.run(
+                        cmd,
+                        timeout=self.config["timeout_per_tool"],
+                        capture_output=True,
+                        text=True
+                    )
+                    
+                    # Also generate SARIF
+                    sarif_cmd = [
+                        "semgrep", "--config=auto",
+                        "--sarif", "--output", str(sarif_file),
+                        str(self.project_dir)
+                    ]
+                    subprocess.run(sarif_cmd, timeout=60, capture_output=True)
+                    
+                    # Parse results
+                    if output_file.exists():
+                        with open(output_file) as f:
+                            data = json.load(f)
+                        
+                        # Count findings by severity
+                        for finding in data.get("results", []):
+                            severity = finding.get("extra", {}).get("severity", "").lower()
+                            if severity in self.vulnerabilities:
+                                self.vulnerabilities[severity] += 1
+                        
+                        self.tools_executed.append("semgrep")
+                        return {"success": True, "data": data}
+                    else:
+                        self.failed_tools.append("semgrep")
+                        return {"success": False, "error": "No output file generated"}
+                        
+                except subprocess.TimeoutExpired:
+                    self.failed_tools.append("semgrep")
+                    return {"success": False, "error": "Timeout"}
+                except Exception as e:
+                    self.failed_tools.append("semgrep")
+                    return {"success": False, "error": str(e)}
+
+            def run_trivy(self) -> Dict[str, Any]:
+                """Run Trivy container scanning and SBOM generation."""
+                if "${{ inputs.enable-trivy }}" != "true":
+                    return {"success": True, "data": {}, "skipped": True}
+                    
+                print("🔍 Running Trivy security scan...")
+                
+                output_file = self.reports_dir / "trivy-results.json"
+                sarif_file = self.reports_dir / "trivy.sarif"
+                sbom_file = self.reports_dir / "trivy-sbom.json"
+                
+                try:
+                    # Run filesystem scan
+                    cmd = [
+                        "trivy", "fs", "--format", "json",
+                        "--output", str(output_file),
+                        str(self.project_dir)
+                    ]
+                    
+                    result = subprocess.run(
+                        cmd,
+                        timeout=self.config["timeout_per_tool"],
+                        capture_output=True,
+                        text=True
+                    )
+                    
+                    # Generate SARIF
+                    sarif_cmd = [
+                        "trivy", "fs", "--format", "sarif",
+                        "--output", str(sarif_file),
+                        str(self.project_dir)
+                    ]
+                    subprocess.run(sarif_cmd, timeout=60, capture_output=True)
+                    
+                    # Generate SBOM if requested
+                    if "${{ inputs.sbom-generation }}" == "true":
+                        sbom_cmd = [
+                            "trivy", "fs", "--format", "cyclonedx",
+                            "--output", str(sbom_file),
+                            str(self.project_dir)
+                        ]
+                        subprocess.run(sbom_cmd, timeout=60, capture_output=True)
+                    
+                    # Parse results
+                    if output_file.exists():
+                        with open(output_file) as f:
+                            data = json.load(f)
+                        
+                        # Count vulnerabilities
+                        for result in data.get("Results", []):
+                            for vuln in result.get("Vulnerabilities", []):
+                                severity = vuln.get("Severity", "").lower()
+                                if severity in self.vulnerabilities:
+                                    self.vulnerabilities[severity] += 1
+                        
+                        self.tools_executed.append("trivy")
+                        return {"success": True, "data": data}
+                    else:
+                        self.failed_tools.append("trivy")
+                        return {"success": False, "error": "No output file generated"}
+                        
+                except subprocess.TimeoutExpired:
+                    self.failed_tools.append("trivy")
+                    return {"success": False, "error": "Timeout"}
+                except Exception as e:
+                    self.failed_tools.append("trivy")
+                    return {"success": False, "error": str(e)}
+
+            def generate_unified_sarif(self) -> str:
+                """Generate unified SARIF report from all tools."""
+                print("📊 Generating unified SARIF report...")
+                
+                unified_sarif = {
+                    "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+                    "version": "2.1.0",
+                    "runs": []
+                }
+                
+                # Collect all SARIF files
+                sarif_files = list(self.reports_dir.glob("*.sarif"))
+                
+                for sarif_file in sarif_files:
+                    try:
+                        with open(sarif_file) as f:
+                            sarif_data = json.load(f)
+                            if "runs" in sarif_data:
+                                unified_sarif["runs"].extend(sarif_data["runs"])
+                    except Exception as e:
+                        print(f"Warning: Failed to parse {sarif_file}: {e}")
+                
+                # Write unified SARIF
+                unified_file = self.reports_dir / "security-unified.sarif"
+                with open(unified_file, 'w') as f:
+                    json.dump(unified_sarif, f, indent=2)
+                
+                return str(unified_file)
+
+            def run_all_scans(self) -> Dict[str, Any]:
+                """Run all configured security scans."""
+                start_time = time.time()
+                
+                # Define scan functions
+                scan_functions = {
+                    "bandit": self.run_bandit,
+                    "safety": self.run_safety, 
+                    "pip-audit": self.run_pip_audit,
+                    "semgrep": self.run_semgrep,
+                    "trivy": self.run_trivy
+                }
+                
+                # Filter based on enabled tools and security level
+                enabled_scans = {}
+                if "${{ inputs.enable-bandit }}" == "true" and "bandit" in self.config["required_tools"]:
+                    enabled_scans["bandit"] = scan_functions["bandit"]
+                if "${{ inputs.enable-safety }}" == "true" and "safety" in self.config["required_tools"]:
+                    enabled_scans["safety"] = scan_functions["safety"]
+                if "${{ inputs.enable-pip-audit }}" == "true" and "pip-audit" in self.config["required_tools"]:
+                    enabled_scans["pip-audit"] = scan_functions["pip-audit"]
+                if "${{ inputs.enable-semgrep }}" == "true" and "semgrep" in self.config["required_tools"]:
+                    enabled_scans["semgrep"] = scan_functions["semgrep"]
+                if "${{ inputs.enable-trivy }}" == "true" and "trivy" in self.config["required_tools"]:
+                    enabled_scans["trivy"] = scan_functions["trivy"]
+                
+                # Execute scans
+                if "${{ inputs.parallel }}" == "true":
+                    # Parallel execution
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+                        future_to_tool = {executor.submit(func): tool for tool, func in enabled_scans.items()}
+                        
+                        for future in concurrent.futures.as_completed(future_to_tool):
+                            tool = future_to_tool[future]
+                            try:
+                                self.results[tool] = future.result()
+                            except Exception as e:
+                                self.results[tool] = {"success": False, "error": str(e)}
+                                self.failed_tools.append(tool)
+                else:
+                    # Sequential execution
+                    for tool, func in enabled_scans.items():
+                        try:
+                            self.results[tool] = func()
+                        except Exception as e:
+                            self.results[tool] = {"success": False, "error": str(e)}
+                            self.failed_tools.append(tool)
+                
+                execution_time = time.time() - start_time
+                
+                # Generate unified reports
+                sarif_file = ""
+                if "${{ inputs.sarif-upload }}" == "true":
+                    sarif_file = self.generate_unified_sarif()
+                
+                # Determine overall success
+                total_vulns = sum(self.vulnerabilities.values())
+                critical_vulns = self.vulnerabilities["critical"] + self.vulnerabilities["high"]
+                
+                success = True
+                failure_reason = ""
+                
+                if len(self.failed_tools) > 0:
+                    success = False
+                    failure_reason = f"Failed tools: {', '.join(self.failed_tools)}"
+                elif self.config["fail_on_vulnerabilities"] and critical_vulns > 0:
+                    success = False
+                    failure_reason = f"Found {critical_vulns} critical/high vulnerabilities"
+                elif self.config["fail_on_vulnerabilities"] and total_vulns > 10:
+                    success = False
+                    failure_reason = f"Found {total_vulns} total vulnerabilities (exceeds threshold)"
+                
+                return {
+                    "success": success,
+                    "execution_time": execution_time,
+                    "vulnerabilities": self.vulnerabilities,
+                    "total_vulnerabilities": total_vulns,
+                    "tools_executed": self.tools_executed,
+                    "failed_tools": self.failed_tools,
+                    "failure_reason": failure_reason,
+                    "sarif_file": sarif_file,
+                    "reports_path": str(self.reports_dir)
+                }
+
+        # Main execution
+        project_dir = Path("$PROJECT_DIR")
+        reports_dir = Path("$REPORTS_DIR")
+        security_level = "$SECURITY_LEVEL"
+        
+        scanner = SecurityScanner(security_level, project_dir, reports_dir)
+        result = scanner.run_all_scans()
+        
+        # Set outputs
+        print(f"success={str(result['success']).lower()}")
+        print(f"security-level={security_level}")
+        print(f"execution-time={result['execution_time']:.2f}")
+        print(f"vulnerabilities-found={result['total_vulnerabilities']}")
+        print(f"critical-vulnerabilities={result['vulnerabilities']['critical']}")
+        print(f"high-vulnerabilities={result['vulnerabilities']['high']}")
+        print(f"medium-vulnerabilities={result['vulnerabilities']['medium']}")
+        print(f"low-vulnerabilities={result['vulnerabilities']['low']}")
+        print(f"tools-executed={','.join(result['tools_executed'])}")
+        print(f"failed-tools={','.join(result['failed_tools'])}")
+        print(f"failure-reason={result['failure_reason']}")
+        print(f"reports-path={result['reports_path']}")
+        print(f"sarif-file={result.get('sarif_file', '')}")
+        print(f"sbom-file={result.get('sbom_file', '')}")
+        
+        # Generate GitHub outputs
+        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+            f.write(f"success={str(result['success']).lower()}\n")
+            f.write(f"security-level={security_level}\n")
+            f.write(f"execution-time={result['execution_time']:.2f}\n")
+            f.write(f"vulnerabilities-found={result['total_vulnerabilities']}\n")
+            f.write(f"critical-vulnerabilities={result['vulnerabilities']['critical']}\n")
+            f.write(f"high-vulnerabilities={result['vulnerabilities']['high']}\n")
+            f.write(f"medium-vulnerabilities={result['vulnerabilities']['medium']}\n")
+            f.write(f"low-vulnerabilities={result['vulnerabilities']['low']}\n")
+            f.write(f"tools-executed={','.join(result['tools_executed'])}\n")
+            f.write(f"failed-tools={','.join(result['failed_tools'])}\n")
+            f.write(f"failure-reason={result['failure_reason']}\n")
+            f.write(f"reports-path={result['reports_path']}\n")
+            f.write(f"sarif-file={result.get('sarif_file', '')}\n")
+            f.write(f"sbom-file={result.get('sbom_file', '')}\n")
+        
+        # Exit with appropriate code
+        if result["success"]:
+            print("✅ All security scans passed!")
+            sys.exit(0)
+        else:
+            print(f"❌ Security scans failed: {result['failure_reason']}")
+            if "$FAIL_FAST".lower() == "true":
+                sys.exit(1)
+            else:
+                print("⚠️  Continuing despite failures (fail-fast disabled)")
+                sys.exit(0)
+        EOF
+
+    - name: Upload Security Reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports-${{ inputs.security-level }}
+        path: ${{ inputs.reports-dir }}
+        retention-days: 30
+
+    - name: Upload SARIF Results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v2
+      if: always() && inputs.sarif-upload == 'true' && steps.security-scan.outputs.sarif-file != ''
+      with:
+        sarif_file: ${{ steps.security-scan.outputs.sarif-file }}
+        category: security-scan-${{ inputs.security-level }}
+
+    - name: Upload SBOM Artifact
+      uses: actions/upload-artifact@v3
+      if: always() && inputs.sbom-generation == 'true' && steps.security-scan.outputs.sbom-file != ''
+      with:
+        name: sbom-${{ inputs.security-level }}
+        path: ${{ steps.security-scan.outputs.sbom-file }}
+        retention-days: 90
+
+    - name: Comment PR with Security Results
+      uses: actions/github-script@v6
+      if: always() && github.event_name == 'pull_request'
+      with:
+        script: |
+          const securityLevel = '${{ inputs.security-level }}';
+          const success = '${{ steps.security-scan.outputs.success }}' === 'true';
+          const executionTime = '${{ steps.security-scan.outputs.execution-time }}';
+          const totalVulns = '${{ steps.security-scan.outputs.vulnerabilities-found }}';
+          const criticalVulns = '${{ steps.security-scan.outputs.critical-vulnerabilities }}';
+          const highVulns = '${{ steps.security-scan.outputs.high-vulnerabilities }}';
+          const mediumVulns = '${{ steps.security-scan.outputs.medium-vulnerabilities }}';
+          const lowVulns = '${{ steps.security-scan.outputs.low-vulnerabilities }}';
+          const toolsExecuted = '${{ steps.security-scan.outputs.tools-executed }}';
+          const failedTools = '${{ steps.security-scan.outputs.failed-tools }}';
+          const failureReason = '${{ steps.security-scan.outputs.failure-reason }}';
+
+          const statusIcon = success ? '🛡️' : '🚨';
+          const statusText = success ? 'PASSED' : 'FAILED';
+
+          let comment = `## ${statusIcon} Security Scan ${statusText} - ${securityLevel.toUpperCase()} Level\n\n`;
+          comment += `**Execution Time:** ${executionTime}s\n`;
+          comment += `**Tools Executed:** ${toolsExecuted.split(',').filter(t => t).join(', ')}\n\n`;
+
+          if (parseInt(totalVulns) > 0) {
+            comment += `### 🔍 Vulnerabilities Found: ${totalVulns}\n\n`;
+            comment += `| Severity | Count |\n`;
+            comment += `|----------|-------|\n`;
+            comment += `| 🔴 Critical | ${criticalVulns} |\n`;
+            comment += `| 🟠 High | ${highVulns} |\n`;
+            comment += `| 🟡 Medium | ${mediumVulns} |\n`;
+            comment += `| 🟢 Low | ${lowVulns} |\n\n`;
+          } else {
+            comment += `### ✅ No vulnerabilities found!\n\n`;
+          }
+
+          if (!success) {
+            comment += `**Failure Reason:** ${failureReason}\n\n`;
+            
+            if (failedTools) {
+              comment += `**Failed Tools:** ${failedTools.split(',').filter(t => t).join(', ')}\n\n`;
+            }
+          }
+
+          comment += `### 📊 Security Report Details\n`;
+          comment += `- **Security Level:** ${securityLevel}\n`;
+          comment += `- **SARIF Upload:** ${{ inputs.sarif-upload }}\n`;
+          comment += `- **SBOM Generation:** ${{ inputs.sbom-generation }}\n\n`;
+
+          comment += `---\n*Generated by Security Scan Action v0.0.1*`;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
