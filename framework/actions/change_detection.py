@@ -13,7 +13,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -38,7 +38,7 @@ class ChangeAnalysisResult:
     time_savings: int
     execution_time: float
     reports_path: str
-    failure_reason: Optional[str] = None
+    failure_reason: str | None = None
 
 
 @dataclass
@@ -68,7 +68,7 @@ class FilePatternMatcher:
                  "CMakeLists.txt", "build.gradle", "pom.xml"]
     }
 
-    def __init__(self, custom_patterns: Optional[dict[str, list[str]]] = None):
+    def __init__(self, custom_patterns: dict[str, list[str]] | None = None):
         """Initialize with default or custom patterns."""
         self.patterns = self.DEFAULT_PATTERNS.copy()
         if custom_patterns:
@@ -119,7 +119,7 @@ class FilePatternMatcher:
 
         return False
 
-    def _infer_from_extension(self, file: str) -> Optional[str]:
+    def _infer_from_extension(self, file: str) -> str | None:
         """Infer category from file extension."""
         ext = Path(file).suffix.lower()
 
@@ -246,7 +246,7 @@ class DependencyAnalyzer:
 
         return affected_tests
 
-    def _analyze_file_dependencies(self, file_path: str) -> Optional[set[str]]:
+    def _analyze_file_dependencies(self, file_path: str) -> set[str] | None:
         """Analyze imports in a Python file."""
         full_path = self.project_dir / file_path
 
@@ -424,7 +424,7 @@ class MonorepoHandler:
 
         return list(affected_with_deps)
 
-    def _analyze_package(self, package_dir: Path) -> Optional[dict[str, Any]]:
+    def _analyze_package(self, package_dir: Path) -> dict[str, Any] | None:
         """Analyze a potential package directory."""
         package_info = {"path": str(package_dir.relative_to(self.project_dir))}
 
@@ -510,7 +510,7 @@ class MonorepoHandler:
 
         return deps
 
-    def _get_file_package(self, file_path: str) -> Optional[str]:
+    def _get_file_package(self, file_path: str) -> str | None:
         """Determine which package a file belongs to."""
         for package_name, package_info in self.packages.items():
             package_path = package_info["path"]
@@ -702,7 +702,7 @@ class ReportGenerator:
         self.reports_dir.mkdir(parents=True, exist_ok=True)
 
     def generate_reports(self, result: ChangeAnalysisResult,
-                        additional_data: Optional[dict[str, Any]] = None) -> str:
+                        additional_data: dict[str, Any] | None = None) -> str:
         """Generate comprehensive reports."""
         # Generate JSON report
         json_report_path = self._generate_json_report(result, additional_data)
@@ -716,7 +716,7 @@ class ReportGenerator:
         return str(json_report_path)
 
     def _generate_json_report(self, result: ChangeAnalysisResult,
-                            additional_data: Optional[dict[str, Any]] = None) -> Path:
+                            additional_data: dict[str, Any] | None = None) -> Path:
         """Generate JSON report with all analysis data."""
         report_file = self.reports_dir / "change-detection-report.json"
 
@@ -739,7 +739,7 @@ class ReportGenerator:
         return report_file
 
     def _generate_markdown_summary(self, result: ChangeAnalysisResult,
-                                 additional_data: Optional[dict[str, Any]] = None) -> Path:
+                                 additional_data: dict[str, Any] | None = None) -> Path:
         """Generate human-readable Markdown summary."""
         md_file = self.reports_dir / "change-detection-summary.md"
 
@@ -831,7 +831,7 @@ class ReportGenerator:
         return md_file
 
     def _generate_detailed_report(self, result: ChangeAnalysisResult,
-                                additional_data: Optional[dict[str, Any]] = None) -> Path:
+                                additional_data: dict[str, Any] | None = None) -> Path:
         """Generate detailed analysis report."""
         detail_file = self.reports_dir / "change-detection-detailed.md"
 
@@ -1014,7 +1014,7 @@ class ChangeDetectionAction:
             logger.error(f"Error getting changed files: {e}")
             return []
 
-    def _load_custom_patterns(self) -> Optional[dict[str, list[str]]]:
+    def _load_custom_patterns(self) -> dict[str, list[str]] | None:
         """Load custom file patterns from configuration."""
         if not self.pattern_config:
             return None
