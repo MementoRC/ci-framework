@@ -98,7 +98,8 @@
       "mcp__uckn-knowledge__recommend_setup",
       "mcp__uckn-knowledge__search_patterns",
       "mcp__uckn-knowledge__validate_solution",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(true)"
     ],
     "deny": [
       "Bash(/usr/bin/:*)"
