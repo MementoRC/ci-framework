@@ -1,0 +1,702 @@
+name: 'Change Detection and CI Optimization'
+description: 'Intelligent CI optimization through file-based change detection and dependency impact analysis'
+author: 'CI Framework'
+
+branding:
+  icon: 'zap'
+  color: 'yellow'
+
+inputs:
+  detection-level:
+    description: 'Detection level to execute (quick, standard, comprehensive)'
+    required: false
+    default: 'standard'
+
+  timeout:
+    description: 'Timeout in seconds for change detection analysis'
+    required: false
+    default: '300'
+
+  project-dir:
+    description: 'Project directory to analyze (default: current directory)'
+    required: false
+    default: '.'
+
+  base-ref:
+    description: 'Base reference for comparison (default: PR base or main)'
+    required: false
+    default: ''
+
+  head-ref:
+    description: 'Head reference for comparison (default: current SHA)'
+    required: false
+    default: ''
+
+  pattern-config:
+    description: 'Path to custom pattern configuration file'
+    required: false
+    default: ''
+
+  enable-test-optimization:
+    description: 'Enable intelligent test suite optimization'
+    required: false
+    default: 'true'
+
+  enable-job-skipping:
+    description: 'Enable CI job skipping recommendations'
+    required: false
+    default: 'true'
+
+  monorepo-mode:
+    description: 'Enable monorepo support with package-specific detection'
+    required: false
+    default: 'false'
+
+  reports-dir:
+    description: 'Directory to store change detection reports'
+    required: false
+    default: 'change-reports'
+
+  package-manager:
+    description: 'Force specific package manager (pixi, poetry, hatch, pip)'
+    required: false
+    default: 'auto'
+
+  fail-fast:
+    description: 'Fail immediately on analysis errors'
+    required: false
+    default: 'false'
+
+outputs:
+  success:
+    description: 'Whether change detection completed successfully'
+    value: ${{ steps.change-detection.outputs.success }}
+
+  detection-level:
+    description: 'Detection level that was executed'
+    value: ${{ steps.change-detection.outputs.detection-level }}
+
+  execution-time:
+    description: 'Total analysis execution time in seconds'
+    value: ${{ steps.change-detection.outputs.execution-time }}
+
+  changed-files:
+    description: 'List of changed files (comma-separated)'
+    value: ${{ steps.change-detection.outputs.changed-files }}
+
+  change-categories:
+    description: 'Detected change categories (docs,source,test,config)'
+    value: ${{ steps.change-detection.outputs.change-categories }}
+
+  affected-packages:
+    description: 'Affected packages in monorepo mode (comma-separated)'
+    value: ${{ steps.change-detection.outputs.affected-packages }}
+
+  skip-tests:
+    description: 'Whether tests can be safely skipped (true/false)'
+    value: ${{ steps.change-detection.outputs.skip-tests }}
+
+  skip-security:
+    description: 'Whether security scans can be safely skipped (true/false)'
+    value: ${{ steps.change-detection.outputs.skip-security }}
+
+  skip-docs:
+    description: 'Whether documentation builds can be safely skipped (true/false)'
+    value: ${{ steps.change-detection.outputs.skip-docs }}
+
+  skip-lint:
+    description: 'Whether linting can be safely skipped (true/false)'
+    value: ${{ steps.change-detection.outputs.skip-lint }}
+
+  optimization-score:
+    description: 'Percentage of CI pipeline that can be optimized (0-100)'
+    value: ${{ steps.change-detection.outputs.optimization-score }}
+
+  time-savings:
+    description: 'Estimated time savings in seconds'
+    value: ${{ steps.change-detection.outputs.time-savings }}
+
+  affected-tests:
+    description: 'List of specific tests that should be run (comma-separated)'
+    value: ${{ steps.change-detection.outputs.affected-tests }}
+
+  dependency-impact:
+    description: 'Number of modules affected by dependency analysis'
+    value: ${{ steps.change-detection.outputs.dependency-impact }}
+
+  reports-path:
+    description: 'Path to generated change detection reports'
+    value: ${{ steps.change-detection.outputs.reports-path }}
+
+  failure-reason:
+    description: 'Reason for failure if analysis failed'
+    value: ${{ steps.change-detection.outputs.failure-reason }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install pixi
+      uses: prefix-dev/setup-pixi@v0.4.1
+      with:
+        pixi-version: v0.15.1
+        cache: true
+
+    - name: Cache Change Detection Dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.cache/pre-commit
+          .pixi/envs
+          .change-detection-cache
+        key: change-detection-${{ runner.os }}-${{ hashFiles('**/pyproject.toml', '**/.gitignore') }}
+        restore-keys: |
+          change-detection-${{ runner.os }}-
+
+    - name: Execute Change Detection Analysis
+      id: change-detection
+      shell: bash
+      run: |
+        set -e
+
+        # Set default values
+        DETECTION_LEVEL="${{ inputs.detection-level }}"
+        TIMEOUT="${{ inputs.timeout }}"
+        PROJECT_DIR="${{ inputs.project-dir }}"
+        BASE_REF="${{ inputs.base-ref }}"
+        HEAD_REF="${{ inputs.head-ref }}"
+        PATTERN_CONFIG="${{ inputs.pattern-config }}"
+        ENABLE_TEST_OPT="${{ inputs.enable-test-optimization }}"
+        ENABLE_JOB_SKIP="${{ inputs.enable-job-skipping }}"
+        MONOREPO_MODE="${{ inputs.monorepo-mode }}"
+        REPORTS_DIR="${{ inputs.reports-dir }}"
+        PACKAGE_MANAGER="${{ inputs.package-manager }}"
+        FAIL_FAST="${{ inputs.fail-fast }}"
+
+        echo "⚡ Change Detection and CI Optimization Action v0.0.1"
+        echo "📊 Detection Level: $DETECTION_LEVEL"
+        echo "⏱️  Timeout: ${TIMEOUT}s"
+        echo "📁 Project: $PROJECT_DIR"
+        echo "🔄 Test Optimization: $ENABLE_TEST_OPT"
+        echo "⏭️  Job Skipping: $ENABLE_JOB_SKIP"
+        echo "📦 Monorepo Mode: $MONOREPO_MODE"
+
+        # Create reports directory
+        mkdir -p "$REPORTS_DIR"
+
+        # Set git references for comparison
+        if [[ -z "$BASE_REF" ]]; then
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_REF="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_REF="HEAD~1"
+          fi
+        fi
+
+        if [[ -z "$HEAD_REF" ]]; then
+          HEAD_REF="${{ github.sha }}"
+        fi
+
+        echo "🔍 Comparing $BASE_REF...$HEAD_REF"
+
+        # Install change detection framework
+        if [[ -f "pyproject.toml" ]] && grep -q "\[tool\.pixi\]" pyproject.toml; then
+          echo "📦 Using pixi environment"
+          pixi install
+        elif [[ -f "pyproject.toml" ]] && grep -q "\[tool\.poetry\]" pyproject.toml; then
+          echo "📦 Using poetry environment"
+          pip install poetry
+          poetry install
+        else
+          echo "📦 Using pip environment"
+          pip install -e .
+        fi
+
+        # Execute change detection using Python
+        python3 << EOF
+        import sys
+        import json
+        import time
+        import subprocess
+        import os
+        from pathlib import Path
+        from typing import Dict, List, Set, Tuple, Any, Optional
+
+        # Add framework to path
+        framework_path = Path("${{ github.action_path }}/../../framework")
+        if framework_path.exists():
+          sys.path.insert(0, str(framework_path))
+        
+        # Import framework components
+        try:
+          from actions.change_detection import ChangeDetectionAction
+        except ImportError:
+          print("⚠️ Change detection framework not found, using standalone implementation")
+          
+          # Standalone implementation for initial version
+          class ChangeDetectionAction:
+            def __init__(self):
+              self.project_dir = Path("$PROJECT_DIR")
+              self.reports_dir = Path("$REPORTS_DIR")
+              self.detection_level = "$DETECTION_LEVEL"
+              self.base_ref = "$BASE_REF"
+              self.head_ref = "$HEAD_REF"
+              self.enable_test_opt = "$ENABLE_TEST_OPT".lower() == "true"
+              self.enable_job_skip = "$ENABLE_JOB_SKIP".lower() == "true"
+              self.monorepo_mode = "$MONOREPO_MODE".lower() == "true"
+              
+              # Default file patterns for change classification
+              self.patterns = {
+                "docs": ["docs/**", "*.md", "*.rst", "*.txt", "README*"],
+                "config": ["*.yml", "*.yaml", "*.toml", "*.json", ".github/**", "*.cfg", "*.ini"],
+                "tests": ["tests/**", "**/test_*.py", "**/*_test.py", "**/*_tests.py", "**/conftest.py"],
+                "source": ["src/**", "**/*.py", "**/*.js", "**/*.ts", "framework/**"],
+                "dependencies": ["requirements*.txt", "pyproject.toml", "package.json", "Pipfile*", "poetry.lock"],
+                "ci": [".github/workflows/**", ".github/actions/**", "*.yml", "*.yaml"],
+                "build": ["Dockerfile*", "docker-compose*.yml", "Makefile", "setup.py", "setup.cfg"]
+              }
+            
+            def get_changed_files(self) -> List[str]:
+              """Get list of changed files between base and head refs."""
+              try:
+                # Get changed files using git diff
+                cmd = ["git", "diff", "--name-only", f"{self.base_ref}...{self.head_ref}"]
+                result = subprocess.run(cmd, capture_output=True, text=True, cwd=self.project_dir)
+                
+                if result.returncode != 0:
+                  print(f"⚠️ Git diff failed: {result.stderr}")
+                  return []
+                
+                files = [f.strip() for f in result.stdout.split('\n') if f.strip()]
+                print(f"📝 Found {len(files)} changed files")
+                
+                return files
+              except Exception as e:
+                print(f"❌ Error getting changed files: {e}")
+                return []
+            
+            def classify_files(self, files: List[str]) -> Dict[str, List[str]]:
+              """Classify files into categories based on patterns."""
+              import fnmatch
+              
+              classifications = {category: [] for category in self.patterns.keys()}
+              unclassified = []
+              
+              for file in files:
+                matched = False
+                for category, patterns in self.patterns.items():
+                  for pattern in patterns:
+                    if fnmatch.fnmatch(file, pattern) or fnmatch.fnmatch(f"/{file}", f"/{pattern}"):
+                      classifications[category].append(file)
+                      matched = True
+                      break
+                  if matched:
+                    break
+                
+                if not matched:
+                  unclassified.append(file)
+              
+              if unclassified:
+                print(f"⚠️ Unclassified files: {unclassified}")
+              
+              return classifications
+            
+            def analyze_test_impact(self, source_files: List[str]) -> Dict[str, Any]:
+              """Analyze which tests might be affected by source changes."""
+              if not self.enable_test_opt or not source_files:
+                return {"affected_tests": [], "can_skip": False}
+              
+              # Simple heuristic: find test files that might test the changed source files
+              affected_tests = []
+              
+              for source_file in source_files:
+                if source_file.endswith('.py'):
+                  # Convert source file to potential test file names
+                  base_name = Path(source_file).stem
+                  potential_tests = [
+                    f"tests/test_{base_name}.py",
+                    f"tests/{base_name}_test.py",
+                    f"test_{base_name}.py",
+                    f"{base_name}_test.py"
+                  ]
+                  
+                  for test_file in potential_tests:
+                    if (self.project_dir / test_file).exists():
+                      affected_tests.append(test_file)
+              
+              # Remove duplicates
+              affected_tests = list(set(affected_tests))
+              
+              return {
+                "affected_tests": affected_tests,
+                "can_skip": len(affected_tests) == 0 and len(source_files) > 0
+              }
+            
+            def calculate_optimization_score(self, classifications: Dict[str, List[str]]) -> Dict[str, Any]:
+              """Calculate CI optimization opportunities."""
+              total_files = sum(len(files) for files in classifications.values())
+              if total_files == 0:
+                return {
+                  "optimization_score": 0,
+                  "skip_tests": False,
+                  "skip_security": False,
+                  "skip_docs": False,
+                  "skip_lint": False,
+                  "time_savings": 0
+                }
+              
+              # Optimization logic based on change types
+              docs_only = len(classifications["docs"]) > 0 and all(
+                len(classifications[cat]) == 0 for cat in ["source", "tests", "dependencies"]
+              )
+              
+              config_only = len(classifications["config"]) > 0 and all(
+                len(classifications[cat]) == 0 for cat in ["source", "tests", "dependencies"]
+              )
+              
+              tests_only = len(classifications["tests"]) > 0 and all(
+                len(classifications[cat]) == 0 for cat in ["source", "dependencies"]
+              )
+              
+              has_source_changes = len(classifications["source"]) > 0
+              has_dependency_changes = len(classifications["dependencies"]) > 0
+              
+              # Conservative optimization recommendations
+              skip_tests = not has_source_changes and not has_dependency_changes and not tests_only
+              skip_security = docs_only and not has_dependency_changes
+              skip_docs = not docs_only and len(classifications["docs"]) == 0
+              skip_lint = docs_only
+              
+              # Calculate optimization score (percentage of CI that can be skipped)
+              skip_count = sum([skip_tests, skip_security, skip_docs, skip_lint])
+              optimization_score = (skip_count / 4) * 100  # 4 main CI categories
+              
+              # Estimate time savings (rough estimates)
+              time_savings = 0
+              if skip_tests:
+                time_savings += 120  # ~2 minutes for test suite
+              if skip_security:
+                time_savings += 180  # ~3 minutes for security scans
+              if skip_docs:
+                time_savings += 60   # ~1 minute for doc builds
+              if skip_lint:
+                time_savings += 30   # ~30 seconds for linting
+              
+              return {
+                "optimization_score": int(optimization_score),
+                "skip_tests": skip_tests,
+                "skip_security": skip_security,
+                "skip_docs": skip_docs,
+                "skip_lint": skip_lint,
+                "time_savings": time_savings,
+                "reasoning": {
+                  "docs_only": docs_only,
+                  "config_only": config_only,
+                  "tests_only": tests_only,
+                  "has_source_changes": has_source_changes,
+                  "has_dependency_changes": has_dependency_changes
+                }
+              }
+            
+            def detect_monorepo_packages(self, files: List[str]) -> List[str]:
+              """Detect affected packages in monorepo mode."""
+              if not self.monorepo_mode:
+                return []
+              
+              # Simple monorepo detection - group by top-level directories
+              packages = set()
+              for file in files:
+                parts = file.split('/')
+                if len(parts) > 1:
+                  # Consider first directory as package name
+                  packages.add(parts[0])
+              
+              return list(packages)
+            
+            def generate_report(self, results: Dict[str, Any]) -> str:
+              """Generate comprehensive change detection report."""
+              report_file = self.reports_dir / "change-detection-report.json"
+              
+              # Create detailed report
+              report = {
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "detection_level": self.detection_level,
+                "base_ref": self.base_ref,
+                "head_ref": self.head_ref,
+                "summary": results,
+                "recommendations": {
+                  "skip_tests": results.get("skip_tests", False),
+                  "skip_security": results.get("skip_security", False),
+                  "skip_docs": results.get("skip_docs", False),
+                  "skip_lint": results.get("skip_lint", False),
+                  "optimization_score": results.get("optimization_score", 0),
+                  "estimated_time_savings": f"{results.get('time_savings', 0)}s"
+                }
+              }
+              
+              # Write JSON report
+              with open(report_file, 'w') as f:
+                json.dump(report, f, indent=2)
+              
+              # Generate markdown summary
+              md_file = self.reports_dir / "change-detection-summary.md"
+              with open(md_file, 'w') as f:
+                f.write(f"# Change Detection Report\n\n")
+                f.write(f"**Detection Level:** {self.detection_level}\n")
+                f.write(f"**Files Changed:** {len(results.get('changed_files', []))}\n")
+                f.write(f"**Optimization Score:** {results.get('optimization_score', 0)}%\n")
+                f.write(f"**Estimated Time Savings:** {results.get('time_savings', 0)}s\n\n")
+                
+                f.write("## Change Categories\n\n")
+                for category, files in results.get('classifications', {}).items():
+                  if files:
+                    f.write(f"- **{category.title()}:** {len(files)} files\n")
+                
+                f.write("\n## Optimization Recommendations\n\n")
+                if results.get('skip_tests'):
+                  f.write("- ✅ **Skip Tests:** No source or dependency changes detected\n")
+                if results.get('skip_security'):
+                  f.write("- ✅ **Skip Security:** Only documentation changes detected\n")
+                if results.get('skip_docs'):
+                  f.write("- ✅ **Skip Docs:** No documentation changes detected\n")
+                if results.get('skip_lint'):
+                  f.write("- ✅ **Skip Lint:** Only documentation changes detected\n")
+                
+                if not any([results.get('skip_tests'), results.get('skip_security'), 
+                           results.get('skip_docs'), results.get('skip_lint')]):
+                  f.write("- ⚠️ **Full CI Required:** Source or dependency changes require all checks\n")
+              
+              return str(report_file)
+            
+            def execute(self) -> Dict[str, Any]:
+              """Execute change detection analysis."""
+              start_time = time.time()
+              
+              try:
+                # Get changed files
+                changed_files = self.get_changed_files()
+                
+                if not changed_files:
+                  print("ℹ️ No changes detected")
+                  return {
+                    "success": True,
+                    "changed_files": [],
+                    "change_categories": "",
+                    "affected_packages": [],
+                    "skip_tests": False,
+                    "skip_security": False,
+                    "skip_docs": False,
+                    "skip_lint": False,
+                    "optimization_score": 0,
+                    "time_savings": 0,
+                    "affected_tests": [],
+                    "dependency_impact": 0,
+                    "execution_time": time.time() - start_time
+                  }
+                
+                # Classify files by type
+                classifications = self.classify_files(changed_files)
+                
+                # Analyze test impact
+                test_analysis = self.analyze_test_impact(classifications.get("source", []))
+                
+                # Calculate optimization opportunities
+                optimization = self.calculate_optimization_score(classifications)
+                
+                # Detect monorepo packages
+                affected_packages = self.detect_monorepo_packages(changed_files)
+                
+                # Combine results
+                results = {
+                  "success": True,
+                  "changed_files": changed_files,
+                  "classifications": classifications,
+                  "change_categories": ",".join([cat for cat, files in classifications.items() if files]),
+                  "affected_packages": affected_packages,
+                  "affected_tests": test_analysis.get("affected_tests", []),
+                  "dependency_impact": len(classifications.get("dependencies", [])),
+                  "execution_time": time.time() - start_time,
+                  **optimization
+                }
+                
+                # Generate report
+                report_path = self.generate_report(results)
+                results["reports_path"] = str(self.reports_dir)
+                
+                return results
+                
+              except Exception as e:
+                return {
+                  "success": False,
+                  "failure_reason": str(e),
+                  "execution_time": time.time() - start_time
+                }
+
+        # Execute change detection
+        detector = ChangeDetectionAction()
+        result = detector.execute()
+
+        # Set outputs
+        print(f"success={str(result['success']).lower()}")
+        print(f"detection-level=$DETECTION_LEVEL")
+        print(f"execution-time={result.get('execution_time', 0):.2f}")
+        print(f"changed-files={','.join(result.get('changed_files', []))}")
+        print(f"change-categories={result.get('change_categories', '')}")
+        print(f"affected-packages={','.join(result.get('affected_packages', []))}")
+        print(f"skip-tests={str(result.get('skip_tests', False)).lower()}")
+        print(f"skip-security={str(result.get('skip_security', False)).lower()}")
+        print(f"skip-docs={str(result.get('skip_docs', False)).lower()}")
+        print(f"skip-lint={str(result.get('skip_lint', False)).lower()}")
+        print(f"optimization-score={result.get('optimization_score', 0)}")
+        print(f"time-savings={result.get('time_savings', 0)}")
+        print(f"affected-tests={','.join(result.get('affected_tests', []))}")
+        print(f"dependency-impact={result.get('dependency_impact', 0)}")
+        print(f"reports-path={result.get('reports_path', '$REPORTS_DIR')}")
+        print(f"failure-reason={result.get('failure_reason', '')}")
+
+        # Generate GitHub outputs
+        with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
+          f.write(f"success={str(result['success']).lower()}\n")
+          f.write(f"detection-level=$DETECTION_LEVEL\n")
+          f.write(f"execution-time={result.get('execution_time', 0):.2f}\n")
+          f.write(f"changed-files={','.join(result.get('changed_files', []))}\n")
+          f.write(f"change-categories={result.get('change_categories', '')}\n")
+          f.write(f"affected-packages={','.join(result.get('affected_packages', []))}\n")
+          f.write(f"skip-tests={str(result.get('skip_tests', False)).lower()}\n")
+          f.write(f"skip-security={str(result.get('skip_security', False)).lower()}\n")
+          f.write(f"skip-docs={str(result.get('skip_docs', False)).lower()}\n")
+          f.write(f"skip-lint={str(result.get('skip_lint', False)).lower()}\n")
+          f.write(f"optimization-score={result.get('optimization_score', 0)}\n")
+          f.write(f"time-savings={result.get('time_savings', 0)}\n")
+          f.write(f"affected-tests={','.join(result.get('affected_tests', []))}\n")
+          f.write(f"dependency-impact={result.get('dependency_impact', 0)}\n")
+          f.write(f"reports-path={result.get('reports_path', '$REPORTS_DIR')}\n")
+          f.write(f"failure-reason={result.get('failure_reason', '')}\n")
+
+        # Exit with appropriate code
+        if result["success"]:
+          print("✅ Change detection completed successfully!")
+          optimization_score = result.get('optimization_score', 0)
+          time_savings = result.get('time_savings', 0)
+          print(f"🚀 Optimization Score: {optimization_score}%")
+          print(f"⏱️ Estimated Time Savings: {time_savings}s")
+          
+          if optimization_score > 0:
+            print("💡 CI Optimization Recommendations:")
+            if result.get('skip_tests'):
+              print("  - Skip test execution (no source changes)")
+            if result.get('skip_security'):
+              print("  - Skip security scans (docs-only changes)")
+            if result.get('skip_docs'):
+              print("  - Skip documentation builds (no doc changes)")
+            if result.get('skip_lint'):
+              print("  - Skip linting (docs-only changes)")
+          else:
+            print("⚠️ Full CI pipeline required (source/dependency changes detected)")
+          
+          exit(0)
+        else:
+          failure_reason = result.get('failure_reason', 'Unknown error')
+          print(f"❌ Change detection failed: {failure_reason}")
+          
+          if "$FAIL_FAST".lower() == "true":
+            exit(1)
+          else:
+            print("⚠️ Continuing despite failures (fail-fast disabled)")
+            exit(0)
+        EOF
+
+    - name: Upload Change Detection Reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: change-detection-reports-${{ inputs.detection-level }}
+        path: ${{ inputs.reports-dir }}
+        retention-days: 30
+
+    - name: Comment PR with Change Detection Results
+      uses: actions/github-script@v6
+      if: always() && github.event_name == 'pull_request'
+      with:
+        script: |
+          const detectionLevel = '${{ inputs.detection-level }}';
+          const success = '${{ steps.change-detection.outputs.success }}' === 'true';
+          const executionTime = '${{ steps.change-detection.outputs.execution-time }}';
+          const optimizationScore = '${{ steps.change-detection.outputs.optimization-score }}';
+          const timeSavings = '${{ steps.change-detection.outputs.time-savings }}';
+          const changeCategories = '${{ steps.change-detection.outputs.change-categories }}';
+          const affectedPackages = '${{ steps.change-detection.outputs.affected-packages }}';
+          const skipTests = '${{ steps.change-detection.outputs.skip-tests }}' === 'true';
+          const skipSecurity = '${{ steps.change-detection.outputs.skip-security }}' === 'true';
+          const skipDocs = '${{ steps.change-detection.outputs.skip-docs }}' === 'true';
+          const skipLint = '${{ steps.change-detection.outputs.skip-lint }}' === 'true';
+          const failureReason = '${{ steps.change-detection.outputs.failure-reason }}';
+
+          const statusIcon = success ? '⚡' : '❌';
+          const statusText = success ? 'COMPLETED' : 'FAILED';
+
+          let comment = `## ${statusIcon} Change Detection ${statusText} - ${detectionLevel.toUpperCase()} Level\n\n`;
+          comment += `**Execution Time:** ${executionTime}s\n`;
+
+          if (success) {
+            comment += `**Optimization Score:** ${optimizationScore}%\n`;
+            comment += `**Estimated Time Savings:** ${timeSavings}s\n\n`;
+
+            if (changeCategories) {
+              comment += `**Change Categories:** ${changeCategories}\n`;
+            }
+
+            if (affectedPackages) {
+              comment += `**Affected Packages:** ${affectedPackages}\n`;
+            }
+
+            comment += `\n### 🚀 CI Optimization Recommendations\n\n`;
+
+            if (parseInt(optimizationScore) > 0) {
+              if (skipTests) {
+                comment += `- ✅ **Skip Tests:** No source or dependency changes detected\n`;
+              }
+              if (skipSecurity) {
+                comment += `- ✅ **Skip Security Scans:** Only documentation changes detected\n`;
+              }
+              if (skipDocs) {
+                comment += `- ✅ **Skip Documentation Build:** No documentation changes\n`;
+              }
+              if (skipLint) {
+                comment += `- ✅ **Skip Linting:** Only documentation changes detected\n`;
+              }
+
+              comment += `\n**Potential CI Time Reduction: ${optimizationScore}% (${timeSavings}s savings)**\n`;
+            } else {
+              comment += `- ⚠️ **Full CI Pipeline Required:** Source or dependency changes require all validation steps\n`;
+            }
+
+            comment += `\n### 📊 Integration Examples\n\n`;
+            comment += `\`\`\`yaml\n`;
+            comment += `# Use in your workflow to conditionally skip jobs\n`;
+            comment += `- name: Run Tests\n`;
+            comment += `  if: steps.change-detection.outputs.skip-tests != 'true'\n`;
+            comment += `  run: pytest\n\n`;
+            comment += `- name: Security Scan\n`;
+            comment += `  if: steps.change-detection.outputs.skip-security != 'true'\n`;
+            comment += `  uses: ./.github/actions/security-scan\n`;
+            comment += `\`\`\`\n`;
+
+          } else {
+            comment += `**Failure Reason:** ${failureReason}\n\n`;
+            comment += `Change detection analysis failed. The CI pipeline will run all jobs as a safety measure.\n`;
+          }
+
+          comment += `\n---\n*Generated by Change Detection Action v0.0.1*`;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
