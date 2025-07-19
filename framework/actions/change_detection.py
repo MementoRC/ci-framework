@@ -76,7 +76,7 @@ class FilePatternMatcher:
 
     def classify_files(self, files: list[str]) -> dict[str, list[str]]:
         """Classify files into categories based on patterns."""
-        classifications = {category: [] for category in self.patterns.keys()}
+        classifications: dict[str, list[str]] = {category: [] for category in self.patterns.keys()}
         unclassified = []
 
         for file in files:
@@ -431,21 +431,21 @@ class MonorepoHandler:
         # Check for Python package
         if (package_dir / "__init__.py").exists():
             package_info["type"] = "python_package"
-            package_info["dependencies"] = self._get_python_dependencies(package_dir)
+            package_info["dependencies"] = ", ".join(self._get_python_dependencies(package_dir))
             return package_info
 
         # Check for Python project
         pyproject_toml = package_dir / "pyproject.toml"
         if pyproject_toml.exists():
             package_info["type"] = "python_project"
-            package_info["dependencies"] = self._get_python_dependencies(package_dir)
+            package_info["dependencies"] = ", ".join(self._get_python_dependencies(package_dir))
             return package_info
 
         # Check for Node.js package
         package_json = package_dir / "package.json"
         if package_json.exists():
             package_info["type"] = "npm_package"
-            package_info["dependencies"] = self._get_npm_dependencies(package_dir)
+            package_info["dependencies"] = ", ".join(self._get_npm_dependencies(package_dir))
             return package_info
 
         return None
@@ -521,7 +521,7 @@ class MonorepoHandler:
 
     def _get_dependent_packages(self, package_name: str) -> set[str]:
         """Get packages that depend on the given package."""
-        dependents = set()
+        dependents: set[str] = set()
 
         if package_name not in self.packages:
             return dependents
@@ -873,7 +873,7 @@ class ReportGenerator:
 class ChangeDetectionAction:
     """Main change detection action orchestrator."""
 
-    def __init__(self, project_dir: Path = None, reports_dir: Path = None,
+    def __init__(self, project_dir: Path | None = None, reports_dir: Path | None = None,
                  detection_level: str = "standard", **kwargs):
         """Initialize change detection action."""
         self.project_dir = project_dir or Path.cwd()
