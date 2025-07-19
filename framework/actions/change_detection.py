@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ChangeAnalysisResult:
     """Result of change detection analysis."""
+
     success: bool
     changed_files: list[str]
     classifications: dict[str, list[str]]
@@ -44,6 +45,7 @@ class ChangeAnalysisResult:
 @dataclass
 class DependencyNode:
     """Node in the dependency graph."""
+
     module_path: str
     imports: set[str]
     imported_by: set[str]
@@ -55,17 +57,64 @@ class FilePatternMatcher:
     """Handles file pattern matching and classification."""
 
     DEFAULT_PATTERNS = {
-        "docs": ["docs/**", "*.md", "*.rst", "*.txt", "README*", "CHANGELOG*", "LICENSE*"],
-        "config": ["*.yml", "*.yaml", "*.toml", "*.json", ".github/**", "*.cfg", "*.ini",
-                  ".pre-commit-config.yaml", "tox.ini", "setup.cfg"],
-        "tests": ["tests/**", "**/test_*.py", "**/*_test.py", "**/*_tests.py", "**/conftest.py",
-                 "test_*.py", "*_test.py"],
+        "docs": [
+            "docs/**",
+            "*.md",
+            "*.rst",
+            "*.txt",
+            "README*",
+            "CHANGELOG*",
+            "LICENSE*",
+        ],
+        "config": [
+            "*.yml",
+            "*.yaml",
+            "*.toml",
+            "*.json",
+            ".github/**",
+            "*.cfg",
+            "*.ini",
+            ".pre-commit-config.yaml",
+            "tox.ini",
+            "setup.cfg",
+        ],
+        "tests": [
+            "tests/**",
+            "**/test_*.py",
+            "**/*_test.py",
+            "**/*_tests.py",
+            "**/conftest.py",
+            "test_*.py",
+            "*_test.py",
+        ],
         "source": ["src/**", "**/*.py", "**/*.js", "**/*.ts", "framework/**", "lib/**"],
-        "dependencies": ["requirements*.txt", "pyproject.toml", "package.json", "Pipfile*",
-                        "poetry.lock", "package-lock.json", "yarn.lock", "Cargo.toml"],
-        "ci": [".github/workflows/**", ".github/actions/**", "*.yml", "*.yaml", ".gitlab-ci.yml"],
-        "build": ["Dockerfile*", "docker-compose*.yml", "Makefile", "setup.py", "setup.cfg",
-                 "CMakeLists.txt", "build.gradle", "pom.xml"]
+        "dependencies": [
+            "requirements*.txt",
+            "pyproject.toml",
+            "package.json",
+            "Pipfile*",
+            "poetry.lock",
+            "package-lock.json",
+            "yarn.lock",
+            "Cargo.toml",
+        ],
+        "ci": [
+            ".github/workflows/**",
+            ".github/actions/**",
+            "*.yml",
+            "*.yaml",
+            ".gitlab-ci.yml",
+        ],
+        "build": [
+            "Dockerfile*",
+            "docker-compose*.yml",
+            "Makefile",
+            "setup.py",
+            "setup.cfg",
+            "CMakeLists.txt",
+            "build.gradle",
+            "pom.xml",
+        ],
     }
 
     def __init__(self, custom_patterns: dict[str, list[str]] | None = None):
@@ -76,7 +125,9 @@ class FilePatternMatcher:
 
     def classify_files(self, files: list[str]) -> dict[str, list[str]]:
         """Classify files into categories based on patterns."""
-        classifications: dict[str, list[str]] = {category: [] for category in self.patterns.keys()}
+        classifications: dict[str, list[str]] = {
+            category: [] for category in self.patterns.keys()
+        }
         unclassified = []
 
         for file in files:
@@ -124,26 +175,26 @@ class FilePatternMatcher:
         ext = Path(file).suffix.lower()
 
         extension_map = {
-            '.py': 'source',
-            '.js': 'source',
-            '.ts': 'source',
-            '.jsx': 'source',
-            '.tsx': 'source',
-            '.go': 'source',
-            '.rs': 'source',
-            '.java': 'source',
-            '.cpp': 'source',
-            '.c': 'source',
-            '.h': 'source',
-            '.md': 'docs',
-            '.rst': 'docs',
-            '.txt': 'docs',
-            '.yml': 'config',
-            '.yaml': 'config',
-            '.toml': 'config',
-            '.json': 'config',
-            '.ini': 'config',
-            '.cfg': 'config'
+            ".py": "source",
+            ".js": "source",
+            ".ts": "source",
+            ".jsx": "source",
+            ".tsx": "source",
+            ".go": "source",
+            ".rs": "source",
+            ".java": "source",
+            ".cpp": "source",
+            ".c": "source",
+            ".h": "source",
+            ".md": "docs",
+            ".rst": "docs",
+            ".txt": "docs",
+            ".yml": "config",
+            ".yaml": "config",
+            ".toml": "config",
+            ".json": "config",
+            ".ini": "config",
+            ".cfg": "config",
         }
 
         return extension_map.get(ext)
@@ -158,7 +209,9 @@ class DependencyAnalyzer:
         self.dependency_graph: dict[str, DependencyNode] = {}
         self.module_cache: dict[str, set[str]] = {}
 
-    def build_dependency_graph(self, source_files: list[str]) -> dict[str, DependencyNode]:
+    def build_dependency_graph(
+        self, source_files: list[str]
+    ) -> dict[str, DependencyNode]:
         """Build dependency graph for source files."""
         logger.info(f"Building dependency graph for {len(source_files)} files")
 
@@ -166,7 +219,8 @@ class DependencyAnalyzer:
         with ThreadPoolExecutor(max_workers=4) as executor:
             future_to_file = {
                 executor.submit(self._analyze_file_dependencies, file): file
-                for file in source_files if file.endswith('.py')
+                for file in source_files
+                if file.endswith(".py")
             }
 
             for future in as_completed(future_to_file):
@@ -179,7 +233,7 @@ class DependencyAnalyzer:
                             imports=imports,
                             imported_by=set(),
                             test_files=set(),
-                            is_test=self._is_test_file(file)
+                            is_test=self._is_test_file(file),
                         )
                         self.dependency_graph[file] = node
                 except Exception as e:
@@ -254,7 +308,7 @@ class DependencyAnalyzer:
             return None
 
         try:
-            with open(full_path, encoding='utf-8') as f:
+            with open(full_path, encoding="utf-8") as f:
                 content = f.read()
 
             # Parse AST to extract imports
@@ -270,7 +324,7 @@ class DependencyAnalyzer:
                         imports.add(node.module)
                         # Also add submodule imports
                         for alias in node.names:
-                            if alias.name != '*':
+                            if alias.name != "*":
                                 imports.add(f"{node.module}.{alias.name}")
 
             # Filter to only include local imports (relative to project)
@@ -291,7 +345,7 @@ class DependencyAnalyzer:
         # Convert import to potential file paths
         potential_paths = [
             f"{import_name.replace('.', '/')}.py",
-            f"{import_name.replace('.', '/')}/__init__.py"
+            f"{import_name.replace('.', '/')}/__init__.py",
         ]
 
         for path in potential_paths:
@@ -310,12 +364,12 @@ class DependencyAnalyzer:
         """Check if a file is a test file."""
         file_name = Path(file_path).name
         return (
-            file_name.startswith('test_') or
-            file_name.endswith('_test.py') or
-            file_name.endswith('_tests.py') or
-            file_name == 'conftest.py' or
-            'tests/' in file_path or
-            '/test/' in file_path
+            file_name.startswith("test_")
+            or file_name.endswith("_test.py")
+            or file_name.endswith("_tests.py")
+            or file_name == "conftest.py"
+            or "tests/" in file_path
+            or "/test/" in file_path
         )
 
     def _build_reverse_dependencies(self):
@@ -330,8 +384,8 @@ class DependencyAnalyzer:
     def _import_matches_file(self, import_name: str, file_path: str) -> bool:
         """Check if an import name matches a file path."""
         # Convert file path to module name
-        module_name = file_path.replace('/', '.').replace('.py', '')
-        if module_name.endswith('.__init__'):
+        module_name = file_path.replace("/", ".").replace(".py", "")
+        if module_name.endswith(".__init__"):
             module_name = module_name[:-9]  # Remove .__init__
 
         return import_name == module_name or import_name.startswith(f"{module_name}.")
@@ -348,8 +402,9 @@ class DependencyAnalyzer:
                     continue
 
                 # Heuristic: test file imports the module, or names match
-                if (module_file in test_node.imports or
-                    self._test_matches_module(test_file, module_file)):
+                if module_file in test_node.imports or self._test_matches_module(
+                    test_file, module_file
+                ):
                     module_node.test_files.add(test_file)
 
     def _test_matches_module(self, test_file: str, module_file: str) -> bool:
@@ -358,11 +413,11 @@ class DependencyAnalyzer:
         module_name = Path(module_file).stem
 
         # Remove test_ prefix or _test suffix
-        if test_name.startswith('test_'):
+        if test_name.startswith("test_"):
             test_name = test_name[5:]
-        elif test_name.endswith('_test'):
+        elif test_name.endswith("_test"):
             test_name = test_name[:-5]
-        elif test_name.endswith('_tests'):
+        elif test_name.endswith("_tests"):
             test_name = test_name[:-6]
 
         return test_name == module_name
@@ -382,7 +437,7 @@ class MonorepoHandler:
 
         # Look for Python packages (directories with __init__.py or pyproject.toml)
         for item in self.project_dir.iterdir():
-            if item.is_dir() and not item.name.startswith('.'):
+            if item.is_dir() and not item.name.startswith("."):
                 package_info = self._analyze_package(item)
                 if package_info:
                     packages[item.name] = package_info
@@ -400,7 +455,9 @@ class MonorepoHandler:
                             packages[workspace] = {
                                 "type": "npm_workspace",
                                 "path": workspace,
-                                "dependencies": self._get_npm_dependencies(workspace_path)
+                                "dependencies": self._get_npm_dependencies(
+                                    workspace_path
+                                ),
                             }
             except Exception as e:
                 logger.warning(f"Failed to parse package.json: {e}")
@@ -431,21 +488,27 @@ class MonorepoHandler:
         # Check for Python package
         if (package_dir / "__init__.py").exists():
             package_info["type"] = "python_package"
-            package_info["dependencies"] = ", ".join(self._get_python_dependencies(package_dir))
+            package_info["dependencies"] = ", ".join(
+                self._get_python_dependencies(package_dir)
+            )
             return package_info
 
         # Check for Python project
         pyproject_toml = package_dir / "pyproject.toml"
         if pyproject_toml.exists():
             package_info["type"] = "python_project"
-            package_info["dependencies"] = ", ".join(self._get_python_dependencies(package_dir))
+            package_info["dependencies"] = ", ".join(
+                self._get_python_dependencies(package_dir)
+            )
             return package_info
 
         # Check for Node.js package
         package_json = package_dir / "package.json"
         if package_json.exists():
             package_info["type"] = "npm_package"
-            package_info["dependencies"] = ", ".join(self._get_npm_dependencies(package_dir))
+            package_info["dependencies"] = ", ".join(
+                self._get_npm_dependencies(package_dir)
+            )
             return package_info
 
         return None
@@ -459,6 +522,7 @@ class MonorepoHandler:
         if pyproject_toml.exists():
             try:
                 import tomllib
+
                 with open(pyproject_toml, "rb") as f:
                     data = tomllib.load(f)
 
@@ -481,9 +545,14 @@ class MonorepoHandler:
                     with open(req_path) as f:
                         for line in f:
                             line = line.strip()
-                            if line and not line.startswith('#'):
+                            if line and not line.startswith("#"):
                                 # Extract package name (before ==, >=, etc.)
-                                pkg_name = line.split('==')[0].split('>=')[0].split('<=')[0].split('~=')[0]
+                                pkg_name = (
+                                    line.split("==")[0]
+                                    .split(">=")[0]
+                                    .split("<=")[0]
+                                    .split("~=")[0]
+                                )
                                 deps.append(pkg_name.strip())
                 except Exception as e:
                     logger.warning(f"Failed to parse {req_path}: {e}")
@@ -539,22 +608,25 @@ class MonorepoHandler:
 class OptimizationEngine:
     """Handles CI optimization logic and recommendations."""
 
-    def __init__(self, enable_test_optimization: bool = True, enable_job_skipping: bool = True):
+    def __init__(
+        self, enable_test_optimization: bool = True, enable_job_skipping: bool = True
+    ):
         """Initialize optimization engine."""
         self.enable_test_optimization = enable_test_optimization
         self.enable_job_skipping = enable_job_skipping
 
         # Default time estimates for different CI jobs (in seconds)
         self.job_time_estimates = {
-            "tests": 120,      # 2 minutes
-            "security": 180,   # 3 minutes
-            "docs": 60,        # 1 minute
-            "lint": 30,        # 30 seconds
-            "build": 90        # 1.5 minutes
+            "tests": 120,  # 2 minutes
+            "security": 180,  # 3 minutes
+            "docs": 60,  # 1 minute
+            "lint": 30,  # 30 seconds
+            "build": 90,  # 1.5 minutes
         }
 
-    def calculate_optimization(self, classifications: dict[str, list[str]],
-                             affected_tests: list[str]) -> dict[str, Any]:
+    def calculate_optimization(
+        self, classifications: dict[str, list[str]], affected_tests: list[str]
+    ) -> dict[str, Any]:
         """Calculate CI optimization opportunities."""
         total_files = sum(len(files) for files in classifications.values())
 
@@ -580,10 +652,12 @@ class OptimizationEngine:
             "time_savings": time_savings,
             "change_analysis": change_analysis,
             "affected_tests": affected_tests,
-            "reasoning": skip_recommendations.get("reasoning", {})
+            "reasoning": skip_recommendations.get("reasoning", {}),
         }
 
-    def _analyze_change_patterns(self, classifications: dict[str, list[str]]) -> dict[str, bool]:
+    def _analyze_change_patterns(
+        self, classifications: dict[str, list[str]]
+    ) -> dict[str, bool]:
         """Analyze patterns in file changes."""
         has_source = len(classifications.get("source", [])) > 0
         has_tests = len(classifications.get("tests", [])) > 0
@@ -594,10 +668,16 @@ class OptimizationEngine:
         has_build = len(classifications.get("build", [])) > 0
 
         # Calculate change patterns
-        docs_only = has_docs and not any([has_source, has_tests, has_dependencies, has_build])
-        config_only = has_config and not any([has_source, has_tests, has_dependencies, has_docs])
+        docs_only = has_docs and not any(
+            [has_source, has_tests, has_dependencies, has_build]
+        )
+        config_only = has_config and not any(
+            [has_source, has_tests, has_dependencies, has_docs]
+        )
         tests_only = has_tests and not any([has_source, has_dependencies])
-        ci_only = has_ci and not any([has_source, has_tests, has_dependencies, has_docs])
+        ci_only = has_ci and not any(
+            [has_source, has_tests, has_dependencies, has_docs]
+        )
 
         return {
             "has_source": has_source,
@@ -610,56 +690,80 @@ class OptimizationEngine:
             "docs_only": docs_only,
             "config_only": config_only,
             "tests_only": tests_only,
-            "ci_only": ci_only
+            "ci_only": ci_only,
         }
 
-    def _calculate_skip_recommendations(self, analysis: dict[str, bool]) -> dict[str, Any]:
+    def _calculate_skip_recommendations(
+        self, analysis: dict[str, bool]
+    ) -> dict[str, Any]:
         """Calculate which CI jobs can be safely skipped."""
         reasoning = {}
 
         # Tests can be skipped if no source, test, or dependency changes
         skip_tests = (
-            not analysis["has_source"] and
-            not analysis["has_tests"] and
-            not analysis["has_dependencies"] and
-            self.enable_test_optimization
+            not analysis["has_source"]
+            and not analysis["has_tests"]
+            and not analysis["has_dependencies"]
+            and self.enable_test_optimization
         )
-        reasoning["tests"] = "No source, test, or dependency changes" if skip_tests else "Source/test/dependency changes detected"
+        reasoning["tests"] = (
+            "No source, test, or dependency changes"
+            if skip_tests
+            else "Source/test/dependency changes detected"
+        )
 
         # Security scans can be skipped for docs-only or config-only changes (excluding dependencies)
         skip_security = (
-            (analysis["docs_only"] or
-             (analysis["has_config"] and not analysis["has_dependencies"] and
-              not analysis["has_source"])) and
-            self.enable_job_skipping
+            analysis["docs_only"]
+            or (
+                analysis["has_config"]
+                and not analysis["has_dependencies"]
+                and not analysis["has_source"]
+            )
+        ) and self.enable_job_skipping
+        reasoning["security"] = (
+            "Only docs/config changes (no dependencies)"
+            if skip_security
+            else "Source/dependency changes require security scan"
         )
-        reasoning["security"] = "Only docs/config changes (no dependencies)" if skip_security else "Source/dependency changes require security scan"
 
         # Documentation builds can be skipped if no docs changes
         skip_docs = not analysis["has_docs"] and self.enable_job_skipping
-        reasoning["docs"] = "No documentation changes" if skip_docs else "Documentation changes detected"
+        reasoning["docs"] = (
+            "No documentation changes"
+            if skip_docs
+            else "Documentation changes detected"
+        )
 
         # Linting can be skipped for docs-only changes
         skip_lint = analysis["docs_only"] and self.enable_job_skipping
-        reasoning["lint"] = "Only documentation changes" if skip_lint else "Source/config changes require linting"
+        reasoning["lint"] = (
+            "Only documentation changes"
+            if skip_lint
+            else "Source/config changes require linting"
+        )
 
         return {
             "tests": skip_tests,
             "security": skip_security,
             "docs": skip_docs,
             "lint": skip_lint,
-            "reasoning": reasoning
+            "reasoning": reasoning,
         }
 
-    def _calculate_optimization_score(self, skip_recommendations: dict[str, Any]) -> int:
+    def _calculate_optimization_score(
+        self, skip_recommendations: dict[str, Any]
+    ) -> int:
         """Calculate optimization score as percentage of CI that can be skipped."""
         total_jobs = 4  # tests, security, docs, lint
-        skipped_jobs = sum([
-            skip_recommendations["tests"],
-            skip_recommendations["security"],
-            skip_recommendations["docs"],
-            skip_recommendations["lint"]
-        ])
+        skipped_jobs = sum(
+            [
+                skip_recommendations["tests"],
+                skip_recommendations["security"],
+                skip_recommendations["docs"],
+                skip_recommendations["lint"],
+            ]
+        )
 
         return int((skipped_jobs / total_jobs) * 100)
 
@@ -689,7 +793,7 @@ class OptimizationEngine:
             "time_savings": 0,
             "change_analysis": {},
             "affected_tests": [],
-            "reasoning": {"message": "No changes detected"}
+            "reasoning": {"message": "No changes detected"},
         }
 
 
@@ -701,8 +805,11 @@ class ReportGenerator:
         self.reports_dir = reports_dir
         self.reports_dir.mkdir(parents=True, exist_ok=True)
 
-    def generate_reports(self, result: ChangeAnalysisResult,
-                        additional_data: dict[str, Any] | None = None) -> str:
+    def generate_reports(
+        self,
+        result: ChangeAnalysisResult,
+        additional_data: dict[str, Any] | None = None,
+    ) -> str:
         """Generate comprehensive reports."""
         # Generate JSON report
         json_report_path = self._generate_json_report(result, additional_data)
@@ -715,8 +822,11 @@ class ReportGenerator:
 
         return str(json_report_path)
 
-    def _generate_json_report(self, result: ChangeAnalysisResult,
-                            additional_data: dict[str, Any] | None = None) -> Path:
+    def _generate_json_report(
+        self,
+        result: ChangeAnalysisResult,
+        additional_data: dict[str, Any] | None = None,
+    ) -> Path:
         """Generate JSON report with all analysis data."""
         report_file = self.reports_dir / "change-detection-report.json"
 
@@ -730,20 +840,23 @@ class ReportGenerator:
         report_data["metadata"] = {
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "version": "0.0.1",
-            "generator": "change-detection-action"
+            "generator": "change-detection-action",
         }
 
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump(report_data, f, indent=2, default=str)
 
         return report_file
 
-    def _generate_markdown_summary(self, result: ChangeAnalysisResult,
-                                 additional_data: dict[str, Any] | None = None) -> Path:
+    def _generate_markdown_summary(
+        self,
+        result: ChangeAnalysisResult,
+        additional_data: dict[str, Any] | None = None,
+    ) -> Path:
         """Generate human-readable Markdown summary."""
         md_file = self.reports_dir / "change-detection-summary.md"
 
-        with open(md_file, 'w') as f:
+        with open(md_file, "w") as f:
             f.write("# Change Detection Analysis Report\n\n")
 
             # Summary section
@@ -770,20 +883,32 @@ class ReportGenerator:
             f.write("## 🚀 CI Optimization Recommendations\n\n")
 
             if result.optimization_score > 0:
-                f.write(f"**{result.optimization_score}% of CI pipeline can be optimized!**\n\n")
+                f.write(
+                    f"**{result.optimization_score}% of CI pipeline can be optimized!**\n\n"
+                )
 
                 if result.skip_tests:
-                    f.write("- ✅ **Skip Tests:** No source or dependency changes detected\n")
+                    f.write(
+                        "- ✅ **Skip Tests:** No source or dependency changes detected\n"
+                    )
                 if result.skip_security:
-                    f.write("- ✅ **Skip Security Scans:** Only documentation/config changes\n")
+                    f.write(
+                        "- ✅ **Skip Security Scans:** Only documentation/config changes\n"
+                    )
                 if result.skip_docs:
-                    f.write("- ✅ **Skip Documentation Build:** No documentation changes\n")
+                    f.write(
+                        "- ✅ **Skip Documentation Build:** No documentation changes\n"
+                    )
                 if result.skip_lint:
                     f.write("- ✅ **Skip Linting:** Only documentation changes\n")
 
-                f.write(f"\n**Estimated time savings: {result.time_savings} seconds**\n\n")
+                f.write(
+                    f"\n**Estimated time savings: {result.time_savings} seconds**\n\n"
+                )
             else:
-                f.write("- ⚠️ **Full CI Pipeline Required:** Source or dependency changes require all validation steps\n\n")
+                f.write(
+                    "- ⚠️ **Full CI Pipeline Required:** Source or dependency changes require all validation steps\n\n"
+                )
 
             # Affected tests
             if result.affected_tests:
@@ -813,7 +938,9 @@ class ReportGenerator:
             f.write("    steps:\n")
             f.write("      - name: Run Tests\n")
             if result.affected_tests:
-                f.write("        run: pytest ${{ steps.change-detection.outputs.affected-tests }}\n")
+                f.write(
+                    "        run: pytest ${{ steps.change-detection.outputs.affected-tests }}\n"
+                )
             else:
                 f.write("        run: pytest\n")
             f.write("\n")
@@ -830,12 +957,15 @@ class ReportGenerator:
 
         return md_file
 
-    def _generate_detailed_report(self, result: ChangeAnalysisResult,
-                                additional_data: dict[str, Any] | None = None) -> Path:
+    def _generate_detailed_report(
+        self,
+        result: ChangeAnalysisResult,
+        additional_data: dict[str, Any] | None = None,
+    ) -> Path:
         """Generate detailed analysis report."""
         detail_file = self.reports_dir / "change-detection-detailed.md"
 
-        with open(detail_file, 'w') as f:
+        with open(detail_file, "w") as f:
             f.write("# Detailed Change Detection Analysis\n\n")
 
             # File-by-file analysis
@@ -850,8 +980,12 @@ class ReportGenerator:
             # Dependency analysis
             if additional_data and "dependency_graph" in additional_data:
                 f.write("## 🔗 Dependency Analysis\n\n")
-                f.write(f"- **Total modules analyzed:** {len(additional_data['dependency_graph'])}\n")
-                f.write(f"- **Modules with dependencies:** {result.dependency_impact}\n\n")
+                f.write(
+                    f"- **Total modules analyzed:** {len(additional_data['dependency_graph'])}\n"
+                )
+                f.write(
+                    f"- **Modules with dependencies:** {result.dependency_impact}\n\n"
+                )
 
             # Optimization reasoning
             if additional_data and "optimization_reasoning" in additional_data:
@@ -865,7 +999,9 @@ class ReportGenerator:
             f.write("## ⚡ Performance Metrics\n\n")
             f.write(f"- **Analysis execution time:** {result.execution_time:.2f}s\n")
             f.write(f"- **Files processed:** {len(result.changed_files)}\n")
-            f.write(f"- **Categories identified:** {len([c for c in result.classifications.values() if c])}\n\n")
+            f.write(
+                f"- **Categories identified:** {len([c for c in result.classifications.values() if c])}\n\n"
+            )
 
         return detail_file
 
@@ -873,8 +1009,13 @@ class ReportGenerator:
 class ChangeDetectionAction:
     """Main change detection action orchestrator."""
 
-    def __init__(self, project_dir: Path | None = None, reports_dir: Path | None = None,
-                 detection_level: str = "standard", **kwargs):
+    def __init__(
+        self,
+        project_dir: Path | None = None,
+        reports_dir: Path | None = None,
+        detection_level: str = "standard",
+        **kwargs,
+    ):
         """Initialize change detection action."""
         self.project_dir = project_dir or Path.cwd()
         self.reports_dir = reports_dir or (self.project_dir / "change-reports")
@@ -891,10 +1032,11 @@ class ChangeDetectionAction:
         # Initialize components
         self.pattern_matcher = FilePatternMatcher(self._load_custom_patterns())
         self.dependency_analyzer = DependencyAnalyzer(self.project_dir)
-        self.monorepo_handler = MonorepoHandler(self.project_dir) if self.monorepo_mode else None
+        self.monorepo_handler = (
+            MonorepoHandler(self.project_dir) if self.monorepo_mode else None
+        )
         self.optimization_engine = OptimizationEngine(
-            self.enable_test_optimization,
-            self.enable_job_skipping
+            self.enable_test_optimization, self.enable_job_skipping
         )
         self.report_generator = ReportGenerator(self.reports_dir)
 
@@ -903,7 +1045,9 @@ class ChangeDetectionAction:
         start_time = time.time()
 
         try:
-            logger.info(f"Starting change detection analysis (level: {self.detection_level})")
+            logger.info(
+                f"Starting change detection analysis (level: {self.detection_level})"
+            )
 
             # Get changed files
             changed_files = self._get_changed_files()
@@ -926,16 +1070,22 @@ class ChangeDetectionAction:
                 if source_files:
                     logger.info("Building dependency graph...")
                     self.dependency_analyzer.build_dependency_graph(source_files)
-                    affected_tests_set = self.dependency_analyzer.get_affected_tests(changed_files)
+                    affected_tests_set = self.dependency_analyzer.get_affected_tests(
+                        changed_files
+                    )
                     affected_tests = list(affected_tests_set)
-                    dependency_impact = len(self.dependency_analyzer.get_affected_modules(changed_files))
+                    dependency_impact = len(
+                        self.dependency_analyzer.get_affected_modules(changed_files)
+                    )
 
             # Monorepo analysis
             affected_packages = []
             if self.monorepo_mode and self.monorepo_handler:
                 logger.info("Analyzing monorepo packages...")
                 self.monorepo_handler.detect_packages()
-                affected_packages = self.monorepo_handler.get_affected_packages(changed_files)
+                affected_packages = self.monorepo_handler.get_affected_packages(
+                    changed_files
+                )
 
             # Calculate optimization
             optimization_result = self.optimization_engine.calculate_optimization(
@@ -947,7 +1097,9 @@ class ChangeDetectionAction:
                 success=True,
                 changed_files=changed_files,
                 classifications=classifications,
-                change_categories=",".join([cat for cat, files in classifications.items() if files]),
+                change_categories=",".join(
+                    [cat for cat, files in classifications.items() if files]
+                ),
                 affected_packages=affected_packages,
                 affected_tests=affected_tests,
                 dependency_impact=dependency_impact,
@@ -958,21 +1110,27 @@ class ChangeDetectionAction:
                 optimization_score=optimization_result["optimization_score"],
                 time_savings=optimization_result["time_savings"],
                 execution_time=time.time() - start_time,
-                reports_path=str(self.reports_dir)
+                reports_path=str(self.reports_dir),
             )
 
             # Generate reports
             additional_data = {
                 "optimization_reasoning": optimization_result.get("reasoning", {}),
                 "change_analysis": optimization_result.get("change_analysis", {}),
-                "dependency_graph": {k: {"imports": list(v.imports), "imported_by": list(v.imported_by)}
-                                   for k, v in self.dependency_analyzer.dependency_graph.items()}
+                "dependency_graph": {
+                    k: {"imports": list(v.imports), "imported_by": list(v.imported_by)}
+                    for k, v in self.dependency_analyzer.dependency_graph.items()
+                },
             }
 
             self.report_generator.generate_reports(result, additional_data)
 
-            logger.info(f"Change detection completed successfully in {result.execution_time:.2f}s")
-            logger.info(f"Optimization score: {result.optimization_score}% (saves {result.time_savings}s)")
+            logger.info(
+                f"Change detection completed successfully in {result.execution_time:.2f}s"
+            )
+            logger.info(
+                f"Optimization score: {result.optimization_score}% (saves {result.time_savings}s)"
+            )
 
             return result
 
@@ -994,20 +1152,22 @@ class ChangeDetectionAction:
                 time_savings=0,
                 execution_time=time.time() - start_time,
                 reports_path=str(self.reports_dir),
-                failure_reason=str(e)
+                failure_reason=str(e),
             )
 
     def _get_changed_files(self) -> list[str]:
         """Get list of changed files between base and head refs."""
         try:
             cmd = ["git", "diff", "--name-only", f"{self.base_ref}...{self.head_ref}"]
-            result = subprocess.run(cmd, capture_output=True, text=True, cwd=self.project_dir)
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, cwd=self.project_dir
+            )
 
             if result.returncode != 0:
                 logger.warning(f"Git diff failed: {result.stderr}")
                 return []
 
-            files = [f.strip() for f in result.stdout.split('\n') if f.strip()]
+            files = [f.strip() for f in result.stdout.split("\n") if f.strip()]
             return files
 
         except Exception as e:
@@ -1025,12 +1185,13 @@ class ChangeDetectionAction:
             return None
 
         try:
-            if config_path.suffix.lower() == '.json':
+            if config_path.suffix.lower() == ".json":
                 with open(config_path) as f:
                     data = json.load(f)
                     return data.get("patterns", {})
-            elif config_path.suffix.lower() == '.toml':
+            elif config_path.suffix.lower() == ".toml":
                 import tomllib
+
                 with open(config_path, "rb") as f:
                     data = tomllib.load(f)
                     return data.get("patterns", {})
@@ -1059,7 +1220,7 @@ class ChangeDetectionAction:
             optimization_score=0,
             time_savings=0,
             execution_time=execution_time,
-            reports_path=str(self.reports_dir)
+            reports_path=str(self.reports_dir),
         )
 
 
@@ -1071,10 +1232,17 @@ if __name__ == "__main__":
     parser.add_argument("--project-dir", default=".", help="Project directory")
     parser.add_argument("--base-ref", default="HEAD~1", help="Base reference")
     parser.add_argument("--head-ref", default="HEAD", help="Head reference")
-    parser.add_argument("--detection-level", default="standard",
-                       choices=["quick", "standard", "comprehensive"])
-    parser.add_argument("--monorepo-mode", action="store_true", help="Enable monorepo mode")
-    parser.add_argument("--reports-dir", default="change-reports", help="Reports directory")
+    parser.add_argument(
+        "--detection-level",
+        default="standard",
+        choices=["quick", "standard", "comprehensive"],
+    )
+    parser.add_argument(
+        "--monorepo-mode", action="store_true", help="Enable monorepo mode"
+    )
+    parser.add_argument(
+        "--reports-dir", default="change-reports", help="Reports directory"
+    )
 
     args = parser.parse_args()
 
@@ -1084,7 +1252,7 @@ if __name__ == "__main__":
         detection_level=args.detection_level,
         base_ref=args.base_ref,
         head_ref=args.head_ref,
-        monorepo_mode=args.monorepo_mode
+        monorepo_mode=args.monorepo_mode,
     )
 
     result = action.execute()
