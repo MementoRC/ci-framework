@@ -38,7 +38,7 @@ jobs:
         run: |
           echo "Running actionlint on workflow files..."
           pixi info
-          pixi run -e dev actionlint || echo "Actionlint failed but continuing..."
+          pixi run -e dev actionlint .github/workflows/*.yml || echo "Actionlint failed but continuing..."
       - name: "Run Format Check"
         run: |
           echo "Running format check..."
