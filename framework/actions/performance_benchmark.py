@@ -270,9 +270,7 @@ class PerformanceBenchmarkAction:
 
         return results
 
-    def load_baseline_results(
-        self, baseline_dir: Path
-    ) -> list[BenchmarkResult] | None:
+    def load_baseline_results(self, baseline_dir: Path) -> list[BenchmarkResult] | None:
         """Load baseline benchmark results for comparison."""
         baseline_file = baseline_dir / "benchmark-results.json"
 
