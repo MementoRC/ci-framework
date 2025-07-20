@@ -1,0 +1,254 @@
+# Tiered PyProject.toml Template for CI Framework
+# Based on the proven 4-tier quality system from CI Framework
+
+[build-system]
+requires = ["{{ build_backend | default('hatchling') }}"]
+build-backend = "{{ build_backend | default('hatchling') }}.build"
+
+[project]
+name = "{{ project_name }}"
+version = "{{ version }}"
+description = "{{ description }}"
+authors = [
+    { name = "{{ author_name }}", email = "{{ author_email }}" }
+]
+dependencies = [
+    # Keep project dependencies minimal - use pixi features for dev dependencies
+]
+
+[project.optional-dependencies]
+# Optional dependencies for different use cases
+
+[tool.pixi.project]
+name = "{{ project_name }}"
+version = "{{ version }}"
+channels = ["conda-forge"]
+platforms = ["{{ platforms | default('linux-64, osx-64, win-64') }}"]
+
+# Core runtime dependencies
+[tool.pixi.dependencies]
+python = "{{ python_version | default('3.12.*') }}"
+# Add core runtime dependencies here
+
+# ===== TIERED QUALITY FEATURES =====
+# TIER 1: Essential Quality Gates (ZERO-TOLERANCE)
+[tool.pixi.feature.quality.dependencies]
+# Core Testing Framework
+pytest = ">=8.0.0"
+pytest-cov = ">=4.0.0"
+pytest-timeout = ">=2.1.0"
+pytest-asyncio = ">=0.21.0"
+pytest-xdist = ">=3.3.0"
+
+# Type Checking
+mypy = ">=1.0.0"
+
+# Core Linting & Formatting
+ruff = "*"
+
+# TIER 2: Extended Quality & Security
+[tool.pixi.feature.quality-extended.dependencies]
+# Security Scanning
+bandit = ">=1.7.0"
+pip-audit = ">=2.6.0"
+
+# Code Quality Analysis
+radon = ">=6.0.0"
+vulture = ">=2.7.0"
+
+# Git Hooks
+pre-commit = ">=3.0.0"
+
+# TIER 3: CI/CD & Build
+[tool.pixi.feature.quality-ci.dependencies]
+# CI Reporting
+pytest-json-report = ">=1.5.0"
+pytest-html = ">=4.0.0"
+
+# Build Tools
+python-build = ">=0.10.0"
+
+# Coverage Tools
+coverage = ">=7.0.0"
+
+# TIER 4: Development & Specialized Tools
+[tool.pixi.feature.dev-specialized.dependencies]
+# Development tools (customize based on project needs)
+yamllint = "*"
+actionlint = "*"
+# Add project-specific dev tools here
+
+[tool.pixi.environments]
+# Basic runtime environment
+default = {solve-group = "default"}
+
+# Quality gate environments (tiered approach)
+quality = {features = ["quality"], solve-group = "default"}
+quality-extended = {features = ["quality", "quality-extended"], solve-group = "default"}
+quality-full = {features = ["quality", "quality-extended", "quality-ci"], solve-group = "default"}
+
+# Development environment (full quality + specialized tools)
+dev = {features = ["quality", "quality-extended", "quality-ci", "dev-specialized"], solve-group = "default"}
+
+# CI environment (quality + CI reporting)
+ci = {features = ["quality", "quality-ci"], solve-group = "default"}
+
+# Ensure proper environment isolation
+[tool.pixi.activation]
+env = { PYTHONNOUSERSITE = "1" }
+
+[tool.pixi.tasks]
+# ===== TIER 1: CORE DEVELOPMENT TASKS (ESSENTIAL) =====
+# Installation & Setup
+install-editable = "pip install -e ."
+dev = "echo 'Development environment ready'"
+
+# Testing (ZERO-TOLERANCE QUALITY GATES)
+test = "pixi run -e quality test-impl"
+test-impl = "pytest {{ test_path }} -v"
+test-cov = "pytest {{ test_path }} --cov={{ package_name }} --cov-report=term-missing --cov-report=xml"
+test-unit = "pytest {{ test_path }}unit/ -v"
+test-integration = "pytest {{ test_path }}integration/ -v"
+
+# Quality Gates (CRITICAL - MUST PASS)
+lint = "pixi run -e quality lint-impl"
+lint-impl = "ruff check {{ source_path }} --select=F,E9"
+lint-full = "pixi run -e quality lint-full-impl"
+lint-full-impl = "ruff check {{ source_path }}"
+lint-fix = "ruff check --fix {{ source_path }}"
+format = "ruff format {{ source_path }}"
+format-check = "ruff format --check {{ source_path }}"
+typecheck = "pixi run -e quality typecheck-impl"
+typecheck-impl = "mypy {{ source_path }}"
+
+# Combined Quality Check - 🚨 MANDATORY BEFORE COMMIT
+quality = { depends-on = ["test", "lint", "typecheck"] }
+
+# Emergency Quality Fix - USE FOR "Found X errors" CI FAILURES
+emergency-fix = "pixi run lint-fix && pixi run format && pixi run test"
+
+# ===== TIER 2: SECURITY & COMPLIANCE TASKS =====
+# Security Scanning
+security-scan = "bandit -r {{ source_path }} --severity-level high -x {{ test_path }}"
+safety-check = "pip-audit --verbose"
+complexity-check = "radon cc {{ source_path }} --min B"
+dead-code-check = "vulture {{ source_path }} --min-confidence 80"
+
+# Static Analysis Suite
+static-analysis = { depends-on = ["security-scan", "safety-check", "complexity-check", "dead-code-check"] }
+
+# Comprehensive Check
+check-all = { depends-on = ["quality", "static-analysis"] }
+
+# ===== TIER 3: CI/CD & DEPLOYMENT TASKS =====
+# CI-specific variants
+ci-test = { cmd = "pytest {{ test_path }} --cov={{ package_name }} --cov-report=xml", env = { ENVIRONMENT = "ci" } }
+ci-lint = "ruff check {{ source_path }} --output-format=github"
+ci-format-check = "ruff format --check {{ source_path }}"
+
+# Build & Deploy
+build = "python -m build"
+clean = "rm -rf __pycache__ .pytest_cache .coverage htmlcov .ruff_cache dist build"
+
+# Pre-commit Integration - PREVENT CI FAILURES
+pre-commit = "pre-commit run --all-files"
+install-pre-commit = "pre-commit install --install-hooks"
+
+# ===== TOOL CONFIGURATIONS =====
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by formatter
+    "B008",  # do not perform function calls in argument defaults
+]
+
+[tool.ruff.lint.per-file-ignores]
+"{{ test_path }}**/*" = ["F401", "F811", "F403"]
+
+[tool.mypy]
+python_version = "3.10"
+check_untyped_defs = false
+disallow_any_generics = false
+disallow_incomplete_defs = false
+disallow_untyped_defs = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+explicit_package_bases = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["{{ test_path }}"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--disable-warnings",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "-ra",
+]
+timeout = 120
+timeout_method = "thread"
+markers = [
+    "unit: Unit tests (fast, <30s timeout)",
+    "integration: Integration tests (medium, <120s timeout)",
+    "property: Property-based tests",
+    "security: Security tests",
+    "slow: Slow tests (extended timeout)",
+    "asyncio: Async tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["{{ package_name }}"]
+branch = true
+parallel = false
+omit = [
+    "{{ test_path }}*",
+    "{{ source_path }}__main__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+show_missing = true
+skip_covered = false
+precision = 2
+fail_under = 90
+
+[tool.coverage.html]
+directory = "htmlcov"
+title = "{{ project_name }} Coverage Report"
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+# Bandit security scanning configuration
+[tool.bandit]
+exclude_dirs = ["{{ test_path }}"]
+skips = ["B101"]  # Allow assert statements in test files
+targets = ["{{ source_path | default('src') }}"]

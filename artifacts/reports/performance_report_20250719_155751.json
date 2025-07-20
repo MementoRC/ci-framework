@@ -1,0 +1,15 @@
+{
+  "report_type": "performance",
+  "generated_at": "2025-07-19T15:57:51.384076",
+  "github_context": {},
+  "data": {
+    "performance_metrics": {
+      "test_simulation": {
+        "execution_time": 1.5,
+        "memory_usage": "50MB",
+        "throughput": 1000
+      }
+    },
+    "baseline_comparison": null
+  }
+}

@@ -99,7 +99,8 @@
       "mcp__uckn-knowledge__search_patterns",
       "mcp__uckn-knowledge__validate_solution",
       "Bash(sed:*)",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(curl:*)"
     ],
     "deny": [
       "Bash(/usr/bin/:*)"
