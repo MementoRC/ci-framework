@@ -33,6 +33,7 @@ pytest-workflow = ">=2.1.0,<3"
 pytest-cov = ">=6.2.1,<7"
 pytest-mock = ">=3.14.1,<4"
 responses = ">=0.25.7,<0.26"
+tomli-w = "*"  # TOML writing for migration tools
 
 # ===== TIERED QUALITY FEATURES =====
 # TIER 1: Essential Quality Gates (ZERO-TOLERANCE)
