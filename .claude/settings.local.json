@@ -100,7 +100,10 @@
       "mcp__uckn-knowledge__validate_solution",
       "Bash(sed:*)",
       "Bash(true)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(scripts/local-ci/local-quality-gates.sh:*)",
+      "Bash(command -v:*)",
+      "Bash(TIMEOUT=30 scripts/local-ci/local-quality-gates.sh --dry-run --package . essential)"
     ],
     "deny": [
       "Bash(/usr/bin/:*)"
