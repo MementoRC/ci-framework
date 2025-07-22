@@ -582,7 +582,7 @@ class ProjectMigrator:
         complexity = self.analysis.complexity
 
         # Base workflow structure
-        workflow = {
+        workflow: dict[str, Any] = {
             "name": "CI",
             "on": {
                 "push": {"branches": ["main", "master", "develop"]},
@@ -651,7 +651,7 @@ class ProjectMigrator:
 
     def _plan_config_transformations(self) -> dict[str, dict[str, Any]]:
         """Plan configuration file transformations."""
-        transformations = {}
+        transformations: dict[str, dict[str, Any]] = {}
 
         if self.analysis.package_manager.manager != PackageManager.PIXI:
             transformations["pyproject.toml"] = {
