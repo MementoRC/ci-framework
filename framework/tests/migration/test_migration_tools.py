@@ -93,20 +93,17 @@ def github_workflow():
     """Sample GitHub workflow configuration."""
     return {
         "name": "CI",
-        "on": {
-            "push": {"branches": ["main"]},
-            "pull_request": {"branches": ["main"]}
-        },
+        "on": {"push": {"branches": ["main"]}, "pull_request": {"branches": ["main"]}},
         "jobs": {
             "test": {
                 "runs-on": "ubuntu-latest",
                 "steps": [
                     {"uses": "actions/checkout@v4"},
                     {"name": "Setup Python", "uses": "actions/setup-python@v4"},
-                    {"name": "Run tests", "run": "pytest"}
-                ]
+                    {"name": "Run tests", "run": "pytest"},
+                ],
             }
-        }
+        },
     }
 
 
@@ -142,7 +139,10 @@ class TestProjectAnalyzer:
         assert result.project_path == temp_project
         assert result.project_type in [ProjectType.LIBRARY, ProjectType.APPLICATION]
         assert result.complexity == ProjectComplexity.SIMPLE
-        assert result.package_manager.manager in [PackageManager.PIP, PackageManager.UNKNOWN]
+        assert result.package_manager.manager in [
+            PackageManager.PIP,
+            PackageManager.UNKNOWN,
+        ]
 
     def test_analyze_pixi_project(self, temp_project, pixi_pyproject_toml):
         """Test analysis of pixi-enabled project."""
@@ -153,7 +153,10 @@ class TestProjectAnalyzer:
 
         assert result.package_manager.manager == PackageManager.PIXI
         assert len(result.package_manager.environments) > 0
-        assert result.complexity in [ProjectComplexity.SIMPLE, ProjectComplexity.MODERATE]
+        assert result.complexity in [
+            ProjectComplexity.SIMPLE,
+            ProjectComplexity.MODERATE,
+        ]
 
     def test_analyze_project_structure(self, temp_project):
         """Test project structure analysis."""
@@ -243,7 +246,7 @@ security = "bandit -r src/"
         assert result.complexity in [
             ProjectComplexity.MODERATE,
             ProjectComplexity.COMPLEX,
-            ProjectComplexity.ENTERPRISE
+            ProjectComplexity.ENTERPRISE,
         ]
 
     def test_migration_recommendations(self, temp_project, simple_pyproject_toml):
@@ -325,9 +328,11 @@ class TestProjectMigrator:
         assert len(result.failed_steps) == 0
         assert result.backup_location is None  # No backup in dry run
 
-    @patch('shutil.which')
-    @patch('subprocess.run')
-    def test_migration_execution(self, mock_run, mock_which, temp_project, simple_pyproject_toml):
+    @patch("shutil.which")
+    @patch("subprocess.run")
+    def test_migration_execution(
+        self, mock_run, mock_which, temp_project, simple_pyproject_toml
+    ):
         """Test actual migration execution."""
         (temp_project / "pyproject.toml").write_text(simple_pyproject_toml)
 
@@ -361,8 +366,8 @@ class TestProjectMigrator:
         original_content = simple_pyproject_toml
         (temp_project / "pyproject.toml").write_text(original_content)
 
-        with patch('shutil.which', return_value="/usr/bin/pixi"):
-            with patch('subprocess.run', return_value=Mock(returncode=0)):
+        with patch("shutil.which", return_value="/usr/bin/pixi"):
+            with patch("subprocess.run", return_value=Mock(returncode=0)):
                 migrator = ProjectMigrator.from_project_path(temp_project)
 
                 # Perform migration
@@ -381,8 +386,8 @@ class TestProjectMigrator:
                 restored_content = (temp_project / "pyproject.toml").read_text()
                 assert "test-project" in restored_content
 
-    @patch('shutil.which')
-    @patch('subprocess.run')
+    @patch("shutil.which")
+    @patch("subprocess.run")
     def test_migration_failure_handling(self, mock_run, mock_which, temp_project):
         """Test migration failure handling."""
         # Create invalid pyproject.toml
@@ -411,10 +416,7 @@ class TestMigrationCLI:
         (temp_project / "pyproject.toml").write_text(simple_pyproject_toml)
 
         # Mock command line arguments
-        args = argparse.Namespace(
-            project_path=str(temp_project),
-            output=None
-        )
+        args = argparse.Namespace(project_path=str(temp_project), output=None)
 
         exit_code = analyze_command(args)
         captured = capsys.readouterr()
@@ -434,8 +436,7 @@ class TestMigrationCLI:
         output_file = temp_project / "analysis.json"
 
         args = argparse.Namespace(
-            project_path=str(temp_project),
-            output=str(output_file)
+            project_path=str(temp_project), output=str(output_file)
         )
 
         exit_code = analyze_command(args)
@@ -468,18 +469,26 @@ version = "0.1.0"
 dependencies = ["requests"]
 """
         (temp_project / "pyproject.toml").write_text(simple_config)
-        (temp_project / "requirements.txt").write_text("requests==2.28.0\npytest==7.0.0")
+        (temp_project / "requirements.txt").write_text(
+            "requests==2.28.0\npytest==7.0.0"
+        )
 
-        with patch('shutil.which', return_value="/usr/bin/pixi"):
-            with patch('subprocess.run', return_value=Mock(returncode=0)):
+        with patch("shutil.which", return_value="/usr/bin/pixi"):
+            with patch("subprocess.run", return_value=Mock(returncode=0)):
                 # Analyze project
                 analyzer = ProjectAnalyzer(temp_project)
                 analysis = analyzer.analyze()
 
                 # Verify analysis results
-                assert analysis.project_type in [ProjectType.LIBRARY, ProjectType.APPLICATION]
+                assert analysis.project_type in [
+                    ProjectType.LIBRARY,
+                    ProjectType.APPLICATION,
+                ]
                 assert analysis.complexity == ProjectComplexity.SIMPLE
-                assert analysis.package_manager.manager in [PackageManager.PIP, PackageManager.UNKNOWN]
+                assert analysis.package_manager.manager in [
+                    PackageManager.PIP,
+                    PackageManager.UNKNOWN,
+                ]
 
                 # Perform migration
                 migrator = ProjectMigrator(analysis)
@@ -506,13 +515,16 @@ dependencies = ["requests"]
 
                 # Test validation
                 validation = migrator.validate_migration()
-                assert validation.validation_passed or len(validation.compatibility_issues) <= 2
+                assert (
+                    validation.validation_passed
+                    or len(validation.compatibility_issues) <= 2
+                )
 
     def test_migration_with_existing_pixi(self, temp_project, pixi_pyproject_toml):
         """Test migration of project that already uses pixi."""
         (temp_project / "pyproject.toml").write_text(pixi_pyproject_toml)
 
-        with patch('subprocess.run', return_value=Mock(returncode=0)):
+        with patch("subprocess.run", return_value=Mock(returncode=0)):
             # Analyze project
             analyzer = ProjectAnalyzer(temp_project)
             analysis = analyzer.analyze()
@@ -530,7 +542,7 @@ dependencies = ["requests"]
             # Should have completed successfully with quality enhancements
             assert len(result.completed_steps) >= 8
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_migration_performance(self, mock_run, temp_project, simple_pyproject_toml):
         """Test migration performance and timing."""
         import time

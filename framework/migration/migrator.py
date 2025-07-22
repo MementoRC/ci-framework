@@ -6,7 +6,7 @@ import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import tomllib
 import yaml
@@ -29,7 +29,7 @@ class ProjectMigrator:
         """Initialize migrator with project analysis results."""
         self.analysis = analysis
         self.project_path = analysis.project_path
-        self.backup_dir: Optional[Path] = None
+        self.backup_dir: Path | None = None
         self.migration_log: list[str] = []
 
     @classmethod
@@ -44,8 +44,7 @@ class ProjectMigrator:
     def create_migration_plan(self) -> MigrationPlan:
         """Generate detailed migration execution plan."""
         plan = MigrationPlan(
-            target_project=self.project_path,
-            source_analysis=self.analysis
+            target_project=self.project_path, source_analysis=self.analysis
         )
 
         # Generate migration steps based on analysis
@@ -56,7 +55,9 @@ class ProjectMigrator:
 
         # 2. Package manager migration
         if self.analysis.package_manager.manager != PackageManager.PIXI:
-            steps.append(f"Migrate from {self.analysis.package_manager.manager.value} to pixi")
+            steps.append(
+                f"Migrate from {self.analysis.package_manager.manager.value} to pixi"
+            )
             steps.append("Update pyproject.toml with pixi configuration")
             steps.append("Create pixi environments and features")
             steps.append("Migrate dependencies and development dependencies")
@@ -78,7 +79,10 @@ class ProjectMigrator:
 
         steps.append("Configure quality gates based on project complexity")
 
-        if self.analysis.complexity in [ProjectComplexity.COMPLEX, ProjectComplexity.ENTERPRISE]:
+        if self.analysis.complexity in [
+            ProjectComplexity.COMPLEX,
+            ProjectComplexity.ENTERPRISE,
+        ]:
             steps.append("Setup performance benchmarking")
             steps.append("Configure security scanning")
 
@@ -106,7 +110,7 @@ class ProjectMigrator:
             "Check pixi environment resolution",
             "Validate GitHub workflow syntax",
             "Test quality gate execution",
-            "Verify pre-commit hook functionality"
+            "Verify pre-commit hook functionality",
         ]
 
         # Generate rollback plan
@@ -115,7 +119,7 @@ class ProjectMigrator:
             "Restore GitHub workflows",
             "Remove generated CI framework files",
             "Cleanup pixi environments",
-            "Restore package manager state"
+            "Restore package manager state",
         ]
 
         return plan
@@ -125,7 +129,7 @@ class ProjectMigrator:
         result = MigrationResult(
             migration_plan=self.create_migration_plan(),
             status=MigrationStatus.IN_PROGRESS,
-            migration_timestamp=datetime.now().isoformat()
+            migration_timestamp=datetime.now().isoformat(),
         )
 
         try:
@@ -163,10 +167,12 @@ class ProjectMigrator:
                 if not dry_run:
                     validation = self.validate_migration()
                     if not validation.validation_passed:
-                        result.warnings.extend([
-                            f"Validation issue: {issue}"
-                            for issue in validation.compatibility_issues
-                        ])
+                        result.warnings.extend(
+                            [
+                                f"Validation issue: {issue}"
+                                for issue in validation.compatibility_issues
+                            ]
+                        )
 
         except Exception as e:
             result.status = MigrationStatus.FAILED
@@ -178,8 +184,7 @@ class ProjectMigrator:
     def validate_migration(self) -> ValidationResult:
         """Validate successful migration."""
         result = ValidationResult(
-            project_path=self.project_path,
-            validation_passed=False
+            project_path=self.project_path, validation_passed=False
         )
 
         try:
@@ -201,12 +206,14 @@ class ProjectMigrator:
                         ["pixi", "info"],
                         cwd=self.project_path,
                         check=True,
-                        capture_output=True
+                        capture_output=True,
                     )
                     result.quality_gates_status["pixi_environments"] = True
                 except subprocess.CalledProcessError:
                     result.quality_gates_status["pixi_environments"] = False
-                    result.compatibility_issues.append("Pixi environment resolution failed")
+                    result.compatibility_issues.append(
+                        "Pixi environment resolution failed"
+                    )
 
             # Check GitHub workflow syntax
             workflows_dir = self.project_path / ".github" / "workflows"
@@ -218,7 +225,9 @@ class ProjectMigrator:
                             yaml.safe_load(f)
                     except yaml.YAMLError:
                         workflow_valid = False
-                        result.compatibility_issues.append(f"Invalid workflow syntax: {workflow_file.name}")
+                        result.compatibility_issues.append(
+                            f"Invalid workflow syntax: {workflow_file.name}"
+                        )
 
                 result.quality_gates_status["github_workflows"] = workflow_valid
 
@@ -238,7 +247,7 @@ class ProjectMigrator:
                     "Run 'pixi install' to resolve dependencies",
                     "Check pixi environment configuration",
                     "Verify GitHub workflow syntax",
-                    "Test quality commands manually"
+                    "Test quality commands manually",
                 ]
 
         except Exception as e:
@@ -267,10 +276,7 @@ class ProjectMigrator:
                     shutil.copytree(item, target)
 
             # Clean up generated files
-            generated_files = [
-                ".ci-framework-migration.json",
-                "pixi.lock"
-            ]
+            generated_files = [".ci-framework-migration.json", "pixi.lock"]
 
             for filename in generated_files:
                 file_path = self.project_path / filename
@@ -299,13 +305,11 @@ class ProjectMigrator:
             ".pre-commit-config.yaml",
             "pytest.ini",
             "mypy.ini",
-            ".flake8"
+            ".flake8",
         ]
 
         # Directories to backup
-        backup_dirs = [
-            ".github"
-        ]
+        backup_dirs = [".github"]
 
         self.backup_dir.mkdir(exist_ok=True)
 
@@ -344,10 +348,12 @@ class ProjectMigrator:
         elif "setup pre-commit" in step.lower():
             self._setup_precommit_hooks()
 
-        elif ("github workflows" in step.lower() or
-              "backup existing github workflows" in step.lower() or
-              "generate ci framework workflows" in step.lower() or
-              "configure quality gates" in step.lower()):
+        elif (
+            "github workflows" in step.lower()
+            or "backup existing github workflows" in step.lower()
+            or "generate ci framework workflows" in step.lower()
+            or "configure quality gates" in step.lower()
+        ):
             self._migrate_github_workflows()
 
         elif "validate migration" in step.lower():
@@ -401,7 +407,7 @@ class ProjectMigrator:
             pixi_config["environments"] = {
                 "default": {"features": ["dev"], "solve-group": "default"},
                 "quality": {"features": ["quality"], "solve-group": "default"},
-                "ci": {"features": ["ci"], "solve-group": "default"}
+                "ci": {"features": ["ci"], "solve-group": "default"},
             }
 
         # Add features
@@ -409,12 +415,7 @@ class ProjectMigrator:
             pixi_config["feature"] = {}
 
         # Basic development feature
-        pixi_config["feature"]["dev"] = {
-            "dependencies": {
-                "pytest": "*",
-                "ruff": "*"
-            }
-        }
+        pixi_config["feature"]["dev"] = {"dependencies": {"pytest": "*", "ruff": "*"}}
 
         # Quality feature for moderate+ complexity
         if complexity != ProjectComplexity.SIMPLE:
@@ -424,7 +425,7 @@ class ProjectMigrator:
                     "ruff": "*",
                     "mypy": "*",
                     "bandit": "*",
-                    "safety": "*"
+                    "safety": "*",
                 }
             }
 
@@ -437,7 +438,7 @@ class ProjectMigrator:
             "lint": "ruff check .",
             "lint-fix": "ruff check --fix .",
             "format": "ruff format .",
-            "quality": "pytest && ruff check ."
+            "quality": "pytest && ruff check .",
         }
 
         # Write updated pyproject.toml
@@ -463,27 +464,20 @@ class ProjectMigrator:
             "target-version": "py310",
             "line-length": 88,
             "select": [
-                "F",    # Pyflakes
-                "E",    # pycodestyle errors
-                "W",    # pycodestyle warnings
-                "I",    # isort
-                "N",    # pep8-naming
-                "UP",   # pyupgrade
-                "B",    # flake8-bugbear
-                "C4",   # flake8-comprehensions
-                "PT",   # flake8-pytest-style
+                "F",  # Pyflakes
+                "E",  # pycodestyle errors
+                "W",  # pycodestyle warnings
+                "I",  # isort
+                "N",  # pep8-naming
+                "UP",  # pyupgrade
+                "B",  # flake8-bugbear
+                "C4",  # flake8-comprehensions
+                "PT",  # flake8-pytest-style
             ],
             "ignore": [
                 "E501",  # line too long (handled by formatter)
             ],
-            "exclude": [
-                ".git",
-                "__pycache__",
-                "build",
-                "dist",
-                "venv",
-                ".venv"
-            ]
+            "exclude": [".git", "__pycache__", "build", "dist", "venv", ".venv"],
         }
 
         self._write_pyproject_toml(pyproject_path, pyproject_data)
@@ -512,14 +506,14 @@ class ProjectMigrator:
                     "--cov=src",
                     "--cov-report=term-missing",
                     "--cov-report=xml",
-                    "--cov-report=html"
+                    "--cov-report=html",
                 ],
                 "markers": [
                     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
                     "integration: marks tests as integration tests",
-                    "unit: marks tests as unit tests"
+                    "unit: marks tests as unit tests",
                 ],
-                "timeout": 120
+                "timeout": 120,
             }
         }
 
@@ -538,29 +532,29 @@ class ProjectMigrator:
                         {"id": "check-yaml"},
                         {"id": "check-toml"},
                         {"id": "check-json"},
-                        {"id": "check-merge-conflict"}
-                    ]
+                        {"id": "check-merge-conflict"},
+                    ],
                 },
                 {
                     "repo": "https://github.com/astral-sh/ruff-pre-commit",
                     "rev": "v0.1.9",
-                    "hooks": [
-                        {"id": "ruff", "args": ["--fix"]},
-                        {"id": "ruff-format"}
-                    ]
-                }
+                    "hooks": [{"id": "ruff", "args": ["--fix"]}, {"id": "ruff-format"}],
+                },
             ]
         }
 
         # Add security hooks for complex projects
-        if self.analysis.complexity in [ProjectComplexity.COMPLEX, ProjectComplexity.ENTERPRISE]:
-            precommit_config["repos"].append({
-                "repo": "https://github.com/PyCQA/bandit",
-                "rev": "1.7.5",
-                "hooks": [
-                    {"id": "bandit", "args": ["-c", "pyproject.toml"]}
-                ]
-            })
+        if self.analysis.complexity in [
+            ProjectComplexity.COMPLEX,
+            ProjectComplexity.ENTERPRISE,
+        ]:
+            precommit_config["repos"].append(
+                {
+                    "repo": "https://github.com/PyCQA/bandit",
+                    "rev": "1.7.5",
+                    "hooks": [{"id": "bandit", "args": ["-c", "pyproject.toml"]}],
+                }
+            )
 
         precommit_path = self.project_path / ".pre-commit-config.yaml"
         with open(precommit_path, "w") as f:
@@ -586,7 +580,7 @@ class ProjectMigrator:
             "name": "CI",
             "on": {
                 "push": {"branches": ["main", "master", "develop"]},
-                "pull_request": {"branches": ["main", "master", "develop"]}
+                "pull_request": {"branches": ["main", "master", "develop"]},
             },
             "jobs": {
                 "quality-gates": {
@@ -596,15 +590,12 @@ class ProjectMigrator:
                         {
                             "name": "Setup Pixi",
                             "uses": "prefix-dev/setup-pixi@v0.8.1",
-                            "with": {"pixi-version": "latest"}
+                            "with": {"pixi-version": "latest"},
                         },
-                        {
-                            "name": "Run Quality Gates",
-                            "run": "pixi run quality"
-                        }
-                    ]
+                        {"name": "Run Quality Gates", "run": "pixi run quality"},
+                    ],
                 }
-            }
+            },
         }
 
         # Add security scanning for complex projects
@@ -613,15 +604,12 @@ class ProjectMigrator:
                 "runs-on": "ubuntu-latest",
                 "steps": [
                     {"uses": "actions/checkout@v4"},
-                    {
-                        "name": "Setup Pixi",
-                        "uses": "prefix-dev/setup-pixi@v0.8.1"
-                    },
+                    {"name": "Setup Pixi", "uses": "prefix-dev/setup-pixi@v0.8.1"},
                     {
                         "name": "Run Security Scan",
-                        "run": "pixi run -e quality bandit -r src/"
-                    }
-                ]
+                        "run": "pixi run -e quality bandit -r src/",
+                    },
+                ],
             }
 
         return workflow
@@ -634,10 +622,14 @@ class ProjectMigrator:
                 ["pixi", "run", "quality"],
                 cwd=self.project_path,
                 capture_output=True,
-                timeout=300  # 5 minute timeout
+                timeout=300,  # 5 minute timeout
             )
             return result.returncode == 0
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+        except (
+            subprocess.CalledProcessError,
+            subprocess.TimeoutExpired,
+            FileNotFoundError,
+        ):
             return False
 
     def _write_pyproject_toml(self, path: Path, data: dict[str, Any]) -> None:
@@ -657,7 +649,7 @@ class ProjectMigrator:
             transformations["pyproject.toml"] = {
                 "add_pixi_config": True,
                 "migrate_dependencies": True,
-                "add_environments": True
+                "add_environments": True,
             }
 
         if not self.analysis.quality_tools.ruff_config:
@@ -665,7 +657,7 @@ class ProjectMigrator:
                 "add_ruff_config": True,
                 "target_version": "py310",
                 "line_length": 88,
-                "select_rules": ["F", "E", "W", "I", "N", "UP", "B", "C4", "PT"]
+                "select_rules": ["F", "E", "W", "I", "N", "UP", "B", "C4", "PT"],
             }
 
         return transformations
@@ -678,7 +670,7 @@ class ProjectMigrator:
             updates["ci.yml"] = {
                 "replace_existing": True,
                 "use_ci_framework": True,
-                "complexity_tier": self.analysis.complexity.value
+                "complexity_tier": self.analysis.complexity.value,
             }
 
         return updates

@@ -11,4 +11,10 @@ from .cli import main
 from .migrator import MigrationResult, ProjectMigrator
 
 __version__ = "1.0.0"
-__all__ = ["ProjectAnalyzer", "AnalysisResult", "ProjectMigrator", "MigrationResult", "main"]
+__all__ = [
+    "ProjectAnalyzer",
+    "AnalysisResult",
+    "ProjectMigrator",
+    "MigrationResult",
+    "main",
+]

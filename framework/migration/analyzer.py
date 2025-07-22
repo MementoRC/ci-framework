@@ -46,7 +46,9 @@ class ProjectAnalyzer:
 
         # Classification and recommendations
         project_type = self._classify_project_type(project_structure, package_manager)
-        complexity = self._assess_complexity(package_manager, quality_tools, github_workflows)
+        complexity = self._assess_complexity(
+            package_manager, quality_tools, github_workflows
+        )
         python_versions = self._detect_python_versions(package_manager)
         platforms = self._detect_platforms(package_manager, github_workflows)
 
@@ -70,7 +72,7 @@ class ProjectAnalyzer:
             platforms=platforms,
             migration_recommendations=recommendations,
             potential_issues=issues,
-            analysis_timestamp=datetime.now().isoformat()
+            analysis_timestamp=datetime.now().isoformat(),
         )
 
     def _analyze_project_structure(self) -> ProjectStructure:
@@ -95,9 +97,19 @@ class ProjectAnalyzer:
 
         # Find configuration files
         config_patterns = [
-            "pyproject.toml", "setup.py", "setup.cfg", "requirements*.txt",
-            "poetry.lock", "pixi.lock", "Pipfile", ".pre-commit-config.yaml",
-            "pytest.ini", "mypy.ini", ".flake8", "ruff.toml", "bandit.yaml"
+            "pyproject.toml",
+            "setup.py",
+            "setup.cfg",
+            "requirements*.txt",
+            "poetry.lock",
+            "pixi.lock",
+            "Pipfile",
+            ".pre-commit-config.yaml",
+            "pytest.ini",
+            "mypy.ini",
+            ".flake8",
+            "ruff.toml",
+            "bandit.yaml",
         ]
 
         for pattern in config_patterns:
@@ -142,7 +154,9 @@ class ProjectAnalyzer:
             return PackageManagerConfig(manager=PackageManager.POETRY)
 
         # Check for conda environment
-        if (self.project_path / "environment.yml").exists() or (self.project_path / "conda.yml").exists():
+        if (self.project_path / "environment.yml").exists() or (
+            self.project_path / "conda.yml"
+        ).exists():
             return PackageManagerConfig(manager=PackageManager.CONDA)
 
         # Default to pip if requirements.txt exists
@@ -151,13 +165,15 @@ class ProjectAnalyzer:
 
         return PackageManagerConfig(manager=PackageManager.UNKNOWN)
 
-    def _analyze_pixi_config(self, pyproject_data: dict[str, Any]) -> PackageManagerConfig:
+    def _analyze_pixi_config(
+        self, pyproject_data: dict[str, Any]
+    ) -> PackageManagerConfig:
         """Analyze pixi configuration from pyproject.toml."""
         pixi_config = pyproject_data["tool"]["pixi"]
 
         config = PackageManagerConfig(
             manager=PackageManager.PIXI,
-            config_file=self.project_path / "pyproject.toml"
+            config_file=self.project_path / "pyproject.toml",
         )
 
         # Extract environments
@@ -177,7 +193,9 @@ class ProjectAnalyzer:
 
         return config
 
-    def _analyze_poetry_config(self, pyproject_data: dict[str, Any]) -> PackageManagerConfig:
+    def _analyze_poetry_config(
+        self, pyproject_data: dict[str, Any]
+    ) -> PackageManagerConfig:
         """Analyze poetry configuration from pyproject.toml."""
         poetry_config = pyproject_data["tool"]["poetry"]
 
@@ -185,16 +203,20 @@ class ProjectAnalyzer:
             manager=PackageManager.POETRY,
             config_file=self.project_path / "pyproject.toml",
             dependencies=poetry_config.get("dependencies", {}),
-            dev_dependencies=poetry_config.get("group", {}).get("dev", {}).get("dependencies", {})
+            dev_dependencies=poetry_config.get("group", {})
+            .get("dev", {})
+            .get("dependencies", {}),
         )
 
-    def _analyze_hatch_config(self, pyproject_data: dict[str, Any]) -> PackageManagerConfig:
+    def _analyze_hatch_config(
+        self, pyproject_data: dict[str, Any]
+    ) -> PackageManagerConfig:
         """Analyze hatch configuration from pyproject.toml."""
         hatch_config = pyproject_data["tool"]["hatch"]
 
         config = PackageManagerConfig(
             manager=PackageManager.HATCH,
-            config_file=self.project_path / "pyproject.toml"
+            config_file=self.project_path / "pyproject.toml",
         )
 
         # Extract environments
@@ -227,7 +249,9 @@ class ProjectAnalyzer:
 
                 if "tool" in pyproject_data:
                     tools = pyproject_data["tool"]
-                    config.pytest_config = tools.get("pytest", {}).get("ini_options", {})
+                    config.pytest_config = tools.get("pytest", {}).get(
+                        "ini_options", {}
+                    )
                     config.ruff_config = tools.get("ruff", {})
                     config.mypy_config = tools.get("mypy", {})
                     config.bandit_config = tools.get("bandit", {})
@@ -255,7 +279,9 @@ class ProjectAnalyzer:
         if not workflows_dir.exists():
             return config
 
-        workflow_files = list(workflows_dir.glob("*.yml")) + list(workflows_dir.glob("*.yaml"))
+        workflow_files = list(workflows_dir.glob("*.yml")) + list(
+            workflows_dir.glob("*.yaml")
+        )
 
         for workflow_file in workflow_files:
             try:
@@ -267,18 +293,23 @@ class ProjectAnalyzer:
 
                 # Extract secrets and permissions
                 if "jobs" in workflow_data:
-                    for job_name, job_config in workflow_data["jobs"].items():
+                    for _job_name, job_config in workflow_data["jobs"].items():
                         # Extract secrets
                         if "with" in job_config:
-                            for key, value in job_config["with"].items():
+                            for _key, value in job_config["with"].items():
                                 if isinstance(value, str) and "${{ secrets." in value:
                                     secret_match = re.search(r"secrets\.(\w+)", value)
                                     if secret_match:
                                         config.secrets.add(secret_match.group(1))
 
                         # Extract matrix strategies
-                        if "strategy" in job_config and "matrix" in job_config["strategy"]:
-                            config.matrix_strategies.append(job_config["strategy"]["matrix"])
+                        if (
+                            "strategy" in job_config
+                            and "matrix" in job_config["strategy"]
+                        ):
+                            config.matrix_strategies.append(
+                                job_config["strategy"]["matrix"]
+                            )
 
             except Exception as e:
                 print(f"⚠️ Error reading workflow {workflow_file}: {e}")
@@ -286,31 +317,30 @@ class ProjectAnalyzer:
         return config
 
     def _classify_project_type(
-        self,
-        structure: ProjectStructure,
-        package_manager: PackageManagerConfig
+        self, structure: ProjectStructure, package_manager: PackageManagerConfig
     ) -> ProjectType:
         """Classify the type of Python project."""
 
         # Check for MCP server indicators
-        mcp_indicators = [
-            "mcp", "server", "claude", "anthropic"
-        ]
-        if any(indicator in str(self.project_path).lower() for indicator in mcp_indicators):
+        mcp_indicators = ["mcp", "server", "claude", "anthropic"]
+        if any(
+            indicator in str(self.project_path).lower() for indicator in mcp_indicators
+        ):
             return ProjectType.MCP_SERVER
 
         # Check for CLI tool indicators
-        cli_indicators = [
-            "cli", "command", "tool", "bin"
-        ]
-        if any(indicator in str(self.project_path).lower() for indicator in cli_indicators):
+        cli_indicators = ["cli", "command", "tool", "bin"]
+        if any(
+            indicator in str(self.project_path).lower() for indicator in cli_indicators
+        ):
             return ProjectType.CLI_TOOL
 
         # Check for framework indicators
-        framework_indicators = [
-            "framework", "platform", "core", "base"
-        ]
-        if any(indicator in str(self.project_path).lower() for indicator in framework_indicators):
+        framework_indicators = ["framework", "platform", "core", "base"]
+        if any(
+            indicator in str(self.project_path).lower()
+            for indicator in framework_indicators
+        ):
             return ProjectType.FRAMEWORK
 
         # Check for monorepo patterns
@@ -319,8 +349,8 @@ class ProjectAnalyzer:
 
         # Check for application vs library
         if structure.has_setup_py or (
-            package_manager.manager != PackageManager.UNKNOWN and
-            len(structure.source_dirs) == 1
+            package_manager.manager != PackageManager.UNKNOWN
+            and len(structure.source_dirs) == 1
         ):
             return ProjectType.LIBRARY
 
@@ -330,7 +360,7 @@ class ProjectAnalyzer:
         self,
         package_manager: PackageManagerConfig,
         quality_tools: QualityToolConfig,
-        github_workflows: GitHubWorkflowConfig
+        github_workflows: GitHubWorkflowConfig,
     ) -> ProjectComplexity:
         """Assess project complexity for migration planning."""
         complexity_score = 0
@@ -342,14 +372,16 @@ class ProjectAnalyzer:
             complexity_score += len(package_manager.tasks) // 10
 
         # Quality tooling complexity
-        tool_count = sum([
-            bool(quality_tools.pytest_config),
-            bool(quality_tools.ruff_config),
-            bool(quality_tools.mypy_config),
-            bool(quality_tools.bandit_config),
-            bool(quality_tools.coverage_config),
-            bool(quality_tools.precommit_hooks)
-        ])
+        tool_count = sum(
+            [
+                bool(quality_tools.pytest_config),
+                bool(quality_tools.ruff_config),
+                bool(quality_tools.mypy_config),
+                bool(quality_tools.bandit_config),
+                bool(quality_tools.coverage_config),
+                bool(quality_tools.precommit_hooks),
+            ]
+        )
         complexity_score += tool_count * 3
 
         # GitHub workflow complexity
@@ -367,7 +399,9 @@ class ProjectAnalyzer:
         else:
             return ProjectComplexity.ENTERPRISE
 
-    def _detect_python_versions(self, package_manager: PackageManagerConfig) -> list[str]:
+    def _detect_python_versions(
+        self, package_manager: PackageManagerConfig
+    ) -> list[str]:
         """Detect supported Python versions."""
         versions = []
 
@@ -383,12 +417,12 @@ class ProjectAnalyzer:
         if not versions:
             versions = ["3.10", "3.11", "3.12"]
 
-        return sorted(list(set(versions)))
+        return sorted(set(versions))
 
     def _detect_platforms(
         self,
         package_manager: PackageManagerConfig,
-        github_workflows: GitHubWorkflowConfig
+        github_workflows: GitHubWorkflowConfig,
     ) -> list[str]:
         """Detect supported platforms."""
         platforms = []
@@ -402,25 +436,29 @@ class ProjectAnalyzer:
         if not platforms:
             platforms = ["ubuntu-latest", "macos-latest", "windows-latest"]
 
-        return sorted(list(set(platforms)))
+        return sorted(set(platforms))
 
     def _generate_migration_recommendations(
         self,
         project_type: ProjectType,
         complexity: ProjectComplexity,
         package_manager: PackageManagerConfig,
-        quality_tools: QualityToolConfig
+        quality_tools: QualityToolConfig,
     ) -> list[str]:
         """Generate migration recommendations based on analysis."""
         recommendations = []
 
         # Package manager recommendations
         if package_manager.manager != PackageManager.PIXI:
-            recommendations.append(f"Migrate from {package_manager.manager.value} to pixi for better environment management")
+            recommendations.append(
+                f"Migrate from {package_manager.manager.value} to pixi for better environment management"
+            )
 
         # Quality tooling recommendations
         if not quality_tools.ruff_config:
-            recommendations.append("Add ruff configuration for modern Python linting and formatting")
+            recommendations.append(
+                "Add ruff configuration for modern Python linting and formatting"
+            )
 
         if not quality_tools.pytest_config:
             recommendations.append("Configure pytest with comprehensive test settings")
@@ -434,7 +472,9 @@ class ProjectAnalyzer:
         elif complexity == ProjectComplexity.MODERATE:
             recommendations.append("Implement extended tier with security scanning")
         else:
-            recommendations.append("Deploy full tier with performance monitoring and container scanning")
+            recommendations.append(
+                "Deploy full tier with performance monitoring and container scanning"
+            )
 
         return recommendations
 
@@ -442,7 +482,7 @@ class ProjectAnalyzer:
         self,
         package_manager: PackageManagerConfig,
         quality_tools: QualityToolConfig,
-        github_workflows: GitHubWorkflowConfig
+        github_workflows: GitHubWorkflowConfig,
     ) -> list[str]:
         """Identify potential migration issues."""
         issues = []
@@ -452,7 +492,9 @@ class ProjectAnalyzer:
             issues.append("Poetry lock file migration requires dependency resolution")
 
         if package_manager.manager == PackageManager.CONDA:
-            issues.append("Conda environment migration may have platform compatibility issues")
+            issues.append(
+                "Conda environment migration may have platform compatibility issues"
+            )
 
         # Quality tooling conflicts
         if quality_tools.ruff_config and quality_tools.precommit_hooks:
@@ -461,7 +503,9 @@ class ProjectAnalyzer:
                 hooks = repo.get("hooks", [])
                 for hook in hooks:
                     if hook.get("id") in ["black", "flake8", "isort"]:
-                        issues.append(f"Pre-commit hook '{hook['id']}' conflicts with ruff configuration")
+                        issues.append(
+                            f"Pre-commit hook '{hook['id']}' conflicts with ruff configuration"
+                        )
 
         # GitHub workflow migration issues
         if len(github_workflows.workflows) > 5:

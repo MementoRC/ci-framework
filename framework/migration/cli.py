@@ -5,7 +5,6 @@ CLI interface for CI framework migration tools.
 import argparse
 import sys
 from pathlib import Path
-from typing import Optional
 
 from .analyzer import ProjectAnalyzer
 from .migrator import ProjectMigrator
@@ -26,7 +25,9 @@ def analyze_command(args: argparse.Namespace) -> int:
         print(f"   💻 Platforms: {', '.join(result.platforms)}")
 
         if result.migration_recommendations:
-            print(f"\n💡 Migration Recommendations ({len(result.migration_recommendations)}):")
+            print(
+                f"\n💡 Migration Recommendations ({len(result.migration_recommendations)}):"
+            )
             for i, rec in enumerate(result.migration_recommendations, 1):
                 print(f"   {i}. {rec}")
 
@@ -49,9 +50,9 @@ def analyze_command(args: argparse.Namespace) -> int:
                 if obj_id in visited:
                     return "<circular reference>"
 
-                if isinstance(obj, (str, int, float, bool, type(None))):
+                if isinstance(obj, str | int | float | bool | type(None)):
                     return obj
-                elif hasattr(obj, 'value'):  # Enum
+                elif hasattr(obj, "value"):  # Enum
                     return obj.value
                 elif isinstance(obj, Path):
                     return str(obj)
@@ -65,9 +66,12 @@ def analyze_command(args: argparse.Namespace) -> int:
                     result = {k: make_serializable(v, visited) for k, v in obj.items()}
                     visited.remove(obj_id)
                     return result
-                elif hasattr(obj, '__dict__'):
+                elif hasattr(obj, "__dict__"):
                     visited.add(obj_id)
-                    result = {k: make_serializable(v, visited) for k, v in obj.__dict__.items()}
+                    result = {
+                        k: make_serializable(v, visited)
+                        for k, v in obj.__dict__.items()
+                    }
                     visited.remove(obj_id)
                     return result
                 else:
@@ -76,7 +80,7 @@ def analyze_command(args: argparse.Namespace) -> int:
             # Convert analysis result to JSON-serializable format
             analysis_dict = make_serializable(result)
 
-            with open(output_path, 'w') as f:
+            with open(output_path, "w") as f:
                 json.dump(analysis_dict, f, indent=2)
             print(f"\n📊 Analysis saved to: {output_path}")
 
@@ -110,16 +114,13 @@ def migrate_command(args: argparse.Namespace) -> int:
         # Ask for confirmation unless --yes flag is provided
         if not args.yes:
             response = input("\n❓ Proceed with migration? [y/N]: ")
-            if response.lower() not in ['y', 'yes']:
+            if response.lower() not in ["y", "yes"]:
                 print("🚫 Migration cancelled")
                 return 0
 
         # Execute migration
         print("\n🚀 Executing migration...")
-        result = migrator.migrate(
-            dry_run=args.dry_run,
-            backup=not args.no_backup
-        )
+        result = migrator.migrate(dry_run=args.dry_run, backup=not args.no_backup)
 
         if result.status == MigrationStatus.COMPLETED:
             print("✅ Migration completed successfully!")
@@ -157,7 +158,9 @@ def validate_command(args: argparse.Namespace) -> int:
         result = migrator.validate_migration()
 
         print(f"🔍 Validation Results for {args.project_path}")
-        print(f"   ✅ Overall Status: {'PASSED' if result.validation_passed else 'FAILED'}")
+        print(
+            f"   ✅ Overall Status: {'PASSED' if result.validation_passed else 'FAILED'}"
+        )
 
         if result.quality_gates_status:
             print("\n🚪 Quality Gates Status:")
@@ -189,8 +192,10 @@ def rollback_command(args: argparse.Namespace) -> int:
 
         # Ask for confirmation unless --yes flag is provided
         if not args.yes:
-            response = input(f"❓ Are you sure you want to rollback migration for {args.project_path}? [y/N]: ")
-            if response.lower() not in ['y', 'yes']:
+            response = input(
+                f"❓ Are you sure you want to rollback migration for {args.project_path}? [y/N]: "
+            )
+            if response.lower() not in ["y", "yes"]:
                 print("🚫 Rollback cancelled")
                 return 0
 
@@ -209,17 +214,18 @@ def rollback_command(args: argparse.Namespace) -> int:
         return 1
 
 
-def main(argv: Optional[list] = None) -> int:
+def main(argv: list | None = None) -> int:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        prog="ci-migrate",
-        description="CI Framework Migration Tools"
+        prog="ci-migrate", description="CI Framework Migration Tools"
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Analyze command
-    analyze_parser = subparsers.add_parser("analyze", help="Analyze project for migration")
+    analyze_parser = subparsers.add_parser(
+        "analyze", help="Analyze project for migration"
+    )
     analyze_parser.add_argument("project_path", help="Path to project to analyze")
     analyze_parser.add_argument("-o", "--output", help="Save analysis to JSON file")
     analyze_parser.set_defaults(func=analyze_command)
@@ -227,27 +233,41 @@ def main(argv: Optional[list] = None) -> int:
     # Migrate command
     migrate_parser = subparsers.add_parser("migrate", help="Execute project migration")
     migrate_parser.add_argument("project_path", help="Path to project to migrate")
-    migrate_parser.add_argument("--dry-run", action="store_true", help="Preview migration without changes")
-    migrate_parser.add_argument("--no-backup", action="store_true", help="Skip creating backup")
-    migrate_parser.add_argument("--no-rollback", action="store_true", help="Disable automatic rollback on failure")
-    migrate_parser.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompts")
+    migrate_parser.add_argument(
+        "--dry-run", action="store_true", help="Preview migration without changes"
+    )
+    migrate_parser.add_argument(
+        "--no-backup", action="store_true", help="Skip creating backup"
+    )
+    migrate_parser.add_argument(
+        "--no-rollback",
+        action="store_true",
+        help="Disable automatic rollback on failure",
+    )
+    migrate_parser.add_argument(
+        "-y", "--yes", action="store_true", help="Skip confirmation prompts"
+    )
     migrate_parser.set_defaults(func=migrate_command)
 
     # Validate command
-    validate_parser = subparsers.add_parser("validate", help="Validate migrated project")
+    validate_parser = subparsers.add_parser(
+        "validate", help="Validate migrated project"
+    )
     validate_parser.add_argument("project_path", help="Path to project to validate")
     validate_parser.set_defaults(func=validate_command)
 
     # Rollback command
     rollback_parser = subparsers.add_parser("rollback", help="Rollback migration")
     rollback_parser.add_argument("project_path", help="Path to project to rollback")
-    rollback_parser.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompts")
+    rollback_parser.add_argument(
+        "-y", "--yes", action="store_true", help="Skip confirmation prompts"
+    )
     rollback_parser.set_defaults(func=rollback_command)
 
     # Parse arguments
     args = parser.parse_args(argv)
 
-    if not hasattr(args, 'func'):
+    if not hasattr(args, "func"):
         parser.print_help()
         return 1
 
