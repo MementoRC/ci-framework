@@ -1,0 +1,271 @@
+# Comprehensive CI Template - CI Framework
+# This template showcases all available CI Framework actions
+# including the revolutionary Docker Cross-Platform Testing action
+
+name: Comprehensive CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+# Environment variables for the entire workflow
+env:
+  PIXI_ENV: quality
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  # Phase 1: Change Detection & Fast Feedback
+  change-detection:
+    name: 🔍 Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      code-changed: ${{ steps.changes.outputs.code-changed }}
+      deps-changed: ${{ steps.changes.outputs.deps-changed }}
+      docs-changed: ${{ steps.changes.outputs.docs-changed }}
+      docker-changed: ${{ steps.changes.outputs.docker-changed }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect Changes
+        id: changes
+        uses: ./actions/change-detection
+        with:
+          patterns: |
+            code:src/**/*.py,tests/**/*.py
+            deps:pyproject.toml,pixi.lock,requirements*.txt
+            docs:docs/**/*.md,README.md,*.md
+            docker:Dockerfile,docker-compose*.yml,docker/**/*
+
+  # Phase 2: Essential Quality Gates (Fast Feedback)
+  essential-quality:
+    name: ⚡ Essential Quality Gates
+    runs-on: ubuntu-latest
+    needs: change-detection
+    if: needs.change-detection.outputs.code-changed == 'true' || github.event_name == 'push'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Essential Quality Validation
+        uses: ./actions/quality-gates
+        with:
+          tier: 'essential'
+          parallel: 'true'
+          fail-fast: 'true'
+          timeout: '300'
+
+  # Phase 3: Security Scanning (Parallel with Quality)
+  security-scan:
+    name: 🔒 Security Analysis
+    runs-on: ubuntu-latest
+    needs: change-detection
+    if: needs.change-detection.outputs.code-changed == 'true' || needs.change-detection.outputs.deps-changed == 'true'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Security Vulnerability Scan
+        uses: ./actions/security-scan
+        with:
+          security-level: 'standard'
+          enable-sarif: 'true'
+          enable-sbom: 'true'
+
+  # Phase 4: Cross-Platform Deployment Testing (Revolutionary)
+  docker-cross-platform:
+    name: 🐳 Docker Cross-Platform Testing
+    runs-on: ubuntu-latest
+    needs: [essential-quality, security-scan]
+    if: always() && (needs.essential-quality.result == 'success' && needs.security-scan.result == 'success')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # PR Testing - Fast feedback
+          - test-mode: smoke
+            environments: ubuntu
+            condition: github.event_name == 'pull_request'
+          # Main Branch - Comprehensive testing
+          - test-mode: test
+            environments: ubuntu,alpine
+            condition: github.ref == 'refs/heads/main'
+          # Develop Branch - Extended testing
+          - test-mode: full
+            environments: ubuntu,alpine,centos
+            condition: github.ref == 'refs/heads/develop'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Docker Cross-Platform Testing - ${{ matrix.test-mode }}
+        if: matrix.condition
+        uses: ./actions/docker-cross-platform
+        with:
+          environments: ${{ matrix.environments }}
+          test-mode: ${{ matrix.test-mode }}
+          pixi-environment: ${{ env.PIXI_ENV }}
+          parallel: 'true'
+          timeout: '900'
+          python-version: '3.12'
+          fail-fast: 'false'
+          cleanup: 'true'
+          build-args: |
+            BUILD_ENV=ci
+            GITHUB_SHA=${{ github.sha }}
+            GITHUB_REF=${{ github.ref }}
+
+  # Phase 5: Extended Quality Gates (For Main/Develop)
+  extended-quality:
+    name: 🧪 Extended Quality Gates  
+    runs-on: ubuntu-latest
+    needs: [essential-quality, docker-cross-platform]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Extended Quality Validation
+        uses: ./actions/quality-gates
+        with:
+          tier: 'extended'
+          parallel: 'true'
+          timeout: '600'
+
+  # Phase 6: Performance Benchmarking (Release Validation)
+  performance-benchmark:
+    name: 📊 Performance Benchmarks
+    runs-on: ubuntu-latest
+    needs: [extended-quality]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Performance Benchmark Analysis
+        uses: ./actions/performance-benchmark
+        with:
+          benchmark-suite: 'quick'
+          regression-threshold: '10'
+          store-baseline: 'true'
+          compare-with-baseline: 'true'
+
+  # Phase 7: Full Quality Gates (Release Only)
+  full-quality:
+    name: 🏆 Full Quality Gates
+    runs-on: ubuntu-latest
+    needs: [extended-quality, performance-benchmark]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Full Quality Validation
+        uses: ./actions/quality-gates
+        with:
+          tier: 'full'
+          parallel: 'true'
+          timeout: '900'
+          reports-dir: 'full-quality-reports'
+
+      - name: Upload Full Quality Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-quality-reports
+          path: full-quality-reports/
+
+  # Phase 8: Release Preparation (Main Branch Only)
+  release-validation:
+    name: 🚀 Release Validation
+    runs-on: ubuntu-latest
+    needs: [full-quality, docker-cross-platform]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Test all deployment scenarios
+      - name: Comprehensive Docker Testing
+        uses: ./actions/docker-cross-platform
+        with:
+          environments: 'ubuntu,alpine,centos,debian'
+          test-mode: 'full'
+          pixi-environment: ${{ env.PIXI_ENV }}
+          parallel: 'true'
+          timeout: '1200'
+          fail-fast: 'true'
+
+      # Critical security scan for releases
+      - name: Critical Security Scan
+        uses: ./actions/security-scan
+        with:
+          security-level: 'critical'
+          enable-sarif: 'true'
+          enable-sbom: 'true'
+          fail-on-severity: 'high'
+
+      # Full performance validation
+      - name: Release Performance Validation
+        uses: ./actions/performance-benchmark
+        with:
+          benchmark-suite: 'full'
+          regression-threshold: '5'
+          store-baseline: 'true'
+
+  # Status Reporting Job
+  ci-status:
+    name: 📋 CI Status Summary
+    runs-on: ubuntu-latest
+    needs: [change-detection, essential-quality, security-scan, docker-cross-platform, extended-quality, performance-benchmark, full-quality, release-validation]
+    if: always()
+    steps:
+      - name: Generate CI Summary
+        run: |
+          echo "## 🎯 CI Framework Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Phase Results" >> $GITHUB_STEP_SUMMARY
+          echo "- **Change Detection**: ${{ needs.change-detection.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Essential Quality**: ${{ needs.essential-quality.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Security Scan**: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Docker Cross-Platform**: ${{ needs.docker-cross-platform.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Extended Quality**: ${{ needs.extended-quality.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Performance Benchmark**: ${{ needs.performance-benchmark.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Full Quality**: ${{ needs.full-quality.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release Validation**: ${{ needs.release-validation.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Determine overall status
+          if [[ "${{ needs.essential-quality.result }}" == "success" && "${{ needs.security-scan.result }}" == "success" ]]; then
+            echo "### ✅ **Overall Status: PASS**" >> $GITHUB_STEP_SUMMARY
+            echo "Core quality gates passed successfully!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ **Overall Status: FAIL**" >> $GITHUB_STEP_SUMMARY
+            echo "Critical quality gates failed. Review the logs above." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 **Innovation Highlight: Docker Cross-Platform Testing**" >> $GITHUB_STEP_SUMMARY
+          echo "This workflow showcases the revolutionary Docker + pixi integration pattern:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo 'docker run --rm -v $(pwd):/workspace -w /workspace \' >> $GITHUB_STEP_SUMMARY
+          echo '  ci-framework-test-ubuntu sh -c "pixi install -e quality && pixi run -e quality test"' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "**Benefits**: Local dev speed + Production reality + Zero friction" >> $GITHUB_STEP_SUMMARY
+
+# Workflow-level configuration
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Global permissions
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+  checks: write
+  pull-requests: write

@@ -1,0 +1,318 @@
+name: 'Monorepo CI Optimization with Change Detection'
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # Advanced change detection for monorepo
+  monorepo-change-detection:
+    name: 'Monorepo Change Analysis'
+    runs-on: ubuntu-latest
+    outputs:
+      # Package-specific outputs
+      affected-packages: ${{ steps.detect.outputs.affected-packages }}
+      skip-tests: ${{ steps.detect.outputs.skip-tests }}
+      skip-security: ${{ steps.detect.outputs.skip-security }}
+      optimization-score: ${{ steps.detect.outputs.optimization-score }}
+      
+      # Matrix optimization outputs for dynamic job creation
+      package-matrix: ${{ steps.matrix.outputs.package-matrix }}
+      test-matrix: ${{ steps.matrix.outputs.test-matrix }}
+      
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Comprehensive Monorepo Change Detection
+        id: detect
+        uses: ./actions/change-detection
+        with:
+          detection-level: comprehensive
+          monorepo-mode: true
+          enable-test-optimization: true
+          enable-job-skipping: true
+          timeout: 600  # Longer timeout for comprehensive analysis
+          
+      - name: Generate Dynamic Matrix
+        id: matrix
+        run: |
+          # Create package matrix from affected packages
+          affected_packages="${{ steps.detect.outputs.affected-packages }}"
+          
+          if [ -n "$affected_packages" ]; then
+            # Convert comma-separated to JSON array
+            package_array=$(echo "$affected_packages" | jq -R 'split(",") | map(select(length > 0))')
+            echo "package-matrix=$package_array" >> $GITHUB_OUTPUT
+            
+            # Create test matrix (package + Python version combinations)
+            test_matrix=$(echo "$package_array" | jq '
+              [.[] as $pkg | 
+               ["3.10", "3.11", "3.12"] as $versions | 
+               $versions[] as $ver | 
+               {package: $pkg, python: $ver}]')
+            echo "test-matrix=$test_matrix" >> $GITHUB_OUTPUT
+          else
+            echo "package-matrix=[]" >> $GITHUB_OUTPUT
+            echo "test-matrix=[]" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Display Monorepo Analysis
+        run: |
+          echo "📦 Monorepo Analysis Results:"
+          echo "🎯 Affected Packages: ${{ steps.detect.outputs.affected-packages }}"
+          echo "📊 Optimization Score: ${{ steps.detect.outputs.optimization-score }}%"
+          echo "⏱️ Time Savings: ${{ steps.detect.outputs.time-savings }}s"
+
+  # Package-specific testing using dynamic matrix
+  package-tests:
+    name: 'Test Package: ${{ matrix.package }}'
+    needs: monorepo-change-detection
+    if: needs.monorepo-change-detection.outputs.package-matrix != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.monorepo-change-detection.outputs.package-matrix) }}
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Test Package
+        run: |
+          echo "🧪 Testing package: ${{ matrix.package }}"
+          
+          # Navigate to package directory
+          cd ${{ matrix.package }}
+          
+          # Install package dependencies
+          if [ -f "pyproject.toml" ]; then
+            pip install -e .
+          fi
+          
+          # Run package-specific tests
+          if [ -d "tests" ]; then
+            pytest tests/ -v --cov=${{ matrix.package }}
+          elif [ -d "../tests/${{ matrix.package }}" ]; then
+            pytest ../tests/${{ matrix.package }}/ -v
+          else
+            echo "⚠️ No tests found for package ${{ matrix.package }}"
+          fi
+
+  # Cross-package integration tests
+  integration-tests:
+    name: 'Cross-Package Integration Tests'
+    needs: [monorepo-change-detection, package-tests]
+    # Run if multiple packages affected or if integration-critical files changed
+    if: |
+      needs.monorepo-change-detection.outputs.affected-packages != '' &&
+      contains(needs.monorepo-change-detection.outputs.affected-packages, ',')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Run Integration Tests
+        run: |
+          echo "🔄 Running cross-package integration tests"
+          affected_packages="${{ needs.monorepo-change-detection.outputs.affected-packages }}"
+          echo "📦 Testing integration between: $affected_packages"
+          
+          # Install all affected packages
+          for package in $(echo $affected_packages | tr ',' ' '); do
+            if [ -d "$package" ] && [ -f "$package/pyproject.toml" ]; then
+              echo "Installing $package..."
+              pip install -e ./$package
+            fi
+          done
+          
+          # Run integration test suite
+          if [ -d "tests/integration" ]; then
+            pytest tests/integration/ -v -m "integration"
+          fi
+
+  # Package-specific security scans
+  package-security:
+    name: 'Security: ${{ matrix.package }}'
+    needs: monorepo-change-detection
+    if: |
+      needs.monorepo-change-detection.outputs.skip-security != 'true' &&
+      needs.monorepo-change-detection.outputs.package-matrix != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.monorepo-change-detection.outputs.package-matrix) }}
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Package-Specific Security Scan
+        uses: ./actions/security-scan
+        with:
+          security-level: medium
+          project-dir: ${{ matrix.package }}
+          reports-dir: security-reports-${{ matrix.package }}
+
+  # Optimized documentation build
+  docs-build:
+    name: 'Documentation Build (Optimized)'
+    needs: monorepo-change-detection
+    if: needs.monorepo-change-detection.outputs.skip-docs != 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Determine Docs to Build
+        id: docs
+        run: |
+          affected_packages="${{ needs.monorepo-change-detection.outputs.affected-packages }}"
+          
+          if [ -n "$affected_packages" ]; then
+            echo "📚 Building docs for affected packages: $affected_packages"
+            echo "build-all=false" >> $GITHUB_OUTPUT
+            echo "packages=$affected_packages" >> $GITHUB_OUTPUT
+          else
+            echo "📚 Building all documentation"
+            echo "build-all=true" >> $GITHUB_OUTPUT
+            echo "packages=" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Build Documentation
+        run: |
+          if [ "${{ steps.docs.outputs.build-all }}" = "true" ]; then
+            echo "Building complete documentation..."
+            # Build all docs
+            # make docs-all
+          else
+            echo "Building docs for: ${{ steps.docs.outputs.packages }}"
+            # Build only affected package docs
+            for package in $(echo "${{ steps.docs.outputs.packages }}" | tr ',' ' '); do
+              echo "Building docs for $package..."
+              # make docs-$package
+            done
+          fi
+
+  # Performance analysis for monorepo optimization
+  monorepo-performance-analysis:
+    name: 'Monorepo Performance Analysis'
+    needs: [monorepo-change-detection, package-tests, integration-tests, package-security]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Analyze Monorepo CI Performance
+        run: |
+          echo "📊 Monorepo CI Performance Analysis"
+          echo "===================================="
+          
+          # Count affected packages
+          affected_packages="${{ needs.monorepo-change-detection.outputs.affected-packages }}"
+          package_count=0
+          if [ -n "$affected_packages" ]; then
+            package_count=$(echo "$affected_packages" | tr ',' '\n' | wc -l)
+          fi
+          
+          echo "📦 Affected Packages: $package_count"
+          echo "📊 Optimization Score: ${{ needs.monorepo-change-detection.outputs.optimization-score }}%"
+          
+          # Calculate estimated vs actual time
+          total_packages=10  # Example: assume 10 total packages in monorepo
+          if [ "$package_count" -eq "0" ]; then
+            efficiency=100
+          else
+            efficiency=$(( (total_packages - package_count) * 100 / total_packages ))
+          fi
+          
+          echo "⚡ Package-Level Efficiency: ${efficiency}%"
+          
+          # Job efficiency
+          total_jobs=4
+          skipped_jobs=0
+          
+          if [ "${{ needs.package-tests.result }}" = "skipped" ]; then
+            skipped_jobs=$((skipped_jobs + 1))
+          fi
+          if [ "${{ needs.integration-tests.result }}" = "skipped" ]; then
+            skipped_jobs=$((skipped_jobs + 1))
+          fi
+          if [ "${{ needs.package-security.result }}" = "skipped" ]; then
+            skipped_jobs=$((skipped_jobs + 1))
+          fi
+          if [ "${{ needs.docs-build.result }}" = "skipped" ]; then
+            skipped_jobs=$((skipped_jobs + 1))
+          fi
+          
+          job_efficiency=$(( skipped_jobs * 100 / total_jobs ))
+          
+          echo "🚦 Job-Level Efficiency: ${job_efficiency}%"
+          
+          # Overall monorepo optimization
+          overall_optimization=$(( (efficiency + job_efficiency) / 2 ))
+          echo "🎯 Overall Monorepo Optimization: ${overall_optimization}%"
+          
+          # Validate monorepo optimization targets
+          if [ "$overall_optimization" -ge "60" ]; then
+            echo "✅ Excellent monorepo optimization (≥60%)"
+          elif [ "$overall_optimization" -ge "40" ]; then
+            echo "⚡ Good monorepo optimization (≥40%)"
+          elif [ "$overall_optimization" -ge "20" ]; then
+            echo "🔄 Moderate monorepo optimization (≥20%)"
+          else
+            echo "⚠️ Limited optimization possible (comprehensive changes)"
+          fi
+          
+          # Generate summary
+          echo "## 📦 Monorepo CI Optimization Report" >> $GITHUB_STEP_SUMMARY
+          echo "**Affected Packages:** $package_count/$total_packages" >> $GITHUB_STEP_SUMMARY
+          echo "**Package Efficiency:** ${efficiency}%" >> $GITHUB_STEP_SUMMARY
+          echo "**Job Efficiency:** ${job_efficiency}%" >> $GITHUB_STEP_SUMMARY
+          echo "**Overall Optimization:** ${overall_optimization}%" >> $GITHUB_STEP_SUMMARY
+
+  # Cleanup and final summary
+  monorepo-summary:
+    name: 'Monorepo CI Summary'
+    needs: [monorepo-change-detection, package-tests, integration-tests, package-security, docs-build, monorepo-performance-analysis]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Generate Monorepo Summary
+        run: |
+          echo "🎯 Monorepo CI Pipeline Summary"
+          echo "==============================="
+          echo ""
+          echo "📦 Packages Analyzed: ${{ needs.monorepo-change-detection.outputs.affected-packages }}"
+          echo "📊 Change Detection Score: ${{ needs.monorepo-change-detection.outputs.optimization-score }}%"
+          echo "⏱️ Estimated Time Savings: ${{ needs.monorepo-change-detection.outputs.time-savings }}s"
+          echo ""
+          echo "🚦 Pipeline Results:"
+          echo "- Package Tests: ${{ needs.package-tests.result }}"
+          echo "- Integration Tests: ${{ needs.integration-tests.result }}"
+          echo "- Security Scans: ${{ needs.package-security.result }}"
+          echo "- Documentation: ${{ needs.docs-build.result }}"
+          echo ""
+          echo "✨ Monorepo optimization enables:"
+          echo "  • Package-specific testing"
+          echo "  • Selective security scanning"
+          echo "  • Targeted documentation builds"
+          echo "  • Cross-package dependency analysis"
+          echo "  • Dynamic CI matrix generation"

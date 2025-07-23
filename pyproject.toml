@@ -10,32 +10,15 @@ authors = [
     { name = "MementoRC", email = "your-email@example.com" }
 ]
 dependencies = [
-    "pytest",
-    "psutil",
-    "pandas",
-    "pyyaml",
-    "requests",
 ]
-requires-python = ">=3.10"
 
 [project.optional-dependencies]
-dev = [
-    "ruff",
-    "black",
-    "yamllint",
-    "pip-audit",
-    "bandit",
-    "detect-secrets",
-    "twine",
-    "build",
-    "cyclonedx-bom",
-]
 
 [tool.pixi.project]
 name = "ci-framework-tools"
 version = "0.0.1"
 channels = ["conda-forge"]
-platforms = ["linux-64"]  # Start with single platform for CI compatibility
+platforms = ["linux-64"]  # Local development on linux, CI matrix handles cross-platform testing
 
 # Core dependencies for the default environment
 [tool.pixi.dependencies]
@@ -46,6 +29,11 @@ pandas = "*"
 pyyaml = "*"
 requests = "*"
 hypothesis = "*"
+pytest-workflow = ">=2.1.0,<3"
+pytest-cov = ">=6.2.1,<7"
+pytest-mock = ">=3.14.1,<4"
+responses = ">=0.25.7,<0.26"
+tomli-w = "*"  # TOML writing for migration tools
 
 # ===== TIERED QUALITY FEATURES =====
 # TIER 1: Essential Quality Gates (ZERO-TOLERANCE)
@@ -143,14 +131,19 @@ test-maintenance = "pytest framework/tests/maintenance/ -v"
 # Quality Gates (CRITICAL - MUST PASS)
 lint = "pixi run -e quality lint-impl"
 lint-impl = "ruff check framework/ --select=F,E9"
+lint-full = "pixi run -e quality lint-full-impl"
+lint-full-impl = "ruff check framework/"
 lint-fix = "ruff check --fix framework/"
 format = "ruff format framework/"
 format-check = "ruff format --check framework/"
 typecheck = "pixi run -e quality typecheck-impl"
 typecheck-impl = "mypy framework/"
 
-# Combined Quality Check
-quality = { depends-on = ["test", "lint", "typecheck"] }
+# Combined Quality Check - 🚨 MANDATORY BEFORE COMMIT
+quality = { depends-on = ["test", "lint", "typecheck"] }   # NEVER commit without this passing
+
+# Emergency Quality Fix - USE FOR "Found X errors" CI FAILURES  
+emergency-fix = "pixi run lint-fix && pixi run format && pixi run test"
 
 # ===== TIER 2: SECURITY & COMPLIANCE TASKS =====
 # Security Scanning
@@ -175,9 +168,9 @@ ci-format-check = "ruff format --check framework/"
 build = "python -m build"
 clean = "rm -rf __pycache__ .pytest_cache .coverage htmlcov .ruff_cache dist build"
 
-# Pre-commit Integration
+# Pre-commit Integration - PREVENT CI FAILURES
 pre-commit = "pre-commit run --all-files"
-install-pre-commit = "pre-commit install --install-hooks"
+install-pre-commit = "pre-commit install --install-hooks"   # 🚨 ESSENTIAL: Run once per developer
 
 # ===== LEGACY/SPECIALIZED TASKS =====
 # Keep existing specialized tasks for backward compatibility

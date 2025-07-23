@@ -1,0 +1,417 @@
+name: 'Performance Benchmark Action'
+description: 'Standardized performance monitoring with pytest-benchmark integration and statistical regression detection'
+author: 'CI Framework'
+
+branding:
+  icon: 'trending-up'
+  color: 'orange'
+
+inputs:
+  suite:
+    description: 'Benchmark suite to execute (quick, full, load)'
+    required: false
+    default: 'quick'
+
+  baseline-branch:
+    description: 'Branch to compare performance against'
+    required: false
+    default: 'main'
+
+  regression-threshold:
+    description: 'Performance regression threshold percentage (e.g. 10.0)'
+    required: false
+    default: '10.0'
+
+  timeout:
+    description: 'Timeout in seconds for benchmark execution'
+    required: false
+    default: '1800'
+
+  project-dir:
+    description: 'Project directory to benchmark (default: current directory)'
+    required: false
+    default: '.'
+
+  config-file:
+    description: 'Path to custom benchmark configuration file'
+    required: false
+    default: ''
+
+  store-results:
+    description: 'Store benchmark results for historical analysis'
+    required: false
+    default: 'true'
+
+  results-dir:
+    description: 'Directory to store benchmark results'
+    required: false
+    default: 'benchmark-results'
+
+  package-manager:
+    description: 'Force specific package manager (pixi, poetry, hatch, pip)'
+    required: false
+    default: 'auto'
+
+  compare-baseline:
+    description: 'Compare against baseline and detect regressions'
+    required: false
+    default: 'true'
+
+  fail-on-regression:
+    description: 'Fail the action if performance regression is detected'
+    required: false
+    default: 'true'
+
+  parallel:
+    description: 'Run benchmarks in parallel when possible'
+    required: false
+    default: 'false'
+
+outputs:
+  success:
+    description: 'Whether all benchmarks passed without regression'
+    value: ${{ steps.performance-benchmark.outputs.success }}
+
+  suite:
+    description: 'Benchmark suite that was executed'
+    value: ${{ steps.performance-benchmark.outputs.suite }}
+
+  execution-time:
+    description: 'Total benchmark execution time in seconds'
+    value: ${{ steps.performance-benchmark.outputs.execution-time }}
+
+  benchmark-count:
+    description: 'Number of benchmarks executed'
+    value: ${{ steps.performance-benchmark.outputs.benchmark-count }}
+
+  regression-detected:
+    description: 'Whether performance regression was detected'
+    value: ${{ steps.performance-benchmark.outputs.regression-detected }}
+
+  regression-percentage:
+    description: 'Percentage of performance regression detected'
+    value: ${{ steps.performance-benchmark.outputs.regression-percentage }}
+
+  baseline-comparison:
+    description: 'Performance comparison with baseline'
+    value: ${{ steps.performance-benchmark.outputs.baseline-comparison }}
+
+  results-path:
+    description: 'Path to generated benchmark results'
+    value: ${{ steps.performance-benchmark.outputs.results-path }}
+
+  performance-report:
+    description: 'Detailed performance report summary'
+    value: ${{ steps.performance-benchmark.outputs.performance-report }}
+
+  trend-analysis:
+    description: 'Performance trend analysis over time'
+    value: ${{ steps.performance-benchmark.outputs.trend-analysis }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install pixi
+      uses: prefix-dev/setup-pixi@v0.4.1
+      with:
+        pixi-version: v0.15.1
+        cache: true
+
+    - name: Cache Performance Dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.cache/pytest_benchmark
+          .pixi/envs
+        key: performance-benchmark-${{ runner.os }}-${{ hashFiles('**/pyproject.toml', '**/benchmark-config.toml') }}
+        restore-keys: |
+          performance-benchmark-${{ runner.os }}-
+
+    - name: Download Baseline Results
+      uses: actions/download-artifact@v3
+      if: inputs.compare-baseline == 'true'
+      continue-on-error: true
+      with:
+        name: benchmark-baseline-${{ inputs.baseline-branch }}
+        path: baseline-results
+
+    - name: Execute Performance Benchmarks
+      id: performance-benchmark
+      shell: bash
+      run: |
+        set -e
+
+        # Set default values
+        SUITE="${{ inputs.suite }}"
+        BASELINE_BRANCH="${{ inputs.baseline-branch }}"
+        REGRESSION_THRESHOLD="${{ inputs.regression-threshold }}"
+        TIMEOUT="${{ inputs.timeout }}"
+        PROJECT_DIR="${{ inputs.project-dir }}"
+        CONFIG_FILE="${{ inputs.config-file }}"
+        STORE_RESULTS="${{ inputs.store-results }}"
+        RESULTS_DIR="${{ inputs.results-dir }}"
+        PACKAGE_MANAGER="${{ inputs.package-manager }}"
+        COMPARE_BASELINE="${{ inputs.compare-baseline }}"
+        FAIL_ON_REGRESSION="${{ inputs.fail-on-regression }}"
+        PARALLEL="${{ inputs.parallel }}"
+
+        echo "🚀 Performance Benchmark Action v0.0.1"
+        echo "📊 Suite: $SUITE"
+        echo "🔍 Baseline: $BASELINE_BRANCH"
+        echo "⚠️  Threshold: ${REGRESSION_THRESHOLD}%"
+        echo "⏱️  Timeout: ${TIMEOUT}s"
+        echo "📁 Project: $PROJECT_DIR"
+
+        # Create results directory
+        mkdir -p "$RESULTS_DIR"
+
+        # Install benchmark dependencies
+        if [[ -f "pyproject.toml" ]] && grep -q "\[tool\.pixi\]" pyproject.toml; then
+          echo "📦 Using pixi environment"
+          pixi install
+          # Ensure pytest-benchmark is available
+          pixi run pip install pytest-benchmark
+        elif [[ -f "pyproject.toml" ]] && grep -q "\[tool\.poetry\]" pyproject.toml; then
+          echo "📦 Using poetry environment"
+          pip install poetry
+          poetry install
+          poetry add pytest-benchmark --group dev
+        else
+          echo "📦 Using pip environment"
+          pip install -e .
+          pip install pytest-benchmark
+        fi
+
+        # Execute performance benchmarks using Python
+        python3 << EOF
+        import sys
+        import json
+        import time
+        import os
+        from pathlib import Path
+
+        # Add framework to path
+        framework_path = Path("${{ github.action_path }}/../../framework")
+        if framework_path.exists():
+          sys.path.insert(0, str(framework_path))
+
+        try:
+          from actions.performance_benchmark import PerformanceBenchmarkAction
+        except ImportError:
+          # Fallback minimal implementation
+          class PerformanceBenchmarkAction:
+            def execute_benchmarks(self, **kwargs):
+              import subprocess
+              import json
+              import time
+              
+              start_time = time.time()
+              
+              # Run pytest-benchmark
+              cmd = ["python", "-m", "pytest", "--benchmark-only", "--benchmark-json=benchmark-results.json"]
+              if "$SUITE" == "quick":
+                cmd.extend(["--benchmark-max-time=30"])
+              elif "$SUITE" == "full":
+                cmd.extend(["--benchmark-max-time=300"])
+              elif "$SUITE" == "load":
+                cmd.extend(["--benchmark-max-time=600"])
+              
+              try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=int("$TIMEOUT"))
+                execution_time = time.time() - start_time
+                
+                # Basic result processing
+                if result.returncode == 0:
+                  # Try to read benchmark results
+                  benchmark_data = {}
+                  if Path("benchmark-results.json").exists():
+                    with open("benchmark-results.json") as f:
+                      benchmark_data = json.load(f)
+                  
+                  benchmark_count = len(benchmark_data.get("benchmarks", []))
+                  
+                  return {
+                    "success": True,
+                    "suite": "$SUITE",
+                    "execution_time": execution_time,
+                    "benchmark_count": benchmark_count,
+                    "regression_detected": False,
+                    "regression_percentage": 0.0,
+                    "baseline_comparison": "No baseline available",
+                    "results_path": "$RESULTS_DIR",
+                    "performance_report": f"Executed {benchmark_count} benchmarks successfully",
+                    "trend_analysis": "Baseline needed for trend analysis"
+                  }
+                else:
+                  return {
+                    "success": False,
+                    "suite": "$SUITE",
+                    "execution_time": execution_time,
+                    "benchmark_count": 0,
+                    "regression_detected": False,
+                    "regression_percentage": 0.0,
+                    "baseline_comparison": "Benchmark execution failed",
+                    "results_path": "$RESULTS_DIR",
+                    "performance_report": f"Benchmark failed: {result.stderr}",
+                    "trend_analysis": "Failed to execute benchmarks"
+                  }
+              except subprocess.TimeoutExpired:
+                return {
+                  "success": False,
+                  "suite": "$SUITE",
+                  "execution_time": int("$TIMEOUT"),
+                  "benchmark_count": 0,
+                  "regression_detected": False,
+                  "regression_percentage": 0.0,
+                  "baseline_comparison": "Benchmark timed out",
+                  "results_path": "$RESULTS_DIR",
+                  "performance_report": "Benchmark execution timed out",
+                  "trend_analysis": "Timeout prevented trend analysis"
+                }
+
+        # Initialize action
+        benchmark_action = PerformanceBenchmarkAction()
+
+        # Parse configuration
+        config_overrides = {}
+        if "$CONFIG_FILE" and Path("$CONFIG_FILE").exists():
+          import tomllib
+          with open("$CONFIG_FILE", "rb") as f:
+            config_overrides = tomllib.load(f).get("performance_benchmark", {})
+
+        # Execute benchmarks
+        result = benchmark_action.execute_benchmarks(
+          project_dir=Path("$PROJECT_DIR"),
+          suite="$SUITE",
+          baseline_branch="$BASELINE_BRANCH",
+          regression_threshold=float("$REGRESSION_THRESHOLD"),
+          timeout=int("$TIMEOUT"),
+          store_results="$STORE_RESULTS".lower() == "true",
+          results_dir=Path("$RESULTS_DIR"),
+          compare_baseline="$COMPARE_BASELINE".lower() == "true",
+          parallel="$PARALLEL".lower() == "true",
+          config_overrides=config_overrides
+        )
+
+        # Set outputs
+        print(f"success={str(result['success']).lower()}")
+        print(f"suite={result['suite']}")
+        print(f"execution-time={result['execution_time']:.2f}")
+        print(f"benchmark-count={result['benchmark_count']}")
+        print(f"regression-detected={str(result['regression_detected']).lower()}")
+        print(f"regression-percentage={result['regression_percentage']:.2f}")
+        print(f"baseline-comparison={result['baseline_comparison']}")
+        print(f"results-path={result['results_path']}")
+        print(f"performance-report={result['performance_report']}")
+        print(f"trend-analysis={result['trend_analysis']}")
+
+        # Generate GitHub outputs
+        with open("$GITHUB_OUTPUT", "a") as f:
+          f.write(f"success={str(result['success']).lower()}\n")
+          f.write(f"suite={result['suite']}\n")
+          f.write(f"execution-time={result['execution_time']:.2f}\n")
+          f.write(f"benchmark-count={result['benchmark_count']}\n")
+          f.write(f"regression-detected={str(result['regression_detected']).lower()}\n")
+          f.write(f"regression-percentage={result['regression_percentage']:.2f}\n")
+          f.write(f"baseline-comparison={result['baseline_comparison']}\n")
+          f.write(f"results-path={result['results_path']}\n")
+          f.write(f"performance-report={result['performance_report']}\n")
+          f.write(f"trend-analysis={result['trend_analysis']}\n")
+
+        # Exit with appropriate code
+        if result['success']:
+          if result['regression_detected'] and "$FAIL_ON_REGRESSION".lower() == "true":
+            print(f"❌ Performance regression detected: {result['regression_percentage']:.2f}%")
+            exit(1)
+          else:
+            print("✅ All benchmarks completed successfully!")
+            exit(0)
+        else:
+          print(f"❌ Benchmark execution failed: {result['performance_report']}")
+          exit(1)
+        EOF
+
+    - name: Upload Benchmark Results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: benchmark-results-${{ inputs.suite }}-${{ github.sha }}
+        path: ${{ inputs.results-dir }}
+        retention-days: 90
+
+    - name: Upload Baseline Results
+      uses: actions/upload-artifact@v3
+      if: always() && github.ref == format('refs/heads/{0}', inputs.baseline-branch)
+      with:
+        name: benchmark-baseline-${{ inputs.baseline-branch }}
+        path: ${{ inputs.results-dir }}
+        retention-days: 365
+
+    - name: Comment PR with Performance Results
+      uses: actions/github-script@v6
+      if: always() && github.event_name == 'pull_request'
+      with:
+        script: |
+          const fs = require('fs');
+          const suite = '${{ inputs.suite }}';
+          const success = '${{ steps.performance-benchmark.outputs.success }}' === 'true';
+          const executionTime = '${{ steps.performance-benchmark.outputs.execution-time }}';
+          const benchmarkCount = '${{ steps.performance-benchmark.outputs.benchmark-count }}';
+          const regressionDetected = '${{ steps.performance-benchmark.outputs.regression-detected }}' === 'true';
+          const regressionPercentage = '${{ steps.performance-benchmark.outputs.regression-percentage }}';
+          const baselineComparison = '${{ steps.performance-benchmark.outputs.baseline-comparison }}';
+          const performanceReport = '${{ steps.performance-benchmark.outputs.performance-report }}';
+          const trendAnalysis = '${{ steps.performance-benchmark.outputs.trend-analysis }}';
+
+          const statusIcon = success ? (regressionDetected ? '⚠️' : '✅') : '❌';
+          let statusText = success ? 'COMPLETED' : 'FAILED';
+          if (success && regressionDetected) statusText = 'REGRESSION DETECTED';
+
+          let comment = `## ${statusIcon} Performance Benchmarks ${statusText} - ${suite.toUpperCase()} Suite\n\n`;
+          comment += `**Execution Time:** ${executionTime}s\n`;
+          comment += `**Benchmarks Executed:** ${benchmarkCount}\n\n`;
+
+          if (regressionDetected) {
+            comment += `### ⚠️ Performance Regression Detected\n`;
+            comment += `**Regression:** ${regressionPercentage}% slower than baseline\n`;
+            comment += `**Threshold:** ${{ inputs.regression-threshold }}%\n\n`;
+          }
+
+          comment += `### 📊 Performance Analysis\n`;
+          comment += `**Baseline Comparison:** ${baselineComparison}\n`;
+          comment += `**Report:** ${performanceReport}\n`;
+          
+          if (trendAnalysis !== 'Baseline needed for trend analysis') {
+            comment += `**Trend Analysis:** ${trendAnalysis}\n`;
+          }
+
+          comment += `\n### 📈 Results Summary\n`;
+          if (success) {
+            if (regressionDetected) {
+              comment += `- ⚠️ ${benchmarkCount} benchmarks completed with performance regression\n`;
+              comment += `- 📉 Performance decreased by ${regressionPercentage}%\n`;
+              comment += `- 🔍 Review changes that may impact performance\n`;
+            } else {
+              comment += `- ✅ ${benchmarkCount} benchmarks completed successfully\n`;
+              comment += `- 📈 No performance regression detected\n`;
+              comment += `- 🚀 Performance within acceptable thresholds\n`;
+            }
+          } else {
+            comment += `- ❌ Benchmark execution failed\n`;
+            comment += `- 🔧 Check benchmark configuration and dependencies\n`;
+          }
+
+          comment += `\n---\n*Generated by Performance Benchmark Action v0.0.1*`;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });

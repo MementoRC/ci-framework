@@ -1,0 +1,7 @@
+11:36:33 [INFO] aider_mcp_server.atoms.utils.safety_system_manager: Pre-execution safety check completed in 0.09s
+11:36:33 [INFO] aider_mcp_server.atoms.utils.safety_system_manager: Safety checkpoint created: checkpoint-aider-safety-1752942993
+11:36:33 [INFO] aider_mcp_server.atoms.utils.safety_system_manager: No failures detected
+17:02:46 [INFO] aider_mcp_server.atoms.utils.safety_system_manager: Applying model-specific settings for 'gemini/gemini-2.0-flash-exp'
+17:02:46 [INFO] aider_mcp_server.atoms.utils.safety_system_manager: Pre-execution safety check completed in 0.09s
+17:02:46 [INFO] aider_mcp_server.atoms.utils.safety_system_manager: Safety checkpoint created: checkpoint-aider-safety-1753048966
+17:02:46 [INFO] aider_mcp_server.atoms.utils.safety_system_manager: No failures detected
