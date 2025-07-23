@@ -1,45 +1,164 @@
 ---
-name: Cleanup Dev Files on Main Branch Merge
+name: Cleanup Development Artifacts
 
 on:
-  pull_request:
-    types: [closed]
-    branches:
-      - main
-      - master
-      - development
+  schedule:
+    # Run daily at 2 AM UTC to ensure branches stay clean
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    # Allow manual trigger for immediate cleanup
+    inputs:
+      target_branch:
+        description: 'Branch to clean (main, master, development)'
+        required: false
+        default: 'development'
+        type: choice
+        options:
+          - main
+          - master
+          - development
 
 jobs:
   cleanup-dev-files:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        branch: [main, master, development]
+    
     steps:
       - name: Checkout target branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.ref }}
+          ref: ${{ matrix.branch }}
           token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
 
-      - name: Remove dev files
+      - name: Check if branch exists
+        id: branch-check
         run: |
-          echo "Cleaning up dev files from ${{ github.event.pull_request.base.ref }} branch..."
+          if git ls-remote --heads origin ${{ matrix.branch }} | grep -q ${{ matrix.branch }}; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Branch ${{ matrix.branch }} exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "⏭️ Branch ${{ matrix.branch }} does not exist, skipping"
+          fi
 
-          # Common dev files to remove
+      - name: Remove development artifacts
+        if: steps.branch-check.outputs.exists == 'true'
+        run: |
+          echo "🧹 Cleaning development artifacts from ${{ matrix.branch }} branch..."
+          
+          # Skip if manual trigger with different target
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ matrix.branch }}" != "${{ inputs.target_branch }}" ]]; then
+            echo "⏭️ Skipping ${{ matrix.branch }} (manual trigger for ${{ inputs.target_branch }})"
+            exit 0
+          fi
+
+          # COMPREHENSIVE Dev Files Cleanup - Safe to commit to feature branches, must be cleaned from production branches
           files_to_remove=(
+            # AI Development Tools & Context
             ".claude"
+            ".claude/"
+            "CLAUDE.md"
             ".mcp.json"
             ".taskmaster"
+            ".taskmaster/"
             ".cursor"
+            ".cursor/"
             ".aider*"
-            "*.dev"
-            "*.tmp"
-            ".DS_Store"
-            "Thumbs.db"
+            "ai_docs"
+            "ai_docs/"
+            
+            # Python Development Artifacts
+            "__pycache__"
+            "__pycache__/"
+            "*.pyc"
+            "*.pyo"
+            "*.pyd"
+            ".pytest_cache"
+            ".pytest_cache/"
+            "htmlcov"
+            "htmlcov/"
+            "coverage.xml"
+            "coverage.json"
+            ".coverage"
+            ".coverage.*"
+            "pytest-report.json"
+            ".mypy_cache"
+            ".mypy_cache/"
+            ".ruff_cache"
+            ".ruff_cache/"
+            
+            # Build & Distribution
+            "build/"
+            "dist/"
+            "*.egg-info"
+            "*.egg-info/"
+            ".tox/"
+            ".nox/"
+            
+            # Development Directories
+            "artifacts"
+            "artifacts/"
+            "logs"
+            "logs/"
             "dev-outputs"
+            "dev-outputs/"
             "tmp"
+            "tmp/"
+            "debug"
+            "debug/"
+            ".cache"
+            ".cache/"
+            
+            # Editor & IDE Files
             ".vscode/settings.json"
             ".idea"
+            ".idea/"
+            "*.code-workspace"
+            ".spyderproject"
+            ".spyproject"
+            ".ropeproject"
+            
+            # Temporary & OS Files
+            "*.dev"
+            "*.tmp"
+            "*.temp"
+            "*.swp"
+            "*.swo"
+            "*~"
+            ".DS_Store"
+            "Thumbs.db"
+            "Thumbs.db:encryptable"
+            "ehthumbs.db"
+            "ehthumbs_vista.db"
+            "Desktop.ini"
+            "$RECYCLE.BIN/"
+            "*.stackdump"
+            
+            # Security & Environment
+            ".env.local"
+            ".env.*.local"
+            "secrets.json"
+            ".secrets.baseline"
+            
+            # Performance & Profiling
+            "performance_data"
+            "performance_data/"
+            ".prof"
+            "*.prof"
+            
+            # Package Manager Artifacts
+            "node_modules/"
+            "package-lock.json"
+            "yarn.lock"
+            ".pixi/envs"
+            
+            # Backup Files
+            "*.bak"
+            "*.backup"
+            "*.orig"
           )
 
           removed_files=()
@@ -73,44 +192,54 @@ jobs:
           fi
 
       - name: Commit cleanup if files were removed
+        if: steps.branch-check.outputs.exists == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           # Check if there are any changes
           if [[ -n $(git status --porcelain) ]]; then
+            
+            # Get list of removed files for commit message
+            removed_files=$(git status --porcelain | awk '{print $2}' | head -10)
+            
             git add -A
-            git commit -m "chore: cleanup dev files after PR merge
+            git commit -m "chore: automated cleanup of development artifacts
 
-            Automatically removed development files that shouldn't be in the branch:
-            - .claude, .mcp.json, .taskmaster (AI dev tools)
-            - .cursor, .aider* (Editor configs)
-            - *.dev, *.tmp (Temporary files)
-            - .DS_Store, Thumbs.db (OS files)
-            - dev-outputs/, tmp/ (Development directories)
+🧹 Comprehensive cleanup of development files from ${{ matrix.branch }} branch:
 
-            PR: #${{ github.event.pull_request.number }}
-            Source: ${{ github.event.pull_request.head.ref }}"
+🤖 AI Development Tools:
+- CLAUDE.md, .claude/, .mcp.json, .taskmaster/, ai_docs/
+- .cursor/, .aider* (Editor AI configs)
 
-            git push origin ${{ github.event.pull_request.base.ref }}
-            echo "✅ Dev files cleanup committed to ${{ github.event.pull_request.base.ref }}"
+🐍 Python Development Artifacts:
+- __pycache__/, *.pyc, .pytest_cache/, htmlcov/, coverage.xml
+- .mypy_cache/, .ruff_cache/, build/, dist/, *.egg-info/
+
+📁 Development Directories:
+- artifacts/, logs/, performance_data/, tmp/, debug/
+
+🔧 Editor & IDE Files:
+- .vscode/settings.json, .idea/, *.code-workspace
+
+🗃️ Temporary & OS Files:
+- *.tmp, *.dev, .DS_Store, Thumbs.db, *~
+
+This automated cleanup maintains repository hygiene by removing development
+artifacts from production branches while preserving them in feature branches.
+
+Trigger: ${{ github.event_name }}
+Workflow: CI Framework Cleanup"
+
+            git push origin ${{ matrix.branch }}
+            echo "✅ Development artifacts cleanup committed to ${{ matrix.branch }}"
+            
+            # Output summary
+            echo "## Cleanup Summary for ${{ matrix.branch }}" >> $GITHUB_STEP_SUMMARY
+            echo "Removed development artifacts and committed cleanup." >> $GITHUB_STEP_SUMMARY
+            
           else
-            echo "✅ No dev files to cleanup"
+            echo "✅ No development artifacts found to cleanup in ${{ matrix.branch }}"
+            echo "## Cleanup Summary for ${{ matrix.branch }}" >> $GITHUB_STEP_SUMMARY
+            echo "Branch is already clean - no development artifacts found." >> $GITHUB_STEP_SUMMARY
           fi
-
-      - name: Add cleanup comment to PR
-        if: success()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: |
-                🧹 **Dev Files Cleanup Complete**
-
-                Development files have been automatically removed from the target branch after merge.
-
-                *This keeps your main branches clean while preserving dev files in feature branches.*
-            })
