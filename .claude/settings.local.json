@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
+      "Bash(TIMEOUT=30 scripts/local-ci/local-quality-gates.sh --dry-run --package . essential)",
       "Bash(chmod:*)",
+      "Bash(command -v:*)",
+      "Bash(curl:*)",
       "Bash(echo:*)",
       "Bash(find:*)",
       "Bash(gh:*)",
@@ -18,9 +21,12 @@
       "Bash(pixi task:*)",
       "Bash(python -m pytest test_python_ci_template.py::TestWorkflowStructure::test_workflow_file_exists -v)",
       "Bash(python:*)",
+      "Bash(scripts/local-ci/local-quality-gates.sh:*)",
+      "Bash(sed:*)",
       "Bash(task-master show:*)",
       "Bash(timeout 10s pixi run -e dev python -m mcp_server_cheap_llm --help)",
       "Bash(touch:*)",
+      "Bash(true)",
       "Bash(yamllint:*)",
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:modelcontextprotocol.io)",
@@ -97,13 +103,7 @@
       "mcp__uckn-knowledge__predict_issues",
       "mcp__uckn-knowledge__recommend_setup",
       "mcp__uckn-knowledge__search_patterns",
-      "mcp__uckn-knowledge__validate_solution",
-      "Bash(sed:*)",
-      "Bash(true)",
-      "Bash(curl:*)",
-      "Bash(scripts/local-ci/local-quality-gates.sh:*)",
-      "Bash(command -v:*)",
-      "Bash(TIMEOUT=30 scripts/local-ci/local-quality-gates.sh --dry-run --package . essential)"
+      "mcp__uckn-knowledge__validate_solution"
     ],
     "deny": [
       "Bash(/usr/bin/:*)"
