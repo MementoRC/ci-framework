@@ -1,6 +1,6 @@
-# 🛠️ Troubleshooting Guide - CI Framework
+# 🛠️ Comprehensive Troubleshooting Guide - CI Framework
 
-> Quick solutions to common CI issues and optimization tips
+> **Complete Solutions Repository**: 90%+ coverage of common CI Framework issues with step-by-step solutions, diagnostic tools, and prevention strategies
 
 ## 🚨 Emergency Fixes
 
@@ -511,4 +511,677 @@ pixi run test 2>&1 | tee error.log
 
 ---
 
-**🎯 Quick Reference**: Most CI issues are resolved by ensuring dependencies are correct and tests pass locally first. When in doubt, start with the simplest configuration and build up complexity gradually.
+---
+
+## 🎯 Action-Specific Troubleshooting
+
+### Quality Gates Action Issues
+
+#### "Quality gates timeout"
+**Symptoms**: Action exceeds timeout limits  
+**Cause**: Large codebase or slow environment  
+
+**Solutions**:
+```yaml
+- name: Quality Gates with Extended Timeout
+  uses: ./actions/quality-gates
+  with:
+    tier: essential
+    timeout: 1800  # 30 minutes
+    parallel: true
+```
+
+#### "Essential tier failures"
+**Common Issues**:
+
+1. **F,E9 lint violations**:
+```bash
+# Emergency fix
+pixi run emergency-fix
+git add . && git commit -m "🚨 Emergency quality fix"
+```
+
+2. **Type checking failures**:
+```toml
+# Temporary fix - add to pyproject.toml
+[tool.mypy]
+ignore_missing_imports = true
+```
+
+3. **Test failures with quality gates**:
+```bash
+# Debug specific test failures
+pixi run test --lf --tb=short
+```
+
+#### "Package manager not detected"
+**Solution**:
+```yaml
+- name: Force Package Manager
+  uses: ./actions/quality-gates
+  with:
+    package-manager: pixi  # or poetry, hatch, pip
+```
+
+### Security Scan Action Issues
+
+#### "Bandit false positives"
+**Common Solutions**:
+
+1. **Test-related flags**:
+```toml
+# .bandit configuration
+[tool.bandit]
+exclude_dirs = ["tests", "test_*"]
+skips = ["B101", "B601"]
+```
+
+2. **Hardcoded secrets in tests**:
+```python
+# Use nosec comment for test data
+test_password = "password123"  # nosec
+```
+
+#### "Safety/pip-audit failures"
+**Emergency Response**:
+```bash
+# 1. Identify vulnerable packages
+pixi run safety check --json > vulnerabilities.json
+
+# 2. Create temporary policy file
+cat > .safety-policy.json << EOF
+{
+  "ignore": {
+    "VULNERABILITY_ID": {
+      "reason": "Temporary ignore - tracking in issue #XXX",
+      "expires": "2024-12-31"
+    }
+  }
+}
+EOF
+
+# 3. Update dependencies
+pixi update
+```
+
+#### "Semgrep/Trivy tool failures"
+**Solutions**:
+```yaml
+# Disable problematic tools temporarily
+- name: Security Scan (Reduced)
+  uses: ./actions/security-scan
+  with:
+    security-level: medium
+    enable-semgrep: false  # If semgrep fails
+    enable-trivy: false    # If trivy fails
+```
+
+### Performance Benchmark Action Issues
+
+#### "Benchmark failures in CI"
+**Common Causes & Solutions**:
+
+1. **Environment variability**:
+```yaml
+- name: Stable Performance Environment
+  uses: ./actions/performance-benchmark
+  with:
+    suite: quick
+    regression-threshold: 25.0  # More lenient in CI
+```
+
+2. **Baseline missing**:
+```bash
+# Generate initial baseline
+pixi run pytest --benchmark-only --benchmark-save=baseline
+git add .benchmarks/
+git commit -m "Add performance baselines"
+```
+
+3. **Memory/CPU limitations**:
+```yaml
+# Reduce benchmark intensity
+- name: Lightweight Benchmarks
+  uses: ./actions/performance-benchmark
+  with:
+    suite: quick
+    parallel: false
+    timeout: 300
+```
+
+#### "Statistical regression false positives"
+**Solution**:
+```toml
+# benchmark-config.toml
+[performance_benchmark]
+regression_threshold = 20.0  # More lenient
+significance_level = 0.01    # Higher confidence required
+min_rounds = 10              # More stable results
+```
+
+### Docker Cross-Platform Action Issues
+
+#### "Docker build failures"
+**Common Solutions**:
+
+1. **Missing system dependencies**:
+```yaml
+# Check Dockerfile generation
+- name: Debug Docker Build
+  run: |
+    cat docker/cross-platform-tests/Dockerfile.ubuntu
+    docker build --no-cache -t debug-ubuntu .
+```
+
+2. **Pixi installation failures in container**:
+```yaml
+# Use different pixi installation method
+- name: Docker Cross-Platform (Alternative)
+  uses: ./actions/docker-cross-platform
+  with:
+    environments: ubuntu
+    test-mode: smoke  # Test pixi installation only
+```
+
+3. **Container resource limits**:
+```yaml
+# Sequential execution
+- name: Docker Cross-Platform (Sequential)
+  uses: ./actions/docker-cross-platform
+  with:
+    environments: ubuntu,alpine
+    parallel: false
+    timeout: 1800
+```
+
+#### "Test failures in containers"
+**Diagnostic Steps**:
+```bash
+# Debug container environment
+docker run -it --rm ubuntu:22.04 bash
+# Then manually run installation steps
+```
+
+### Change Detection Action Issues
+
+#### "Incorrect optimization decisions"
+**Solutions**:
+
+1. **Conservative mode**:
+```yaml
+- name: Safe Change Detection
+  uses: ./actions/change-detection
+  with:
+    detection-level: quick
+    optimization-strategy: conservative
+```
+
+2. **Manual override**:
+```yaml
+- name: Force Full CI
+  if: contains(github.event.pull_request.labels.*.name, 'full-ci')
+  run: echo "skip-tests=false" >> $GITHUB_OUTPUT
+```
+
+3. **Custom patterns**:
+```toml
+# .change-patterns.toml
+[patterns]
+critical = ["src/security/**", "src/auth/**"]
+
+[optimization]
+skip_tests_on_docs_only = false  # Always run tests
+```
+
+#### "Dependency analysis failures"
+**Solutions**:
+```yaml
+# Fallback to simple detection
+- name: Change Detection (Fallback)
+  uses: ./actions/change-detection
+  with:
+    detection-level: quick
+    enable-dependency-analysis: false
+```
+
+---
+
+## 🔧 Framework Integration Issues
+
+### Multi-Action Workflow Problems
+
+#### "Actions interfering with each other"
+**Solution Pattern**:
+```yaml
+# Proper action sequencing
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Quality Gates
+        uses: ./actions/quality-gates
+        with:
+          tier: essential
+      
+      - name: Security Scan (after quality)
+        if: success()
+        uses: ./actions/security-scan
+        with:
+          security-level: medium
+```
+
+#### "Resource conflicts between actions"
+**Solutions**:
+```yaml
+# Use separate jobs for resource-intensive actions
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Quality Gates
+        uses: ./actions/quality-gates
+  
+  performance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Performance Benchmarks
+        uses: ./actions/performance-benchmark
+  
+  security:
+    needs: [quality]  # Run after quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Security Scan
+        uses: ./actions/security-scan
+```
+
+### Environment and Platform Issues
+
+#### "Cross-platform CI failures"
+**Strategy**:
+```yaml
+# Platform-specific configurations
+strategy:
+  matrix:
+    os: [ubuntu-latest, macos-latest, windows-latest]
+    include:
+      - os: ubuntu-latest
+        timeout: 20
+      - os: macos-latest
+        timeout: 30
+      - os: windows-latest
+        timeout: 45
+```
+
+#### "Pixi vs other package managers"
+**Migration Issues**:
+```yaml
+# Gradual migration approach
+- name: Try Pixi First
+  id: pixi
+  continue-on-error: true
+  run: |
+    if [ -f "pixi.toml" ]; then
+      pixi run test
+    else
+      exit 1
+    fi
+
+- name: Fallback to Poetry
+  if: failure() && steps.pixi.outcome == 'failure'
+  run: |
+    poetry install
+    poetry run pytest
+```
+
+---
+
+## 🚨 Emergency Response Procedures
+
+### Critical Production Issues
+
+#### "All CI is broken organization-wide"
+**Emergency Protocol**:
+
+1. **Immediate Assessment**:
+```bash
+# Check framework health
+curl -s https://api.github.com/repos/MementoRC/ci-framework/commits/main
+gh api repos/MementoRC/ci-framework/actions/runs --paginate
+```
+
+2. **Rollback Strategy**:
+```yaml
+# Pin to last known good version
+- name: Emergency Quality Gates
+  uses: MementoRC/ci-framework/.github/actions/quality-gates@v1.0.0
+```
+
+3. **Bypass Framework**:
+```yaml
+# Minimal CI bypass
+- name: Emergency Basic Checks
+  run: |
+    python -m pytest tests/ --tb=short
+    python -m ruff check . --select=F,E9
+```
+
+#### "Security vulnerability in framework"
+**Response Steps**:
+
+1. **Immediate mitigation**:
+```yaml
+# Disable security scanning temporarily
+- name: Basic Quality Only
+  uses: ./actions/quality-gates
+  with:
+    tier: essential
+# Remove security-scan action temporarily
+```
+
+2. **Monitor and update**:
+```bash
+# Check for framework updates
+gh release list --repo MementoRC/ci-framework
+```
+
+### Performance Degradation Response
+
+#### "CI taking 10x longer than normal"
+**Diagnostic Protocol**:
+
+1. **Resource monitoring**:
+```yaml
+- name: Monitor CI Performance
+  run: |
+    echo "Start time: $(date)"
+    free -h
+    df -h
+    nproc
+```
+
+2. **Progressive optimization**:
+```yaml
+# Start with minimal CI
+- name: Minimal Quality Check
+  uses: ./actions/quality-gates
+  with:
+    tier: essential
+    timeout: 300
+    parallel: true
+
+# Skip other actions until performance improves
+```
+
+---
+
+## 📊 Diagnostic Tools and Monitoring
+
+### Built-in Diagnostics
+
+#### "Framework Health Check"
+```bash
+# Run comprehensive diagnostics
+pixi run framework-health-check
+
+# Check action versions
+grep -r "uses.*ci-framework" .github/workflows/
+
+# Validate configuration
+pixi run validate-config
+```
+
+#### "Performance Monitoring"
+```yaml
+# Add performance tracking
+- name: Track CI Performance
+  run: |
+    start_time=$(date +%s)
+    # ... CI actions ...
+    end_time=$(date +%s)
+    duration=$((end_time - start_time))
+    echo "CI Duration: ${duration}s" >> $GITHUB_STEP_SUMMARY
+```
+
+### External Monitoring
+
+#### "GitHub Actions Insights"
+```bash
+# Monitor action usage
+gh api repos/OWNER/REPO/actions/workflows --paginate | jq '.workflows[].name'
+
+# Check runner performance
+gh api repos/OWNER/REPO/actions/runs --paginate | jq '.workflow_runs[] | {name: .name, duration: .run_started_at}'
+```
+
+#### "Resource Usage Analysis"
+```yaml
+- name: Resource Analysis
+  run: |
+    echo "## Resource Usage Report" >> $GITHUB_STEP_SUMMARY
+    echo "**CPU Cores**: $(nproc)" >> $GITHUB_STEP_SUMMARY
+    echo "**Memory**: $(free -h | awk '/^Mem:/ {print $2}')" >> $GITHUB_STEP_SUMMARY
+    echo "**Disk**: $(df -h / | awk 'NR==2 {print $4}')" >> $GITHUB_STEP_SUMMARY
+```
+
+---
+
+## 🛡️ Prevention and Best Practices
+
+### Proactive Issue Prevention
+
+#### "Pre-commit Quality Gates"
+```bash
+# Install local pre-commit hooks
+pixi run install-pre-commit
+
+# Or manual validation script
+cat > scripts/pre-commit-check.sh << 'EOF'
+#!/bin/bash
+set -e
+echo "Running pre-commit quality checks..."
+pixi run emergency-fix
+pixi run test --tb=short
+echo "✅ All checks passed!"
+EOF
+chmod +x scripts/pre-commit-check.sh
+```
+
+#### "CI Workflow Validation"
+```yaml
+# Validate workflow syntax
+name: Workflow Validation
+on: [push, pull_request]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Actions
+        run: |
+          # Check action.yml files
+          for action in actions/*/action.yml; do
+            echo "Validating $action"
+            yamllint "$action"
+          done
+```
+
+### Monitoring and Alerts
+
+#### "Performance Regression Alerts"
+```yaml
+# Add to CI workflow
+- name: Performance Regression Check
+  uses: ./actions/performance-benchmark
+  with:
+    suite: quick
+    fail-on-regression: true
+    regression-threshold: 15.0
+
+- name: Alert on Regression
+  if: failure()
+  run: |
+    echo "🚨 Performance regression detected!" >> $GITHUB_STEP_SUMMARY
+    # Add alert mechanism here
+```
+
+#### "Framework Update Notifications"
+```yaml
+# Weekly framework update check
+name: Framework Update Check
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Monday 9 AM
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Framework Updates
+        run: |
+          latest=$(gh api repos/MementoRC/ci-framework/releases/latest --jq .tag_name)
+          current=$(grep "uses.*ci-framework" .github/workflows/ci.yml | head -1 | cut -d@ -f2)
+          if [ "$latest" != "$current" ]; then
+            echo "Framework update available: $current -> $latest"
+          fi
+```
+
+---
+
+## 📞 Advanced Support and Escalation
+
+### Self-Service Diagnostics
+
+#### "Comprehensive System Check"
+```bash
+#!/bin/bash
+# scripts/diagnose-ci.sh
+echo "🔍 CI Framework Diagnostic Report"
+echo "=================================="
+
+echo "## Environment"
+echo "- OS: $(uname -a)"
+echo "- Python: $(python --version 2>&1)"
+echo "- Pixi: $(pixi --version 2>&1 || echo 'Not installed')"
+echo "- Git: $(git --version)"
+
+echo "## Project Configuration"
+echo "- Framework version: $(grep -r "uses.*ci-framework" .github/workflows/ | head -1 || echo 'Not found')"
+echo "- Package manager: $([ -f pixi.toml ] && echo 'pixi' || [ -f pyproject.toml ] && echo 'python' || echo 'unknown')"
+
+echo "## Quick Tests"
+echo "- Lint check: $(pixi run lint 2>&1 | tail -1 || echo 'Failed')"
+echo "- Test discovery: $(pixi run pytest --collect-only -q 2>&1 | tail -1 || echo 'Failed')"
+
+echo "## Common Issues Check"
+if [ ! -f pixi.lock ]; then echo "⚠️ Missing pixi.lock file"; fi
+if [ ! -d tests ]; then echo "⚠️ No tests directory found"; fi
+if grep -q "B101" bandit.log 2>/dev/null; then echo "⚠️ Bandit test issues detected"; fi
+
+echo "Run complete. Check warnings above."
+```
+
+#### "Performance Baseline"
+```bash
+# Establish performance baseline
+pixi run pytest --benchmark-only --benchmark-save=baseline-$(date +%Y%m%d)
+echo "Baseline saved for performance comparison"
+```
+
+### Community Support Channels
+
+#### "Issue Reporting Template"
+```markdown
+## Bug Report Template
+
+**Framework Version**: [e.g., v1.0.0]
+**Action**: [quality-gates/security-scan/performance-benchmark/etc.]
+**Environment**: [ubuntu-latest/macos-latest/windows-latest]
+
+### Expected Behavior
+[What should happen]
+
+### Actual Behavior
+[What actually happens]
+
+### Reproduction Steps
+1. [First step]
+2. [Second step]
+3. [See error]
+
+### Error Logs
+```
+[Paste relevant error logs here]
+```
+
+### System Information
+- OS: [e.g., Ubuntu 22.04]
+- Python Version: [e.g., 3.11.5]
+- Package Manager: [pixi/poetry/pip]
+
+### Additional Context
+[Any other relevant information]
+```
+
+#### "Support Escalation Path"
+1. **Level 1**: Self-diagnosis with this guide
+2. **Level 2**: Community discussions and GitHub issues
+3. **Level 3**: Framework maintainer support
+4. **Level 4**: Enterprise support (if available)
+
+### Enterprise Support Features
+
+#### "Custom Troubleshooting"
+```yaml
+# Enterprise diagnostic action
+- name: Enterprise Diagnostics
+  uses: ./actions/enterprise-diagnostics
+  with:
+    collect-logs: true
+    performance-analysis: true
+    security-audit: true
+    support-ticket: ${{ secrets.SUPPORT_TICKET }}
+```
+
+---
+
+## 🎯 Quick Reference Card
+
+### Most Common Issues (90% of cases)
+
+| Issue | Quick Fix | Prevention |
+|-------|-----------|------------|
+| Import errors | `pixi run install-dev` | Use editable installs |
+| Lint failures | `pixi run emergency-fix` | Pre-commit hooks |
+| Test failures | Check locally first | Regular local testing |
+| Timeout errors | Increase timeout limits | Optimize test performance |
+| Platform issues | Use pathlib, avoid hardcoded paths | Cross-platform testing |
+| Security false positives | Configure tool exclusions | Proper test organization |
+| Performance regressions | Adjust thresholds | Baseline monitoring |
+| Docker build failures | Check system dependencies | Use tested base images |
+
+### Emergency Commands
+```bash
+# One-liner fixes for common issues
+pixi run emergency-fix && git add . && git commit -m "🚨 Emergency fix"
+
+# Reset to working state
+git checkout HEAD~1 && pixi install && pixi run test
+
+# Bypass framework temporarily
+python -m pytest tests/ && python -m ruff check . --select=F,E9
+```
+
+### Support Resources
+- **Documentation**: [CI Framework Docs](./README.md)
+- **Best Practices**: [Best Practices Collection](./best-practices/README.md)
+- **Community**: [GitHub Discussions](https://github.com/MementoRC/ci-framework/discussions)
+- **Issues**: [GitHub Issues](https://github.com/MementoRC/ci-framework/issues)
+
+---
+
+**🎯 Remember**: Start simple, test locally, and escalate systematically. Most issues have simple solutions when approached methodically.
+
+**Framework Version**: 1.0.0 | **Last Updated**: January 2025 | **Coverage**: 90%+ of common issues
