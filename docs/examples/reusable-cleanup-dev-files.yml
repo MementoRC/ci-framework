@@ -36,21 +36,110 @@ jobs:
         run: |
           echo "Cleaning up dev files from ${{ github.event.pull_request.base.ref }} branch..."
 
-          # Default dev files to remove
+          # COMPREHENSIVE Dev Files Cleanup - Safe to commit to feature branches, must be cleaned from production branches
           files_to_remove=(
+            # AI Development Tools & Context
             ".claude"
+            ".claude/"
+            "CLAUDE.md"
             ".mcp.json"
             ".taskmaster"
+            ".taskmaster/"
             ".cursor"
+            ".cursor/"
             ".aider*"
-            "*.dev"
-            "*.tmp"
-            ".DS_Store"
-            "Thumbs.db"
+            "ai_docs"
+            "ai_docs/"
+            
+            # Python Development Artifacts
+            "__pycache__"
+            "__pycache__/"
+            "*.pyc"
+            "*.pyo"
+            "*.pyd"
+            ".pytest_cache"
+            ".pytest_cache/"
+            "htmlcov"
+            "htmlcov/"
+            "coverage.xml"
+            "coverage.json"
+            ".coverage"
+            ".coverage.*"
+            "pytest-report.json"
+            ".mypy_cache"
+            ".mypy_cache/"
+            ".ruff_cache"
+            ".ruff_cache/"
+            
+            # Build & Distribution
+            "build/"
+            "dist/"
+            "*.egg-info"
+            "*.egg-info/"
+            ".tox/"
+            ".nox/"
+            
+            # Development Directories
+            "artifacts"
+            "artifacts/"
+            "logs"
+            "logs/"
             "dev-outputs"
+            "dev-outputs/"
             "tmp"
+            "tmp/"
+            "debug"
+            "debug/"
+            ".cache"
+            ".cache/"
+            
+            # Editor & IDE Files
             ".vscode/settings.json"
             ".idea"
+            ".idea/"
+            "*.code-workspace"
+            ".spyderproject"
+            ".spyproject"
+            ".ropeproject"
+            
+            # Temporary & OS Files
+            "*.dev"
+            "*.tmp"
+            "*.temp"
+            "*.swp"
+            "*.swo"
+            "*~"
+            ".DS_Store"
+            "Thumbs.db"
+            "Thumbs.db:encryptable"
+            "ehthumbs.db"
+            "ehthumbs_vista.db"
+            "Desktop.ini"
+            "$RECYCLE.BIN/"
+            "*.stackdump"
+            
+            # Security & Environment
+            ".env.local"
+            ".env.*.local"
+            "secrets.json"
+            ".secrets.baseline"
+            
+            # Performance & Profiling
+            "performance_data"
+            "performance_data/"
+            ".prof"
+            "*.prof"
+            
+            # Package Manager Artifacts
+            "node_modules/"
+            "package-lock.json"
+            "yarn.lock"
+            ".pixi/envs"
+            
+            # Backup Files
+            "*.bak"
+            "*.backup"
+            "*.orig"
           )
 
           # Add additional patterns if provided
@@ -99,15 +188,29 @@ jobs:
           # Check if there are any changes
           if [[ -n $(git status --porcelain) ]]; then
             git add -A
-            git commit -m "chore: cleanup dev files after PR merge
+            git commit -m "chore: comprehensive cleanup of development artifacts after PR merge
 
-            Automatically removed development files that shouldn't be in the branch:
-            - .claude, .mcp.json, .taskmaster (AI dev tools)
-            - .cursor, .aider* (Editor configs)
-            - *.dev, *.tmp (Temporary files)
-            - .DS_Store, Thumbs.db (OS files)
-            - dev-outputs/, tmp/ (Development directories)
-
+            Automatically removed development files that shouldn't be in production branches:
+            
+            🤖 AI Development Tools:
+            - CLAUDE.md, .claude/, .mcp.json, .taskmaster/, ai_docs/
+            - .cursor/, .aider* (Editor AI configs)
+            
+            🐍 Python Development Artifacts:
+            - __pycache__/, *.pyc, .pytest_cache/, htmlcov/, coverage.xml
+            - .mypy_cache/, .ruff_cache/, build/, dist/, *.egg-info/
+            
+            📁 Development Directories:
+            - artifacts/, logs/, performance_data/, tmp/, debug/
+            
+            🔧 Editor & IDE Files:
+            - .vscode/settings.json, .idea/, *.code-workspace
+            
+            🗃️ Temporary & OS Files:
+            - *.tmp, *.dev, .DS_Store, Thumbs.db, *~
+            
+            This keeps production branches clean while preserving dev context in feature branches.
+            
             PR: #${{ github.event.pull_request.number }}
             Source: ${{ github.event.pull_request.head.ref }}"
 
@@ -127,9 +230,17 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: |
-                🧹 **Dev Files Cleanup Complete**
+                🧹 **Comprehensive Development Artifacts Cleanup Complete**
 
-                Development files have been automatically removed from the `${{ github.event.pull_request.base.ref }}` branch after merge.
+                The following development files have been automatically removed from the `${{ github.event.pull_request.base.ref }}` branch after merge:
 
-                *This keeps your main branches clean while preserving dev files in feature branches.*
+                - 🤖 **AI Development Tools**: CLAUDE.md, .taskmaster/, ai_docs/, .claude/, .mcp.json
+                - 🐍 **Python Artifacts**: __pycache__/, coverage files, build artifacts, cache directories  
+                - 📁 **Development Directories**: artifacts/, logs/, performance_data/, tmp/
+                - 🔧 **Editor Configs**: .vscode/, .idea/, editor-specific files
+                - 🗃️ **Temporary Files**: *.tmp, *.dev, OS-specific files
+
+                **Philosophy**: Development files are valuable during feature work and preserved in feature branches, but automatically cleaned from production branches to maintain repository hygiene.
+
+                *This methodology allows relaxed development practices while ensuring clean production branches.*
             })

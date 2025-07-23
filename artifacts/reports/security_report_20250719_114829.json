@@ -1,9 +1,0 @@
-{
-  "report_type": "security",
-  "generated_at": "2025-07-19T11:48:29.025729",
-  "github_context": {},
-  "data": {
-    "bandit_results": null,
-    "pip_audit_results": null
-  }
-}
