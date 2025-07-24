@@ -1,0 +1,463 @@
+name: 'Docker Cross-Platform Testing Action'
+description: 'Test Python projects across multiple Docker environments while maintaining pixi compatibility'
+author: 'CI Framework'
+
+branding:
+  icon: 'box'
+  color: 'blue'
+
+inputs:
+  environments:
+    description: 'Docker environments to test (ubuntu, alpine, centos, debian) - comma separated'
+    required: false
+    default: 'ubuntu,alpine'
+
+  test-mode:
+    description: 'Testing mode (smoke, test, full)'
+    required: false
+    default: 'test'
+
+  pixi-environment:
+    description: 'Pixi environment to use for testing'
+    required: false
+    default: 'quality'
+
+  project-dir:
+    description: 'Project directory to test (default: current directory)'
+    required: false
+    default: '.'
+
+  timeout:
+    description: 'Timeout in seconds for each environment test'
+    required: false
+    default: '600'
+
+  parallel:
+    description: 'Run environment tests in parallel'
+    required: false
+    default: 'true'
+
+  build-args:
+    description: 'Additional Docker build arguments (KEY=VALUE format, newline separated)'
+    required: false
+    default: ''
+
+  test-command:
+    description: 'Custom test command to run in each environment'
+    required: false
+    default: 'pixi run -e $PIXI_ENV test'
+
+  python-version:
+    description: 'Python version to install in containers'
+    required: false
+    default: '3.12'
+
+  cache-key:
+    description: 'Custom cache key for Docker layer caching'
+    required: false
+    default: ''
+
+  reports-dir:
+    description: 'Directory to store test reports from each environment'
+    required: false
+    default: 'docker-reports'
+
+  fail-fast:
+    description: 'Stop testing on first environment failure'
+    required: false
+    default: 'false'
+
+  cleanup:
+    description: 'Clean up Docker images after testing'
+    required: false
+    default: 'true'
+
+  registry-url:
+    description: 'Docker registry URL for pushing/pulling base images'
+    required: false
+    default: ''
+
+  registry-username:
+    description: 'Docker registry username'
+    required: false
+    default: ''
+
+  registry-password:
+    description: 'Docker registry password'
+    required: false
+    default: ''
+
+outputs:
+  environments-tested:
+    description: 'Number of environments successfully tested'
+    value: ${{ steps.test-environments.outputs.environments-tested }}
+
+  test-results:
+    description: 'JSON object with test results for each environment'
+    value: ${{ steps.test-environments.outputs.test-results }}
+
+  total-duration:
+    description: 'Total duration of all environment tests in seconds'
+    value: ${{ steps.test-environments.outputs.total-duration }}
+
+  artifacts-path:
+    description: 'Path to generated test artifacts and reports'
+    value: ${{ steps.test-environments.outputs.artifacts-path }}
+
+  cache-hit:
+    description: 'Whether Docker layer cache was used'
+    value: ${{ steps.setup-cache.outputs.cache-hit }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate inputs
+      shell: bash
+      run: |
+        echo "🔍 Validating Docker cross-platform testing inputs..."
+        
+        # Validate environments
+        IFS=',' read -ra ENVS <<< "${{ inputs.environments }}"
+        for env in "${ENVS[@]}"; do
+          case $env in
+            ubuntu|alpine|centos|debian)
+              echo "✅ Environment '$env' is supported"
+              ;;
+            *)
+              echo "❌ Environment '$env' is not supported"
+              echo "Supported: ubuntu, alpine, centos, debian"
+              exit 1
+              ;;
+          esac
+        done
+        
+        # Validate test mode
+        case "${{ inputs.test-mode }}" in
+          smoke|test|full)
+            echo "✅ Test mode '${{ inputs.test-mode }}' is valid"
+            ;;
+          *)
+            echo "❌ Test mode '${{ inputs.test-mode }}' is invalid"
+            echo "Supported: smoke, test, full"
+            exit 1
+            ;;
+        esac
+        
+        echo "✅ Input validation complete"
+
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        platforms: linux/amd64,linux/arm64
+
+    - name: Login to Docker Registry
+      if: inputs.registry-url != ''
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.registry-url }}
+        username: ${{ inputs.registry-username }}
+        password: ${{ inputs.registry-password }}
+
+    - name: Setup Docker layer caching
+      id: setup-cache
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ inputs.cache-key || format('docker-cross-platform-{0}-{1}', runner.os, hashFiles('**/pyproject.toml', '**/pixi.lock')) }}
+        restore-keys: |
+          docker-cross-platform-${{ runner.os }}-
+
+    - name: Create Dockerfiles
+      shell: bash
+      run: |
+        echo "🐳 Creating Dockerfiles for cross-platform testing..."
+        
+        # Create docker directory if it doesn't exist
+        mkdir -p ${{ inputs.project-dir }}/docker/cross-platform-tests
+        
+        # Ubuntu Dockerfile
+        cat > ${{ inputs.project-dir }}/docker/cross-platform-tests/Dockerfile.ubuntu << 'EOF'
+        FROM ubuntu:22.04
+        
+        # Install system dependencies
+        RUN apt-get update && apt-get install -y \
+            curl \
+            build-essential \
+            git \
+            python${{ inputs.python-version }} \
+            python${{ inputs.python-version }}-pip \
+            python${{ inputs.python-version }}-venv \
+            && rm -rf /var/lib/apt/lists/*
+        
+        # Install pixi
+        RUN curl -fsSL https://pixi.sh/install.sh | bash
+        ENV PATH="/root/.pixi/bin:$PATH"
+        
+        # Set working directory
+        WORKDIR /workspace
+        
+        # Copy project files
+        COPY . .
+        
+        # Default command
+        CMD ["bash"]
+        EOF
+        
+        # Alpine Dockerfile
+        cat > ${{ inputs.project-dir }}/docker/cross-platform-tests/Dockerfile.alpine << 'EOF'
+        FROM alpine:3.18
+        
+        # Install system dependencies
+        RUN apk add --no-cache \
+            curl \
+            bash \
+            build-base \
+            git \
+            python3 \
+            python3-dev \
+            py3-pip
+        
+        # Install pixi
+        RUN curl -fsSL https://pixi.sh/install.sh | bash
+        ENV PATH="/root/.pixi/bin:$PATH"
+        
+        # Set working directory
+        WORKDIR /workspace
+        
+        # Copy project files
+        COPY . .
+        
+        # Default command
+        CMD ["bash"]
+        EOF
+        
+        # CentOS Dockerfile
+        cat > ${{ inputs.project-dir }}/docker/cross-platform-tests/Dockerfile.centos << 'EOF'
+        FROM quay.io/centos/centos:stream9
+        
+        # Install system dependencies
+        RUN dnf update -y && dnf install -y \
+            curl \
+            gcc \
+            gcc-c++ \
+            make \
+            git \
+            python3 \
+            python3-pip \
+            python3-devel \
+            && dnf clean all
+        
+        # Install pixi
+        RUN curl -fsSL https://pixi.sh/install.sh | bash
+        ENV PATH="/root/.pixi/bin:$PATH"
+        
+        # Set working directory
+        WORKDIR /workspace
+        
+        # Copy project files
+        COPY . .
+        
+        # Default command
+        CMD ["bash"]
+        EOF
+        
+        # Debian Dockerfile
+        cat > ${{ inputs.project-dir }}/docker/cross-platform-tests/Dockerfile.debian << 'EOF'
+        FROM debian:12-slim
+        
+        # Install system dependencies
+        RUN apt-get update && apt-get install -y \
+            curl \
+            build-essential \
+            git \
+            python${{ inputs.python-version }} \
+            python${{ inputs.python-version }}-pip \
+            python${{ inputs.python-version }}-venv \
+            && rm -rf /var/lib/apt/lists/*
+        
+        # Install pixi
+        RUN curl -fsSL https://pixi.sh/install.sh | bash
+        ENV PATH="/root/.pixi/bin:$PATH"
+        
+        # Set working directory
+        WORKDIR /workspace
+        
+        # Copy project files
+        COPY . .
+        
+        # Default command
+        CMD ["bash"]
+        EOF
+        
+        echo "✅ Dockerfiles created successfully"
+
+    - name: Test environments
+      id: test-environments
+      shell: bash
+      run: |
+        echo "🧪 Starting Docker cross-platform testing..."
+        
+        # Parse environments
+        IFS=',' read -ra ENVIRONMENTS <<< "${{ inputs.environments }}"
+        
+        # Initialize variables
+        TOTAL_DURATION=0
+        ENVIRONMENTS_TESTED=0
+        TEST_RESULTS="{}"
+        ARTIFACTS_PATH="${{ inputs.project-dir }}/${{ inputs.reports-dir }}"
+        
+        # Create reports directory
+        mkdir -p "$ARTIFACTS_PATH"
+        
+        # Function to test single environment
+        test_environment() {
+          local env=$1
+          local start_time=$(date +%s)
+          
+          echo "🐳 Testing environment: $env"
+          
+          # Build image with cache
+          docker buildx build \
+            --platform linux/amd64 \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            -f ${{ inputs.project-dir }}/docker/cross-platform-tests/Dockerfile.$env \
+            -t ci-framework-test-$env:latest \
+            ${{ inputs.project-dir }}
+          
+          # Prepare test command based on mode
+          case "${{ inputs.test-mode }}" in
+            smoke)
+              TEST_CMD="pixi install -e ${{ inputs.pixi-environment }} && pixi list && echo 'Smoke test passed'"
+              ;;
+            test)
+              TEST_CMD="${{ inputs.test-command }}"
+              TEST_CMD="${TEST_CMD//\$PIXI_ENV/${{ inputs.pixi-environment }}}"
+              ;;
+            full)
+              TEST_CMD="pixi install -e ${{ inputs.pixi-environment }} && pixi run -e ${{ inputs.pixi-environment }} test && pixi run -e ${{ inputs.pixi-environment }} lint"
+              ;;
+          esac
+          
+          # Run tests with timeout
+          echo "🚀 Running tests in $env environment..."
+          if timeout ${{ inputs.timeout }} docker run --rm \
+            -v ${{ inputs.project-dir }}:/workspace \
+            -w /workspace \
+            -e PIXI_ENV=${{ inputs.pixi-environment }} \
+            ci-framework-test-$env:latest \
+            bash -c "$TEST_CMD" > "$ARTIFACTS_PATH/test-$env.log" 2>&1; then
+            
+            local end_time=$(date +%s)
+            local duration=$((end_time - start_time))
+            
+            echo "✅ $env environment tests passed (${duration}s)"
+            
+            # Update results
+            TEST_RESULTS=$(echo "$TEST_RESULTS" | jq --arg env "$env" --arg status "passed" --arg duration "$duration" \
+              '. + {($env): {status: $status, duration: ($duration | tonumber)}}')
+            ENVIRONMENTS_TESTED=$((ENVIRONMENTS_TESTED + 1))
+            TOTAL_DURATION=$((TOTAL_DURATION + duration))
+            
+          else
+            local end_time=$(date +%s)
+            local duration=$((end_time - start_time))
+            
+            echo "❌ $env environment tests failed (${duration}s)"
+            
+            # Update results
+            TEST_RESULTS=$(echo "$TEST_RESULTS" | jq --arg env "$env" --arg status "failed" --arg duration "$duration" \
+              '. + {($env): {status: $status, duration: ($duration | tonumber)}}')
+            TOTAL_DURATION=$((TOTAL_DURATION + duration))
+            
+            # Copy failure logs
+            docker run --rm \
+              -v ${{ inputs.project-dir }}:/workspace \
+              -w /workspace \
+              ci-framework-test-$env:latest \
+              bash -c "cat /workspace/${{ inputs.reports-dir }}/test-$env.log || echo 'No detailed logs available'" \
+              > "$ARTIFACTS_PATH/failure-$env.log" 2>&1 || true
+            
+            if [[ "${{ inputs.fail-fast }}" == "true" ]]; then
+              echo "💥 Failing fast due to environment failure"
+              exit 1
+            fi
+          fi
+          
+          # Cleanup image if requested
+          if [[ "${{ inputs.cleanup }}" == "true" ]]; then
+            docker rmi ci-framework-test-$env:latest || true
+          fi
+        }
+        
+        # Test environments
+        if [[ "${{ inputs.parallel }}" == "true" ]] && [[ ${#ENVIRONMENTS[@]} -gt 1 ]]; then
+          echo "🔄 Running environments in parallel..."
+          
+          # Start background processes
+          pids=()
+          for env in "${ENVIRONMENTS[@]}"; do
+            test_environment "$env" &
+            pids+=($!)
+          done
+          
+          # Wait for all processes
+          failed=0
+          for pid in "${pids[@]}"; do
+            if ! wait "$pid"; then
+              failed=1
+            fi
+          done
+          
+          if [[ $failed -eq 1 ]] && [[ "${{ inputs.fail-fast }}" == "true" ]]; then
+            echo "💥 One or more parallel tests failed"
+            exit 1
+          fi
+          
+        else
+          echo "🔄 Running environments sequentially..."
+          for env in "${ENVIRONMENTS[@]}"; do
+            test_environment "$env"
+          done
+        fi
+        
+        # Move cache
+        rm -rf /tmp/.buildx-cache
+        mv /tmp/.buildx-cache-new /tmp/.buildx-cache || true
+        
+        # Output results
+        echo "environments-tested=$ENVIRONMENTS_TESTED" >> $GITHUB_OUTPUT
+        echo "test-results=$TEST_RESULTS" >> $GITHUB_OUTPUT
+        echo "total-duration=$TOTAL_DURATION" >> $GITHUB_OUTPUT
+        echo "artifacts-path=$ARTIFACTS_PATH" >> $GITHUB_OUTPUT
+        
+        echo "🎉 Docker cross-platform testing complete!"
+        echo "📊 Environments tested: $ENVIRONMENTS_TESTED"
+        echo "⏱️ Total duration: ${TOTAL_DURATION}s"
+        echo "$TEST_RESULTS" | jq -r 'to_entries[] | "   \(.key): \(.value.status) (\(.value.duration)s)"'
+
+    - name: Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: docker-cross-platform-reports
+        path: ${{ steps.test-environments.outputs.artifacts-path }}
+        retention-days: 7
+
+    - name: Generate summary
+      if: always()
+      shell: bash
+      run: |
+        echo "## 🐳 Docker Cross-Platform Testing Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Environments tested:** ${{ steps.test-environments.outputs.environments-tested }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Total duration:** ${{ steps.test-environments.outputs.total-duration }}s" >> $GITHUB_STEP_SUMMARY
+        echo "**Test mode:** ${{ inputs.test-mode }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Pixi environment:** ${{ inputs.pixi-environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Results by Environment" >> $GITHUB_STEP_SUMMARY
+        echo "${{ steps.test-environments.outputs.test-results }}" | jq -r '
+          to_entries[] | 
+          "- **\(.key)**: \(.value.status) (\(.value.duration)s)" +
+          (if .value.status == "failed" then " ❌" else " ✅" end)
+        ' >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,115 @@
+# Standard Pre-commit Configuration Template
+# Integrates with CI Framework tiered quality system
+
+repos:
+  # Code formatting and linting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.7.4  # Use the ref you want to point at
+    hooks:
+      # Linter with essential error checking (matches pixi run lint)
+      - id: ruff
+        name: ruff-lint-essential
+        args: [--select=F,E9, --fix]
+        exclude: "{{ exclude_patterns | default('^$') }}"
+      
+      # Full linting (matches pixi run lint-full)
+      - id: ruff
+        name: ruff-lint-full
+        args: [--fix]
+        exclude: "{{ exclude_patterns | default('^$') }}"
+        stages: [manual]  # Run manually for comprehensive checks
+      
+      # Code formatting (matches pixi run format)
+      - id: ruff-format
+        exclude: "{{ exclude_patterns | default('^$') }}"
+
+  # Type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-all]
+        exclude: "{{ exclude_patterns | default('^$') }}"
+        args: [--ignore-missing-imports, --no-strict-optional]
+
+  # Security scanning (Tier 2 quality)
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        args: [-r, --severity-level, high]
+        exclude: "{{ test_exclude_patterns | default('tests/|test_') }}"
+        stages: [manual]  # Run manually for security checks
+
+  # Secrets detection
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: [--baseline, .secrets.baseline]
+        exclude: "{{ secrets_exclude_patterns | default('pixi.lock|package-lock.json') }}"
+
+  # YAML/JSON formatting
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: "{{ whitespace_exclude_patterns | default('^$') }}"
+      - id: end-of-file-fixer
+        exclude: "{{ eof_exclude_patterns | default('^$') }}"
+      - id: check-yaml
+        exclude: "{{ yaml_exclude_patterns | default('^$') }}"
+      - id: check-json
+        exclude: "{{ json_exclude_patterns | default('^$') }}"
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-docstring-first
+        exclude: "{{ docstring_exclude_patterns | default('^$') }}"
+
+  # GitHub Actions linting (if applicable)
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.6.26
+    hooks:
+      - id: actionlint
+        files: '^\.github/workflows/.*\.ya?ml$'
+
+  # Additional security and dependency checks (Tier 3)
+  - repo: local
+    hooks:
+      # Safety check for known vulnerabilities
+      - id: safety-check
+        name: safety-dependency-check
+        entry: safety
+        args: [check, --json]
+        language: system
+        files: '(requirements.*\.txt|pyproject\.toml)$'
+        stages: [manual]
+      
+      # Dependency audit
+      - id: pip-audit
+        name: pip-audit-check
+        entry: pip-audit
+        args: [--desc]
+        language: system
+        files: '(requirements.*\.txt|pyproject\.toml)$'
+        stages: [manual]
+
+# Pre-commit configuration
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
+# Integration with CI Framework
+ci:
+  autofix_commit_msg: |
+    🤖 [pre-commit.ci] Auto-fix from pre-commit hooks
+
+    CI Framework Quality Gates Integration
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: |
+    🤖 [pre-commit.ci] Pre-commit dependency update
+
+    Updated hooks to latest versions
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false

@@ -1,0 +1,103 @@
+# Dependabot Configuration Template
+# Automated dependency updates integrated with CI Framework
+
+version: 2
+updates:
+  # Python dependencies (pyproject.toml, requirements.txt)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "{{ python_update_interval | default('weekly') }}"
+      day: "{{ python_update_day | default('monday') }}"
+      time: "{{ python_update_time | default('09:00') }}"
+      timezone: "{{ timezone | default('UTC') }}"
+    open-pull-requests-limit: {{ python_pr_limit | default(5) }}
+    reviewers:
+      - "{{ default_reviewer | default('team-maintainers') }}"
+    assignees:
+      - "{{ default_assignee | default('team-maintainers') }}"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+      - "{{ priority_label | default('priority-low') }}"
+    # Security updates get higher priority
+    target-branch: "{{ target_branch | default('main') }}"
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    ignore:
+      # Ignore major version updates for stable dependencies
+      - dependency-name: "pytest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "ruff"
+        update-types: ["version-update:semver-major"]
+      # Add project-specific ignore patterns here
+      {{ ignore_patterns | default('') }}
+
+  # GitHub Actions dependencies  
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "{{ actions_update_interval | default('weekly') }}"
+      day: "{{ actions_update_day | default('tuesday') }}"
+      time: "{{ actions_update_time | default('09:00') }}"
+      timezone: "{{ timezone | default('UTC') }}"
+    open-pull-requests-limit: {{ actions_pr_limit | default(3) }}
+    reviewers:
+      - "{{ default_reviewer | default('team-maintainers') }}"
+    assignees:
+      - "{{ default_assignee | default('team-maintainers') }}"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "{{ priority_label | default('priority-low') }}"
+
+  # Docker dependencies (if applicable)
+  {% if has_docker %}
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "{{ docker_update_interval | default('weekly') }}"
+      day: "{{ docker_update_day | default('wednesday') }}"
+      time: "{{ docker_update_time | default('09:00') }}"
+      timezone: "{{ timezone | default('UTC') }}"
+    open-pull-requests-limit: {{ docker_pr_limit | default(3) }}
+    reviewers:
+      - "{{ default_reviewer | default('team-maintainers') }}"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "{{ priority_label | default('priority-medium') }}"
+  {% endif %}
+
+  # Node.js dependencies (if applicable)
+  {% if has_nodejs %}
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "{{ nodejs_update_interval | default('weekly') }}"
+      day: "{{ nodejs_update_day | default('thursday') }}"
+      time: "{{ nodejs_update_time | default('09:00') }}"
+      timezone: "{{ timezone | default('UTC') }}"
+    open-pull-requests-limit: {{ nodejs_pr_limit | default(5) }}
+    reviewers:
+      - "{{ default_reviewer | default('team-maintainers') }}"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "nodejs"
+      - "{{ priority_label | default('priority-low') }}"
+  {% endif %}

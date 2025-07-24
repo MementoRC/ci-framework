@@ -1,0 +1,89 @@
+# Standard CI Template - CI Framework
+# Recommended configuration for most Python projects
+# Features the innovative Docker Cross-Platform Testing
+
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # Essential Quality Validation
+  quality-gates:
+    name: 🛡️ Quality Gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Essential Quality Validation
+        uses: ./actions/quality-gates
+        with:
+          tier: 'essential'
+          fail-fast: 'true'
+
+  # Security Analysis
+  security:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Security Analysis
+        uses: ./actions/security-scan
+        with:
+          security-level: 'standard'
+          enable-sarif: 'true'
+
+  # Revolutionary Docker Cross-Platform Testing
+  docker-cross-platform:
+    name: 🐳 Cross-Platform Testing
+    runs-on: ubuntu-latest
+    needs: [quality-gates, security]
+    strategy:
+      matrix:
+        include:
+          # Fast feedback for PRs
+          - if: github.event_name == 'pull_request'
+            environments: 'ubuntu'
+            test-mode: 'smoke'
+          # Comprehensive testing for main branch
+          - if: github.ref == 'refs/heads/main'
+            environments: 'ubuntu,alpine'
+            test-mode: 'test'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test Deployment Scenarios
+        if: matrix.if
+        uses: ./actions/docker-cross-platform
+        with:
+          environments: ${{ matrix.environments }}
+          test-mode: ${{ matrix.test-mode }}
+          pixi-environment: 'quality'
+          parallel: 'true'
+
+  # Extended validation for main branch
+  extended-quality:
+    name: 🧪 Extended Quality
+    runs-on: ubuntu-latest
+    needs: [docker-cross-platform]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extended Quality Validation
+        uses: ./actions/quality-gates
+        with:
+          tier: 'extended'
+
+# Workflow configuration
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write

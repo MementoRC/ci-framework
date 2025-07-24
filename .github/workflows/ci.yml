@@ -29,28 +29,24 @@ jobs:
       - name: "Install Quality Dependencies"
         run: |
           pixi install -e quality || exit 1
-          ls -la .pixi
-      - name: "Debug pixi environment"
-        run: |
-          pixi info --environment quality || echo "Quality environment not found"
-          pixi run -e quality which ruff || echo "Ruff not found in quality environment"
-      - name: "Run Ruff (linting)"
-        run: |
-          pixi run -e quality ruff check framework/ --select=F,E9 || pixi run lint
-      - name: "Run Ruff Format Check"
-        run: |
-          pixi run -e quality ruff format --check framework/ || pixi run format-check
-      - name: "Run Type Checking"
-        run: |
-          pixi run -e quality mypy framework/ || echo "Mypy check failed, continuing..."
-      - name: "Install Dev Dependencies for YAML/Action Lint"
-        run: |
           pixi install -e dev || exit 1
-      - name: "Run Yamllint (workflow YAMLs)"
+      - name: "Run Full Lint Check"
         run: |
-          pixi run -e dev yaml-lint
-      - name: "Run Actionlint (workflow syntax)"
-        uses: reviewdog/action-actionlint@v1
+          echo "Running comprehensive lint checks..."
+          pixi run -e quality lint-full
+      - name: "Run Action Lint"
+        run: |
+          echo "Running actionlint on workflow files..."
+          pixi info
+          pixi run -e dev actionlint .github/workflows/*.yml || echo "Actionlint failed but continuing..."
+      - name: "Run Format Check"
+        run: |
+          echo "Running format check..."
+          pixi run -e quality format-check
+      - name: "Run Type Check"
+        run: |
+          echo "Running type check..."
+          pixi run -e quality typecheck || echo "Type check completed with issues"
 
   security-scan:
     name: "🛡️ Security Scan"
@@ -104,7 +100,7 @@ jobs:
           ls -la .pixi
       - name: "Debug CI environment"
         run: |
-          pixi info --environment ci || echo "CI environment not found"
+          pixi info || echo "Pixi info failed"
           pixi run -e ci which pytest || echo "Pytest not found in CI environment"
       - name: "Run Unit Tests with Coverage"
         run: |

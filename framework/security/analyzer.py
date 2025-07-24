@@ -6,13 +6,13 @@ import json
 import subprocess  # Used securely via _run_secure_subprocess wrapper
 import time
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 
 from .models import DependencyInfo, VulnerabilityInfo
 
 
 def _run_secure_subprocess(
-    command: List[str], cwd: Path | str, timeout: int = 60
+    command: list[str], cwd: Path | str, timeout: int = 60
 ) -> subprocess.CompletedProcess:
     """
     Securely run subprocess with proper validation and constraints.

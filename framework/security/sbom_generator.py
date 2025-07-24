@@ -4,9 +4,9 @@ import json
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 from .analyzer import DependencyAnalyzer
 from .models import DependencyInfo
@@ -506,7 +506,7 @@ class SBOMGenerator:
                 "severity_breakdown": {"low": 0, "medium": 0, "high": 0, "critical": 0},
             },
             "vulnerable_packages": [],
-            "recommendations": [],
+            "recommendations": list[str](),
         }
 
         # Process vulnerable dependencies
@@ -583,7 +583,7 @@ class SBOMGenerator:
             "frameworks": compliance_frameworks,
             "compliance_status": {},
             "findings": [],
-            "recommendations": [],
+            "recommendations": list[str](),
         }
 
         # Analyze compliance for each framework
@@ -617,13 +617,13 @@ class SBOMGenerator:
 
         # Add recommendations
         if vulnerable_count > 0:
-            report["recommendations"].append(
+            cast(list[str], report["recommendations"]).append(
                 "Address all known vulnerabilities in dependencies"
-            )  # type: ignore[attr-defined]
+            )
         if unlicensed_count > 0:
-            report["recommendations"].append(
+            cast(list[str], report["recommendations"]).append(
                 "Document license information for all dependencies"
-            )  # type: ignore[attr-defined]
+            )
 
         # Save report if path provided
         if output_path:
