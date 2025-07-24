@@ -84,7 +84,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        branch: ${{ fromJson(inputs.target_branches || '["main", "master", "development"]') }}
+        # Use inputs for workflow_call, default for direct triggers
+        branch: ${{ github.event_name == 'workflow_call' && fromJson(inputs.target_branches) || fromJson('["main", "master", "development"]') }}
     
     steps:
       - name: Checkout target branch
@@ -117,8 +118,12 @@ jobs:
           fi
 
           # COMPREHENSIVE Dev Files Cleanup - Safe to commit to feature branches, must be cleaned from production branches
-          # Use configurable cleanup patterns from workflow inputs
-          cleanup_patterns='${{ inputs.cleanup_patterns || '["CLAUDE.md", ".claude/**", ".taskmaster/**", ".mcp.json", "ai_docs/**", ".cursor/**", ".aider*", "**/__pycache__/**", "**/*.pyc", ".pytest_cache/**", "htmlcov/**", "coverage.xml", ".mypy_cache/**", ".ruff_cache/**", "build/**", "dist/**", "**/*.egg-info/**", "artifacts/**", "logs/**", "performance_data/**", "tmp/**", "debug/**", ".vscode/settings.json", ".idea/**", "*.code-workspace", "*.tmp", "*.dev", ".DS_Store", "Thumbs.db"]' }}'
+          # Use configurable cleanup patterns from workflow inputs or defaults
+          if [[ "${{ github.event_name }}" == "workflow_call" ]]; then
+            cleanup_patterns='${{ inputs.cleanup_patterns }}'
+          else
+            cleanup_patterns='["CLAUDE.md", ".claude/**", ".taskmaster/**", ".mcp.json", "ai_docs/**", ".cursor/**", ".aider*", "**/__pycache__/**", "**/*.pyc", ".pytest_cache/**", "htmlcov/**", "coverage.xml", ".mypy_cache/**", ".ruff_cache/**", "build/**", "dist/**", "**/*.egg-info/**", "artifacts/**", "logs/**", "performance_data/**", "tmp/**", "debug/**", ".vscode/settings.json", ".idea/**", "*.code-workspace", "*.tmp", "*.dev", ".DS_Store", "Thumbs.db"]'
+          fi
           
           # Convert JSON array to bash array
           readarray -t files_to_remove < <(echo "$cleanup_patterns" | jq -r '.[]')
@@ -175,7 +180,7 @@ jobs:
               preserving them in feature branches.
 
               Trigger: ${{ github.event_name }}
-              Workflow: ${{ inputs.workflow_name || 'Development Artifacts Cleanup' }}
+              Workflow: ${{ github.event_name == 'workflow_call' && inputs.workflow_name || 'CI Framework Cleanup' }}
               
               Files removed: ${removed_files}"
 
