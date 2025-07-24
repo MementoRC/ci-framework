@@ -1,5 +1,6 @@
 ---
 name: Cleanup Development Artifacts
+# Reliable production-ready cleanup workflow
 
 on:
   schedule:
