@@ -207,23 +207,23 @@ jobs:
             git add -A
             git commit -m "chore: automated cleanup of development artifacts
 
-🧹 Comprehensive cleanup of development files from ${{ matrix.branch }} branch:
+Comprehensive cleanup of development files from ${{ matrix.branch }} branch:
 
-🤖 AI Development Tools:
+AI Development Tools:
 - CLAUDE.md, .claude/, .mcp.json, .taskmaster/, ai_docs/
 - .cursor/, .aider* (Editor AI configs)
 
-🐍 Python Development Artifacts:
+Python Development Artifacts:
 - __pycache__/, *.pyc, .pytest_cache/, htmlcov/, coverage.xml
 - .mypy_cache/, .ruff_cache/, build/, dist/, *.egg-info/
 
-📁 Development Directories:
+Development Directories:
 - artifacts/, logs/, performance_data/, tmp/, debug/
 
-🔧 Editor & IDE Files:
+Editor and IDE Files:
 - .vscode/settings.json, .idea/, *.code-workspace
 
-🗃️ Temporary & OS Files:
+Temporary and OS Files:
 - *.tmp, *.dev, .DS_Store, Thumbs.db, *~
 
 This automated cleanup maintains repository hygiene by removing development
