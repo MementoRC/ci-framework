@@ -33,36 +33,8 @@ on:
       - main
       - master  
       - development
-    paths:
-      - 'CLAUDE.md'
-      - '.claude/**'
-      - '.taskmaster/**'
-      - '.mcp.json'
-      - 'ai_docs/**'
-      - '.cursor/**'
-      - '.aider*'
-      - '**/__pycache__/**'
-      - '**/*.pyc'
-      - '.pytest_cache/**'
-      - 'htmlcov/**'
-      - 'coverage.xml'
-      - '.mypy_cache/**'
-      - '.ruff_cache/**'
-      - 'build/**'
-      - 'dist/**'
-      - '**/*.egg-info/**'
-      - 'artifacts/**'
-      - 'logs/**'
-      - 'performance_data/**'
-      - 'tmp/**'
-      - 'debug/**'
-      - '.vscode/settings.json'
-      - '.idea/**'
-      - '*.code-workspace'
-      - '*.tmp'
-      - '*.dev'
-      - '.DS_Store'
-      - 'Thumbs.db'
+    # No path filters - cleanup runs on ANY push to protected branches
+    # This ensures cleanup happens even when development files arrive via merge
   schedule:
     # Run daily at 2 AM UTC to ensure branches stay clean
     - cron: '0 2 * * *'
