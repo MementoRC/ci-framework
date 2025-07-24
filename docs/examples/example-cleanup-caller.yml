@@ -1,0 +1,97 @@
+---
+name: Repository Cleanup
+
+# Example workflow for other repositories to use the reusable cleanup workflow
+# Place this file in your repository at: .github/workflows/cleanup.yml
+
+on:
+  # Trigger cleanup when development files are pushed to protected branches
+  push:
+    branches:
+      - main
+      - master
+      - development
+    paths:
+      - 'CLAUDE.md'
+      - '.claude/**'
+      - '.taskmaster/**'
+      - '.mcp.json'
+      - '**/__pycache__/**'
+      - '**/*.pyc'
+      - '.pytest_cache/**'
+      - 'build/**'
+      - 'dist/**'
+      - '*.tmp'
+      - '*.dev'
+      - '.DS_Store'
+  
+  # Optional: Schedule automatic cleanup
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+  
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: 'Branch to clean'
+        required: false
+        default: 'main'
+        type: choice
+        options:
+          - main
+          - master
+          - development
+
+jobs:
+  cleanup:
+    uses: MementoRC/ci-framework/.github/workflows/cleanup-dev-files.yml@main
+    with:
+      # Customize which branches to clean (JSON array)
+      target_branches: '["main", "master", "development"]'
+      
+      # Customize which file patterns to clean (JSON array)
+      cleanup_patterns: >
+        [
+          "CLAUDE.md",
+          ".claude/**",
+          ".taskmaster/**", 
+          ".mcp.json",
+          "ai_docs/**",
+          ".cursor/**",
+          ".aider*",
+          "**/__pycache__/**",
+          "**/*.pyc",
+          ".pytest_cache/**",
+          "htmlcov/**",
+          "coverage.xml",
+          ".mypy_cache/**",
+          ".ruff_cache/**",
+          "build/**",
+          "dist/**",
+          "**/*.egg-info/**",
+          "artifacts/**",
+          "logs/**",
+          "performance_data/**",
+          "tmp/**",
+          "debug/**",
+          ".vscode/settings.json",
+          ".idea/**",
+          "*.code-workspace",
+          "*.tmp",
+          "*.dev",
+          ".DS_Store",
+          "Thumbs.db"
+        ]
+      
+      # Customize workflow name for commit messages
+      workflow_name: 'My Project Cleanup'
+      
+      # Optional: customize schedule (empty string to disable)
+      schedule_cron: '0 2 * * *'
+
+# Alternative minimal configuration:
+# jobs:
+#   cleanup:
+#     uses: MementoRC/ci-framework/.github/workflows/cleanup-dev-files.yml@main
+#     # Uses all default settings - cleans main/master/development branches
+#     # with comprehensive development artifact patterns
