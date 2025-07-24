@@ -61,11 +61,7 @@ jobs:
     strategy:
       matrix:
         # Use inputs for workflow_call, current branch for push, all branches for schedule/dispatch
-        branch: ${{ 
-          github.event_name == 'workflow_call' && fromJson(inputs.target_branches) || 
-          github.event_name == 'push' && fromJson(format('["{0}"]', github.ref_name)) ||
-          fromJson('["main", "master", "development"]') 
-        }}
+        branch: ${{ github.event_name == 'workflow_call' && fromJson(inputs.target_branches) || github.event_name == 'push' && fromJson(format('["{0}"]', github.ref_name)) || fromJson('["main", "master", "development"]') }}
     
     steps:
       - name: Checkout target branch
