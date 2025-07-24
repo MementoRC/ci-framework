@@ -205,7 +205,7 @@ jobs:
             removed_files=$(git status --porcelain | awk '{print $2}' | head -10)
             
             git add -A
-            git commit -m "chore: automated cleanup of development artifacts
+            git commit -m 'chore: automated cleanup of development artifacts
 
 Comprehensive cleanup of development files from ${{ matrix.branch }} branch:
 
@@ -230,7 +230,7 @@ This automated cleanup maintains repository hygiene by removing development
 artifacts from production branches while preserving them in feature branches.
 
 Trigger: ${{ github.event_name }}
-Workflow: CI Framework Cleanup"
+Workflow: CI Framework Cleanup'
 
             git push origin ${{ matrix.branch }}
             echo "✅ Development artifacts cleanup committed to ${{ matrix.branch }}"
