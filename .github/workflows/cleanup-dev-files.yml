@@ -59,7 +59,8 @@ on:
 
 permissions:
   contents: write  # Allow pushing commits
-  pull-requests: read  # Allow reading PR info if needed
+  pull-requests: write  # Allow creating PRs
+  issues: write  # Allow creating issues (required for PR creation)
 
 jobs:
   cleanup-dev-files:
@@ -206,7 +207,9 @@ jobs:
             branch="${{ matrix.branch }}"
             if [[ "$branch" == "development" || "$branch" == "main" || "$branch" == "master" ]]; then
               pr_title="chore: Automated cleanup of development artifacts from $branch"
-              gh pr create \
+
+              # Try to create PR, with fallback if it fails
+              if gh pr create \
                 --title "$pr_title" \
                 --body "🤖 **Automated cleanup by GitHub Actions**
 
@@ -225,11 +228,14 @@ jobs:
 
               ✅ **Auto-merge recommended** - This cleanup maintains branch protection compliance." \
                 --base "$branch" \
-                --head "$cleanup_branch"
-
-              echo "✅ Created PR for cleanup of ${{ matrix.branch }} branch"
+                --head "$cleanup_branch"; then
+                echo "✅ Created PR for cleanup of $branch branch"
+              else
+                echo "⚠️ Failed to create PR automatically. Cleanup branch created: $cleanup_branch"
+                echo "📋 Manual PR needed: https://github.com/${{ github.repository }}/compare/$branch...$cleanup_branch"
+              fi
             else
-              echo "✅ Development artifacts cleanup committed to ${{ matrix.branch }}"
+              echo "✅ Development artifacts cleanup committed to $branch"
             fi
 
             # Output summary
