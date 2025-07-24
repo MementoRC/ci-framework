@@ -56,8 +56,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Use inputs for workflow_call, default for direct triggers
-        branch: ${{ github.event_name == 'workflow_call' && fromJson(inputs.target_branches) || fromJson('["main", "master", "development"]') }}
+        # Use inputs for workflow_call, current branch for push, all branches for schedule/dispatch
+        branch: ${{ 
+          github.event_name == 'workflow_call' && fromJson(inputs.target_branches) || 
+          github.event_name == 'push' && fromJson(format('["{0}"]', github.ref_name)) ||
+          fromJson('["main", "master", "development"]') 
+        }}
     
     steps:
       - name: Checkout target branch
@@ -82,10 +86,11 @@ jobs:
         if: steps.branch-check.outputs.exists == 'true'
         run: |
           echo "🧹 Cleaning development artifacts from ${{ matrix.branch }} branch..."
+          echo "Event: ${{ github.event_name }}, Branch: ${{ matrix.branch }}"
           
           # Skip if manual trigger with different target
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ matrix.branch }}" != "${{ inputs.target_branch }}" ]]; then
-            echo "⏭️ Skipping ${{ matrix.branch }} (manual trigger for ${{ inputs.target_branch }})"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ matrix.branch }}" != "${{ github.event.inputs.target_branch || 'development' }}" ]]; then
+            echo "⏭️ Skipping ${{ matrix.branch }} (manual trigger for ${{ github.event.inputs.target_branch || 'development' }})"
             exit 0
           fi
 
