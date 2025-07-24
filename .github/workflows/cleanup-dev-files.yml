@@ -3,11 +3,35 @@ name: Cleanup Development Artifacts
 # Reliable production-ready cleanup workflow
 
 on:
-  # Trigger on push to protected branches
+  # Reusable workflow for other repositories
+  workflow_call:
+    inputs:
+      target_branches:
+        description: 'JSON array of branch names to clean (e.g., ["main", "master", "development"])'
+        required: false
+        type: string
+        default: '["main", "master", "development"]'
+      cleanup_patterns:
+        description: 'JSON array of file patterns to clean'
+        required: false
+        type: string
+        default: '["CLAUDE.md", ".claude/**", ".taskmaster/**", ".mcp.json", "ai_docs/**", ".cursor/**", ".aider*", "**/__pycache__/**", "**/*.pyc", ".pytest_cache/**", "htmlcov/**", "coverage.xml", ".mypy_cache/**", ".ruff_cache/**", "build/**", "dist/**", "**/*.egg-info/**", "artifacts/**", "logs/**", "performance_data/**", "tmp/**", "debug/**", ".vscode/settings.json", ".idea/**", "*.code-workspace", "*.tmp", "*.dev", ".DS_Store", "Thumbs.db"]'
+      workflow_name:
+        description: 'Name of the calling workflow (for commit messages)'
+        required: false
+        type: string
+        default: 'Development Artifacts Cleanup'
+      schedule_cron:
+        description: 'Cron schedule for automatic cleanup (empty to disable)'
+        required: false
+        type: string
+        default: '0 2 * * *'
+      
+  # Direct usage triggers for this repository
   push:
     branches:
       - main
-      - master
+      - master  
       - development
     paths:
       - 'CLAUDE.md'
@@ -46,7 +70,7 @@ on:
     # Allow manual trigger for immediate cleanup
     inputs:
       target_branch:
-        description: 'Branch to clean (main, master, development)'
+        description: 'Branch to clean'
         required: false
         default: 'development'
         type: choice
@@ -60,7 +84,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        branch: [main, master, development]
+        # Use inputs for workflow_call, default for direct triggers
+        branch: ${{ github.event_name == 'workflow_call' && fromJson(inputs.target_branches) || fromJson('["main", "master", "development"]') }}
     
     steps:
       - name: Checkout target branch
@@ -93,110 +118,15 @@ jobs:
           fi
 
           # COMPREHENSIVE Dev Files Cleanup - Safe to commit to feature branches, must be cleaned from production branches
-          files_to_remove=(
-            # AI Development Tools & Context
-            ".claude"
-            ".claude/"
-            "CLAUDE.md"
-            ".mcp.json"
-            ".taskmaster"
-            ".taskmaster/"
-            ".cursor"
-            ".cursor/"
-            ".aider*"
-            "ai_docs"
-            "ai_docs/"
-            
-            # Python Development Artifacts
-            "__pycache__"
-            "__pycache__/"
-            "*.pyc"
-            "*.pyo"
-            "*.pyd"
-            ".pytest_cache"
-            ".pytest_cache/"
-            "htmlcov"
-            "htmlcov/"
-            "coverage.xml"
-            "coverage.json"
-            ".coverage"
-            ".coverage.*"
-            "pytest-report.json"
-            ".mypy_cache"
-            ".mypy_cache/"
-            ".ruff_cache"
-            ".ruff_cache/"
-            
-            # Build & Distribution
-            "build/"
-            "dist/"
-            "*.egg-info"
-            "*.egg-info/"
-            ".tox/"
-            ".nox/"
-            
-            # Development Directories
-            "artifacts"
-            "artifacts/"
-            "logs"
-            "logs/"
-            "dev-outputs"
-            "dev-outputs/"
-            "tmp"
-            "tmp/"
-            "debug"
-            "debug/"
-            ".cache"
-            ".cache/"
-            
-            # Editor & IDE Files
-            ".vscode/settings.json"
-            ".idea"
-            ".idea/"
-            "*.code-workspace"
-            ".spyderproject"
-            ".spyproject"
-            ".ropeproject"
-            
-            # Temporary & OS Files
-            "*.dev"
-            "*.tmp"
-            "*.temp"
-            "*.swp"
-            "*.swo"
-            "*~"
-            ".DS_Store"
-            "Thumbs.db"
-            "Thumbs.db:encryptable"
-            "ehthumbs.db"
-            "ehthumbs_vista.db"
-            "Desktop.ini"
-            "$RECYCLE.BIN/"
-            "*.stackdump"
-            
-            # Security & Environment
-            ".env.local"
-            ".env.*.local"
-            "secrets.json"
-            ".secrets.baseline"
-            
-            # Performance & Profiling
-            "performance_data"
-            "performance_data/"
-            ".prof"
-            "*.prof"
-            
-            # Package Manager Artifacts
-            "node_modules/"
-            "package-lock.json"
-            "yarn.lock"
-            ".pixi/envs"
-            
-            # Backup Files
-            "*.bak"
-            "*.backup"
-            "*.orig"
-          )
+          # Use configurable cleanup patterns from workflow inputs or defaults
+          if [[ "${{ github.event_name }}" == "workflow_call" ]]; then
+            cleanup_patterns='${{ inputs.cleanup_patterns }}'
+          else
+            cleanup_patterns='["CLAUDE.md", ".claude/**", ".taskmaster/**", ".mcp.json", "ai_docs/**", ".cursor/**", ".aider*", "**/__pycache__/**", "**/*.pyc", ".pytest_cache/**", "htmlcov/**", "coverage.xml", ".mypy_cache/**", ".ruff_cache/**", "build/**", "dist/**", "**/*.egg-info/**", "artifacts/**", "logs/**", "performance_data/**", "tmp/**", "debug/**", ".vscode/settings.json", ".idea/**", "*.code-workspace", "*.tmp", "*.dev", ".DS_Store", "Thumbs.db"]'
+          fi
+          
+          # Convert JSON array to bash array
+          readarray -t files_to_remove < <(echo "$cleanup_patterns" | jq -r '.[]')
 
           removed_files=()
 
@@ -243,30 +173,16 @@ jobs:
             git add -A
             git commit -m "chore: automated cleanup of development artifacts
 
-              Comprehensive cleanup of development files from ${{ matrix.branch }} branch:
-
-              AI Development Tools:
-              - CLAUDE.md, .claude/, .mcp.json, .taskmaster/, ai_docs/
-              - .cursor/, .aider* (Editor AI configs)
-
-              Python Development Artifacts:
-              - __pycache__/, *.pyc, .pytest_cache/, htmlcov/, coverage.xml
-              - .mypy_cache/, .ruff_cache/, build/, dist/, *.egg-info/
-
-              Development Directories:
-              - artifacts/, logs/, performance_data/, tmp/, debug/
-
-              Editor and IDE Files:
-              - .vscode/settings.json, .idea/, *.code-workspace
-
-              Temporary and OS Files:
-              - *.tmp, *.dev, .DS_Store, Thumbs.db, *~
-
-              This automated cleanup maintains repository hygiene by removing development
-              artifacts from production branches while preserving them in feature branches.
+              Comprehensive cleanup of development files from ${{ matrix.branch }} branch.
+              
+              Removed files matching configured cleanup patterns to maintain repository
+              hygiene by removing development artifacts from production branches while
+              preserving them in feature branches.
 
               Trigger: ${{ github.event_name }}
-              Workflow: CI Framework Cleanup"
+              Workflow: ${{ github.event_name == 'workflow_call' && inputs.workflow_name || 'CI Framework Cleanup' }}
+              
+              Files removed: ${removed_files}"
 
             git push origin ${{ matrix.branch }}
             echo "✅ Development artifacts cleanup committed to ${{ matrix.branch }}"
