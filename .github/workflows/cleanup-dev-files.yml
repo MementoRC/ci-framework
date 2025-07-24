@@ -3,6 +3,42 @@ name: Cleanup Development Artifacts
 # Reliable production-ready cleanup workflow
 
 on:
+  # Trigger on push to protected branches
+  push:
+    branches:
+      - main
+      - master
+      - development
+    paths:
+      - 'CLAUDE.md'
+      - '.claude/**'
+      - '.taskmaster/**'
+      - '.mcp.json'
+      - 'ai_docs/**'
+      - '.cursor/**'
+      - '.aider*'
+      - '**/__pycache__/**'
+      - '**/*.pyc'
+      - '.pytest_cache/**'
+      - 'htmlcov/**'
+      - 'coverage.xml'
+      - '.mypy_cache/**'
+      - '.ruff_cache/**'
+      - 'build/**'
+      - 'dist/**'
+      - '**/*.egg-info/**'
+      - 'artifacts/**'
+      - 'logs/**'
+      - 'performance_data/**'
+      - 'tmp/**'
+      - 'debug/**'
+      - '.vscode/settings.json'
+      - '.idea/**'
+      - '*.code-workspace'
+      - '*.tmp'
+      - '*.dev'
+      - '.DS_Store'
+      - 'Thumbs.db'
   schedule:
     # Run daily at 2 AM UTC to ensure branches stay clean
     - cron: '0 2 * * *'
