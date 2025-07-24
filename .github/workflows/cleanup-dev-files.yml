@@ -172,11 +172,18 @@ jobs:
           git_token_url="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/"
           git config --global url."${git_token_url}".insteadOf "https://github.com/"
 
+          # Configure GitHub CLI token
+          export GH_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+
           # Check if there are any changes
           if [[ -n $(git status --porcelain) ]]; then
 
             # Get list of removed files for commit message
             removed_files=$(git status --porcelain | awk '{print $2}' | head -10)
+
+            # Create cleanup branch for protected branches
+            cleanup_branch="automated-cleanup-$(date +%Y%m%d-%H%M%S)"
+            git checkout -b "$cleanup_branch"
 
             git add -A
             git commit -m "chore: automated cleanup of development artifacts
@@ -192,8 +199,38 @@ jobs:
 
               Files removed: ${removed_files}"
 
-            git push origin ${{ matrix.branch }}
-            echo "✅ Development artifacts cleanup committed to ${{ matrix.branch }}"
+            # Push cleanup branch
+            git push origin "$cleanup_branch"
+
+            # Create PR for protected branches
+            branch="${{ matrix.branch }}"
+            if [[ "$branch" == "development" || "$branch" == "main" || "$branch" == "master" ]]; then
+              pr_title="chore: Automated cleanup of development artifacts from $branch"
+              gh pr create \
+                --title "$pr_title" \
+                --body "🤖 **Automated cleanup by GitHub Actions**
+
+              This PR removes development artifacts that were detected in the \`${{ matrix.branch }}\` branch:
+
+              **Files removed:**
+              ${removed_files}
+
+              **Purpose:**
+              Maintains repository hygiene by removing development artifacts from production
+              branches while preserving them in feature branches.
+
+              **Trigger:** ${{ github.event_name }}
+              **Workflow:** ${{ github.event_name == 'workflow_call' && inputs.workflow_name
+              || 'CI Framework Cleanup' }}
+
+              ✅ **Auto-merge recommended** - This cleanup maintains branch protection compliance." \
+                --base "$branch" \
+                --head "$cleanup_branch"
+
+              echo "✅ Created PR for cleanup of ${{ matrix.branch }} branch"
+            else
+              echo "✅ Development artifacts cleanup committed to ${{ matrix.branch }}"
+            fi
 
             # Output summary
             echo "## Cleanup Summary for ${{ matrix.branch }}" >> $GITHUB_STEP_SUMMARY
