@@ -1,5 +1,12 @@
-# Test Development File
+# Full Automation Test
 
-This file should be automatically removed by the cleanup workflow when merged to development branch.
+Testing the complete automated cleanup workflow with auto-merge capability.
 
-Created for testing the automated cleanup functionality with new GitHub PR permissions.
+This file should trigger the workflow to:
+1. Detect development files
+2. Create cleanup branch  
+3. Create automated PR
+4. **Auto-merge the PR** (new feature!)
+5. Delete cleanup branch
+
+Complete hands-off automation test.
