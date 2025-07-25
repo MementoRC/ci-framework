@@ -230,10 +230,22 @@ jobs:
                 --base "$branch" \
                 --head "$cleanup_branch"; then
                 echo "✅ Created PR for cleanup of $branch branch"
+
+              # Auto-merge the cleanup PR (since it only removes development files)
+              pr_number=$(gh pr view "$cleanup_branch" --json number --jq '.number')
+              echo "🔄 Auto-merging cleanup PR #$pr_number..."
+
+              if gh pr merge "$pr_number" --squash --delete-branch --admin; then
+                echo "✅ Successfully auto-merged cleanup PR #$pr_number"
               else
-                echo "⚠️ Failed to create PR automatically. Cleanup branch created: $cleanup_branch"
-                echo "📋 Manual PR needed: https://github.com/${{ github.repository }}/compare/$branch...$cleanup_branch"
+                echo "⚠️ Auto-merge failed. Manual merge required for PR #$pr_number"
+                echo "💡 Use: gh pr merge $pr_number --squash --delete-branch --admin"
               fi
+
+            else
+              echo "⚠️ Failed to create PR automatically. Cleanup branch created: $cleanup_branch"
+              echo "📋 Manual PR needed: https://github.com/${{ github.repository }}/compare/$branch...$cleanup_branch"
+            fi
             else
               echo "✅ Development artifacts cleanup committed to $branch"
             fi
