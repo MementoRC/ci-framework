@@ -16,14 +16,14 @@ jobs:
   cleanup:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout target branch
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.base.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Cleanup dev files
         id: cleanup
         uses: MementoRC/ci-framework@v1
@@ -31,17 +31,17 @@ jobs:
           additional_patterns: '.env.local,.cache,dist/dev,*.log,debug,__pycache__/dev'
           skip_comment: false
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Report cleanup results
         run: |
           echo "Files removed: ${{ steps.cleanup.outputs.files_removed }}"
           echo "Cleanup needed: ${{ steps.cleanup.outputs.cleanup_needed }}"
-          
+
       - name: Notify team if cleanup occurred
         if: steps.cleanup.outputs.cleanup_needed == 'true'
         run: |
           echo "::notice::Cleaned up ${{ steps.cleanup.outputs.files_removed }} dev files from ${{ github.event.pull_request.base.ref }}"
-          
+
       - name: Create issue if many files removed
         if: steps.cleanup.outputs.files_removed > 10
         uses: actions/github-script@v7
@@ -52,11 +52,11 @@ jobs:
               repo: context.repo.repo,
               title: '🧹 Large number of dev files cleaned up',
               body: `A large number of dev files (${context.payload.steps.cleanup.outputs.files_removed}) were removed from the ${context.payload.pull_request.base.ref} branch.
-              
-              This might indicate that development files are being accidentally committed to feature branches. 
-              
+
+              This might indicate that development files are being accidentally committed to feature branches.
+
               Consider adding these patterns to your .gitignore file or reviewing your development workflow.
-              
+
               **PR:** #${context.payload.pull_request.number}
               **Branch:** ${context.payload.pull_request.head.ref}`,
               labels: ['housekeeping', 'dev-ops']

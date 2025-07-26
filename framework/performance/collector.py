@@ -15,7 +15,7 @@ from .models import BenchmarkResult, PerformanceMetrics
 class PerformanceCollector:
     """Collects, processes, and stores performance metrics and benchmark results."""
 
-    def __init__(self, storage_path: str | Path = None):
+    def __init__(self, storage_path: str | Path | None = None):
         """Initialize the performance collector.
 
         Args:
