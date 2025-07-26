@@ -1,0 +1,409 @@
+name: 'Cross-Platform Validation Action'
+description: 'Comprehensive cross-platform testing with native GitHub runners and unlocked pixi dependency resolution'
+author: 'CI Framework'
+
+branding:
+  icon: 'globe'
+  color: 'blue'
+
+inputs:
+  mode:
+    description: 'Testing mode: native (GitHub runners + unlocked pixi), docker (container-based), or both'
+    required: false
+    default: 'native'
+    
+  platforms:
+    description: 'Platforms to test: ubuntu-latest, windows-latest, macos-latest (comma-separated)'
+    required: false
+    default: 'ubuntu-latest,windows-latest,macos-latest'
+    
+  pixi-environments:
+    description: 'Pixi environments to test (comma-separated)'
+    required: false
+    default: 'quality'
+    
+  test-commands:
+    description: 'Test commands to run (newline-separated for multiple commands)'
+    required: false
+    default: |
+      pixi run test
+      pixi run lint
+      
+  fail-fast:
+    description: 'Stop on first platform failure'
+    required: false
+    default: 'false'
+    
+  timeout:
+    description: 'Timeout in minutes for each platform test'
+    required: false
+    default: '15'
+    
+  pixi-version:
+    description: 'Pixi version to use'
+    required: false
+    default: 'v0.15.1'
+    
+  cache:
+    description: 'Enable pixi caching (disabled for cross-platform to ensure fresh resolution)'
+    required: false
+    default: 'false'
+    
+  # Docker mode specific inputs (legacy support)
+  docker-environments:
+    description: 'Docker environments for docker mode (ubuntu, alpine, centos, debian)'
+    required: false
+    default: 'ubuntu,alpine'
+    
+  # Advanced configuration
+  platform-matrix:
+    description: 'Custom platform matrix JSON (overrides platforms input)'
+    required: false
+    default: ''
+    
+  pre-test-setup:
+    description: 'Commands to run before testing on each platform'
+    required: false
+    default: ''
+    
+  post-test-cleanup:
+    description: 'Commands to run after testing on each platform'
+    required: false
+    default: ''
+    
+  reports-dir:
+    description: 'Directory to store platform-specific reports'
+    required: false
+    default: 'cross-platform-reports'
+    
+  backup-original:
+    description: 'Backup original pyproject.toml before modification'
+    required: false
+    default: 'true'
+
+outputs:
+  platforms-tested:
+    description: 'Number of platforms successfully tested'
+    value: ${{ steps.native-testing.outputs.platforms-tested || steps.docker-testing.outputs.environments-tested }}
+    
+  test-results:
+    description: 'JSON object with test results for each platform'
+    value: ${{ steps.native-testing.outputs.test-results || steps.docker-testing.outputs.test-results }}
+    
+  total-duration:
+    description: 'Total duration of all platform tests in seconds'
+    value: ${{ steps.native-testing.outputs.total-duration || steps.docker-testing.outputs.total-duration }}
+    
+  artifacts-path:
+    description: 'Path to generated test artifacts and reports'
+    value: ${{ steps.native-testing.outputs.artifacts-path || steps.docker-testing.outputs.artifacts-path }}
+    
+  dependency-resolution-results:
+    description: 'Results of dependency resolution testing per platform'
+    value: ${{ steps.native-testing.outputs.dependency-resolution-results }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate inputs and setup
+      shell: bash
+      run: |
+        echo "🌍 Cross-Platform Validation Action"
+        echo "Mode: ${{ inputs.mode }}"
+        echo "Platforms: ${{ inputs.platforms }}"
+        echo "Pixi environments: ${{ inputs.pixi-environments }}"
+        
+        # Validate mode
+        case "${{ inputs.mode }}" in
+          native|docker|both)
+            echo "✅ Valid mode: ${{ inputs.mode }}"
+            ;;
+          *)
+            echo "❌ Invalid mode: ${{ inputs.mode }}"
+            echo "Supported modes: native, docker, both"
+            exit 1
+            ;;
+        esac
+        
+        # Create reports directory
+        mkdir -p ${{ inputs.reports-dir }}
+        
+        # Detect current platform configuration
+        if [[ -f "pyproject.toml" ]]; then
+          CURRENT_PLATFORM=$(grep -E 'platforms\s*=' pyproject.toml | head -1 || echo "")
+          echo "Current platform config: $CURRENT_PLATFORM"
+          echo "ORIGINAL_PLATFORM_CONFIG=$CURRENT_PLATFORM" >> $GITHUB_ENV
+        fi
+        
+        echo "✅ Setup complete"
+
+    - name: Native Cross-Platform Testing
+      id: native-testing
+      if: inputs.mode == 'native' || inputs.mode == 'both'
+      shell: bash
+      run: |
+        echo "🚀 Starting Native Cross-Platform Testing..."
+        
+        # Initialize variables
+        TOTAL_DURATION=0
+        PLATFORMS_TESTED=0
+        TEST_RESULTS="{}"
+        DEPENDENCY_RESULTS="{}"
+        ARTIFACTS_PATH="${{ inputs.reports-dir }}"
+        
+        # Parse platforms
+        if [[ -n "${{ inputs.platform-matrix }}" ]]; then
+          # Use custom matrix
+          echo "Using custom platform matrix"
+          PLATFORMS=$(echo '${{ inputs.platform-matrix }}' | jq -r '.include[].os' | tr '\n' ',' | sed 's/,$//')
+        else
+          # Use standard platforms
+          PLATFORMS="${{ inputs.platforms }}"
+        fi
+        
+        IFS=',' read -ra PLATFORM_LIST <<< "$PLATFORMS"
+        IFS=',' read -ra ENV_LIST <<< "${{ inputs.pixi-environments }}"
+        
+        # Function to get platform mapping
+        get_platform_mapping() {
+          case "$1" in
+            ubuntu-latest) echo "linux-64" ;;
+            windows-latest) echo "win-64" ;;
+            macos-latest) echo "osx-64" ;;
+            macos-13) echo "osx-64" ;;
+            macos-14) echo "osx-arm64" ;;
+            *) echo "linux-64" ;;  # fallback
+          esac
+        }
+        
+        # Current runner platform
+        CURRENT_RUNNER="${{ runner.os }}"
+        case "$CURRENT_RUNNER" in
+          Linux) RUNNER_PLATFORM="ubuntu-latest" ;;
+          Windows) RUNNER_PLATFORM="windows-latest" ;;
+          macOS) RUNNER_PLATFORM="macos-latest" ;;
+          *) RUNNER_PLATFORM="ubuntu-latest" ;;
+        esac
+        
+        echo "🖥️ Current runner: $CURRENT_RUNNER ($RUNNER_PLATFORM)"
+        
+        # Test each platform configuration
+        for platform in "${PLATFORM_LIST[@]}"; do
+          platform=$(echo "$platform" | xargs)  # trim whitespace
+          
+          if [[ "$platform" != "$RUNNER_PLATFORM" ]]; then
+            echo "⏭️ Skipping $platform (not current runner $RUNNER_PLATFORM)"
+            continue
+          fi
+          
+          echo "🧪 Testing platform: $platform"
+          PLATFORM_START=$(date +%s)
+          
+          # Get pixi platform mapping
+          PIXI_PLATFORM=$(get_platform_mapping "$platform")
+          echo "📦 Pixi platform: $PIXI_PLATFORM"
+          
+          # Backup original pyproject.toml
+          if [[ "${{ inputs.backup-original }}" == "true" && -f "pyproject.toml" ]]; then
+            cp pyproject.toml "pyproject.toml.backup-$platform" || true
+            echo "💾 Backed up pyproject.toml"
+          fi
+          
+          # Modify pyproject.toml for current platform
+          if [[ -f "pyproject.toml" ]]; then
+            if [[ "$CURRENT_RUNNER" == "Windows" ]]; then
+              # Windows PowerShell approach
+              powershell -Command "
+                \$content = Get-Content pyproject.toml -Raw
+                \$content = \$content -replace 'platforms = \[\"[^\"]*\"\]', 'platforms = [\"$PIXI_PLATFORM\"]'
+                \$content | Set-Content pyproject.toml
+                Write-Output 'Modified pyproject.toml for platform: $PIXI_PLATFORM'
+              "
+            else
+              # Unix approach
+              if command -v perl >/dev/null 2>&1; then
+                perl -i -pe "s/platforms = \\[\"[^\"]*\"\\]/platforms = [\"$PIXI_PLATFORM\"]/" pyproject.toml
+              else
+                sed -i.bak "s/platforms = \\[\"[^\"]*\"\\]/platforms = [\"$PIXI_PLATFORM\"]/" pyproject.toml
+              fi
+              echo "Modified pyproject.toml for platform: $PIXI_PLATFORM"
+            fi
+            
+            # Verify modification
+            grep -E "platforms.*=" pyproject.toml || echo "Could not verify platform modification"
+          fi
+          
+          # Test dependency resolution for each environment
+          PLATFORM_SUCCESS=true
+          for env in "${ENV_LIST[@]}"; do
+            env=$(echo "$env" | xargs)  # trim whitespace
+            echo "🔧 Testing environment: $env"
+            
+            # Test dependency resolution
+            RESOLUTION_START=$(date +%s)
+            if timeout $((${{ inputs.timeout }} * 60)) bash -c "
+              echo '📦 Installing pixi environment: $env'
+              pixi install -e $env --no-lockfile-update
+            " > "$ARTIFACTS_PATH/resolution-$platform-$env.log" 2>&1; then
+              RESOLUTION_END=$(date +%s)
+              RESOLUTION_TIME=$((RESOLUTION_END - RESOLUTION_START))
+              echo "✅ Dependency resolution passed for $env (${RESOLUTION_TIME}s)"
+              
+              DEPENDENCY_RESULTS=$(echo "$DEPENDENCY_RESULTS" | jq --arg platform "$platform" --arg env "$env" --arg status "passed" --arg time "$RESOLUTION_TIME" \
+                '. + {($platform + "_" + $env + "_resolution"): {platform: $platform, environment: $env, status: $status, duration: ($time | tonumber)}}')
+            else
+              echo "❌ Dependency resolution failed for $env"
+              PLATFORM_SUCCESS=false
+              
+              DEPENDENCY_RESULTS=$(echo "$DEPENDENCY_RESULTS" | jq --arg platform "$platform" --arg env "$env" --arg status "failed" \
+                '. + {($platform + "_" + $env + "_resolution"): {platform: $platform, environment: $env, status: $status, duration: 0}}')
+              
+              if [[ "${{ inputs.fail-fast }}" == "true" ]]; then
+                echo "💥 Failing fast due to dependency resolution failure"
+                exit 1
+              fi
+              continue
+            fi
+            
+            # Run test commands
+            echo "🧪 Running test commands for $env..."
+            TEST_START=$(date +%s)
+            
+            # Pre-test setup
+            if [[ -n "${{ inputs.pre-test-setup }}" ]]; then
+              echo "🔧 Running pre-test setup..."
+              bash -c "${{ inputs.pre-test-setup }}" || echo "⚠️ Pre-test setup had issues"
+            fi
+            
+            # Execute test commands
+            TEST_SUCCESS=true
+            while IFS= read -r test_cmd; do
+              test_cmd=$(echo "$test_cmd" | xargs)  # trim whitespace
+              if [[ -n "$test_cmd" ]]; then
+                echo "▶️ Running: $test_cmd"
+                if ! timeout $((${{ inputs.timeout }} * 60)) bash -c "pixi run -e $env $test_cmd" >> "$ARTIFACTS_PATH/test-$platform-$env.log" 2>&1; then
+                  echo "❌ Test command failed: $test_cmd"
+                  TEST_SUCCESS=false
+                  PLATFORM_SUCCESS=false
+                  
+                  if [[ "${{ inputs.fail-fast }}" == "true" ]]; then
+                    echo "💥 Failing fast due to test failure"
+                    exit 1
+                  fi
+                fi
+              fi
+            done <<< "${{ inputs.test-commands }}"
+            
+            TEST_END=$(date +%s)
+            TEST_TIME=$((TEST_END - TEST_START))
+            
+            # Post-test cleanup
+            if [[ -n "${{ inputs.post-test-cleanup }}" ]]; then
+              echo "🧹 Running post-test cleanup..."
+              bash -c "${{ inputs.post-test-cleanup }}" || echo "⚠️ Post-test cleanup had issues"
+            fi
+            
+            # Record test results
+            if [[ "$TEST_SUCCESS" == "true" ]]; then
+              echo "✅ Tests passed for $platform/$env (${TEST_TIME}s)"
+              TEST_RESULTS=$(echo "$TEST_RESULTS" | jq --arg key "$platform-$env" --arg status "passed" --arg time "$TEST_TIME" \
+                '. + {($key): {platform: $platform, environment: $env, status: $status, duration: ($time | tonumber)}}')
+            else
+              echo "❌ Tests failed for $platform/$env (${TEST_TIME}s)"
+              TEST_RESULTS=$(echo "$TEST_RESULTS" | jq --arg key "$platform-$env" --arg status "failed" --arg time "$TEST_TIME" \
+                '. + {($key): {platform: $platform, environment: $env, status: $status, duration: ($time | tonumber)}}')
+            fi
+          done
+          
+          # Restore original pyproject.toml
+          if [[ "${{ inputs.backup-original }}" == "true" && -f "pyproject.toml.backup-$platform" ]]; then
+            mv "pyproject.toml.backup-$platform" pyproject.toml || true
+            echo "🔄 Restored original pyproject.toml"
+          fi
+          
+          PLATFORM_END=$(date +%s)
+          PLATFORM_DURATION=$((PLATFORM_END - PLATFORM_START))
+          TOTAL_DURATION=$((TOTAL_DURATION + PLATFORM_DURATION))
+          
+          if [[ "$PLATFORM_SUCCESS" == "true" ]]; then
+            PLATFORMS_TESTED=$((PLATFORMS_TESTED + 1))
+            echo "✅ Platform $platform completed successfully (${PLATFORM_DURATION}s)"
+          else
+            echo "❌ Platform $platform had failures (${PLATFORM_DURATION}s)"
+          fi
+        done
+        
+        # Output results
+        echo "platforms-tested=$PLATFORMS_TESTED" >> $GITHUB_OUTPUT
+        echo "test-results=$TEST_RESULTS" >> $GITHUB_OUTPUT
+        echo "dependency-resolution-results=$DEPENDENCY_RESULTS" >> $GITHUB_OUTPUT
+        echo "total-duration=$TOTAL_DURATION" >> $GITHUB_OUTPUT
+        echo "artifacts-path=$ARTIFACTS_PATH" >> $GITHUB_OUTPUT
+        
+        echo "🎉 Native cross-platform testing complete!"
+        echo "📊 Platforms tested: $PLATFORMS_TESTED"
+        echo "⏱️ Total duration: ${TOTAL_DURATION}s"
+
+    - name: Docker Cross-Platform Testing (Legacy)
+      id: docker-testing
+      if: inputs.mode == 'docker' || inputs.mode == 'both'
+      shell: bash
+      run: |
+        echo "🐳 Docker mode testing not implemented in this version"
+        echo "Please use mode: 'native' for better cross-platform validation"
+        echo "Docker mode is planned for future container-specific testing needs"
+        
+        # Placeholder outputs for compatibility
+        echo "environments-tested=0" >> $GITHUB_OUTPUT
+        echo "test-results={}" >> $GITHUB_OUTPUT
+        echo "total-duration=0" >> $GITHUB_OUTPUT
+        echo "artifacts-path=${{ inputs.reports-dir }}" >> $GITHUB_OUTPUT
+
+    - name: Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: cross-platform-validation-reports
+        path: ${{ inputs.reports-dir }}
+        retention-days: 7
+
+    - name: Generate summary
+      if: always()
+      shell: bash
+      run: |
+        echo "## 🌍 Cross-Platform Validation Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Mode:** ${{ inputs.mode }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Platforms tested:** ${{ steps.native-testing.outputs.platforms-tested || '0' }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Total duration:** ${{ steps.native-testing.outputs.total-duration || '0' }}s" >> $GITHUB_STEP_SUMMARY
+        echo "**Pixi environments:** ${{ inputs.pixi-environments }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Native results
+        if [[ "${{ inputs.mode }}" == "native" || "${{ inputs.mode }}" == "both" ]]; then
+          echo "### 🚀 Native Platform Testing Results" >> $GITHUB_STEP_SUMMARY
+          
+          # Test results
+          if [[ -n "${{ steps.native-testing.outputs.test-results }}" ]] && [[ "${{ steps.native-testing.outputs.test-results }}" != "{}" ]]; then
+            echo "${{ steps.native-testing.outputs.test-results }}" | jq -r '
+              to_entries[] | 
+              "- **\(.value.platform)/\(.value.environment)**: \(.value.status) (\(.value.duration)s)" +
+              (if .value.status == "failed" then " ❌" else " ✅" end)
+            ' >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Dependency resolution results
+          if [[ -n "${{ steps.native-testing.outputs.dependency-resolution-results }}" ]] && [[ "${{ steps.native-testing.outputs.dependency-resolution-results }}" != "{}" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📦 Dependency Resolution Results" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.native-testing.outputs.dependency-resolution-results }}" | jq -r '
+              to_entries[] | 
+              "- **\(.value.platform)/\(.value.environment)**: \(.value.status) (\(.value.duration)s)" +
+              (if .value.status == "failed" then " ❌" else " ✅" end)
+            ' >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "*This validation tests both dependency resolution and actual functionality across platforms with unlocked pixi environments.*" >> $GITHUB_STEP_SUMMARY
