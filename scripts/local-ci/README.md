@@ -178,7 +178,7 @@ All scripts support common options:
 
 ```bash
 -v, --verbose     Enable verbose output
--d, --debug       Enable debug output  
+-d, --debug       Enable debug output
 -n, --dry-run     Show what would be done
 -h, --help        Show help message
 ```
@@ -460,7 +460,7 @@ artifacts/reports/
    ```bash
    # Old
    pytest tests/
-   
+
    # New
    local-ci essential
    ```
@@ -469,7 +469,7 @@ artifacts/reports/
    ```bash
    # Old
    for dir in src/*/; do cd "$dir" && pytest && cd ..; done
-   
+
    # New
    monorepo-ci --tier essential
    ```
@@ -485,7 +485,7 @@ artifacts/reports/
    ```bash
    # Before push
    local-ci extended
-   
+
    # Quick check
    selective-ci --changed-only
    ```

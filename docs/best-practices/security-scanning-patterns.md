@@ -18,8 +18,8 @@ Modern software development requires **security by design** rather than security
 
 ### Level 1: Low (Development Feedback - ≤60s)
 
-**Purpose**: Rapid security feedback during development  
-**When to Use**: Local development, frequent commits, rapid iteration  
+**Purpose**: Rapid security feedback during development
+**When to Use**: Local development, frequent commits, rapid iteration
 **Tools**: Basic bandit scanning (low severity only)
 
 #### Configuration Pattern
@@ -41,8 +41,8 @@ Modern software development requires **security by design** rather than security
 
 ### Level 2: Medium (Integration Validation - ≤5min)
 
-**Purpose**: Comprehensive validation for integration points  
-**When to Use**: Pull requests, pre-merge validation, CI pipelines  
+**Purpose**: Comprehensive validation for integration points
+**When to Use**: Pull requests, pre-merge validation, CI pipelines
 **Tools**: bandit, safety, pip-audit
 
 #### Configuration Pattern
@@ -66,8 +66,8 @@ Modern software development requires **security by design** rather than security
 
 ### Level 3: High (Release Validation - ≤10min)
 
-**Purpose**: Comprehensive security validation for releases  
-**When to Use**: Release branches, deployment validation, security audits  
+**Purpose**: Comprehensive security validation for releases
+**When to Use**: Release branches, deployment validation, security audits
 **Tools**: bandit, safety, pip-audit, semgrep
 
 #### Configuration Pattern
@@ -92,8 +92,8 @@ Modern software development requires **security by design** rather than security
 
 ### Level 4: Critical (Production Validation - ≤15min)
 
-**Purpose**: Production-grade security validation with compliance  
-**When to Use**: Production deployments, compliance audits, security reviews  
+**Purpose**: Production-grade security validation with compliance
+**When to Use**: Production deployments, compliance audits, security reviews
 **Tools**: All tools + Trivy container scanning + SBOM generation
 
 #### Configuration Pattern
@@ -194,10 +194,10 @@ data = json.loads(trusted_data)  # Safe serialization
   run: |
     # Basic vulnerability check
     safety check --json --output safety-results.json
-    
+
     # Policy-based checking with custom rules
     safety check --policy-file .safety-policy.json
-    
+
     # SBOM-based scanning for supply chain
     safety check --requirements requirements-all.txt
 ```
@@ -229,7 +229,7 @@ rules:
     message: Hardcoded password detected
     severity: ERROR
     languages: [python]
-    
+
   - id: sql-injection
     pattern: |
       cursor.execute(f"SELECT * FROM {$TABLE}")
@@ -244,10 +244,10 @@ rules:
   run: |
     # Official ruleset
     semgrep --config=auto src/
-    
+
     # Custom organizational rules
     semgrep --config=.semgrep.yml src/
-    
+
     # SARIF output for GitHub integration
     semgrep --config=auto --sarif --output=semgrep.sarif src/
 ```
@@ -260,13 +260,13 @@ rules:
   run: |
     # Filesystem vulnerability scan
     trivy fs --format=sarif --output=trivy-fs.sarif .
-    
+
     # Container image scan
     trivy image --format=sarif --output=trivy-image.sarif myapp:latest
-    
+
     # SBOM generation
     trivy image --format=cyclonedx myapp:latest > sbom.json
-    
+
     # License compliance
     trivy image --scanners=license myapp:latest
 ```
@@ -286,7 +286,7 @@ jobs:
       security-events: write  # optional — required only for SARIF upload to Security tab
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Multi-Tool Security Scan
         uses: ./actions/security-scan
         with:
@@ -294,7 +294,7 @@ jobs:
           sarif-upload: true
           enable-semgrep: true
           enable-trivy: true
-      
+
       - name: Upload Combined SARIF
         uses: github/codeql-action/upload-sarif@v2
         if: always()
@@ -316,12 +316,12 @@ def merge_sarif_reports(report_dir: Path) -> dict:
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
         "runs": []
     }
-    
+
     for sarif_file in report_dir.glob("*.sarif"):
         with open(sarif_file) as f:
             report = json.load(f)
             combined["runs"].extend(report.get("runs", []))
-    
+
     return combined
 ```
 
@@ -342,7 +342,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Security Audit
         id: audit
         uses: ./actions/security-scan
@@ -350,19 +350,19 @@ jobs:
           security-level: 'medium'
           fail-fast: false
         continue-on-error: true
-      
+
       - name: Automated Vulnerability Fixes
         if: steps.audit.outputs.vulnerabilities-found > 0
         run: |
           # Update vulnerable packages
           pip-audit --fix --dry-run > fixes.txt
-          
+
           if [ -s fixes.txt ]; then
             pip-audit --fix
-            
+
             # Test fixes
             pixi run quality
-            
+
             # Create PR if fixes successful
             if [ $? -eq 0 ]; then
               git config --local user.email "security-bot@company.com"
@@ -370,7 +370,7 @@ jobs:
               git add -A
               git commit -m "🔒 Auto-fix security vulnerabilities"
               git push origin security-auto-updates
-              
+
               gh pr create \
                 --title "🔒 Automated Security Updates" \
                 --body "Automated vulnerability fixes from security scan"
@@ -388,10 +388,10 @@ jobs:
       --fix-imports \
       --fix-assert-statements \
       --fix-hardcoded-passwords
-    
+
     # Semgrep auto-fixes
     semgrep --config=auto --autofix src/
-    
+
     # Custom security pattern fixes
     python scripts/security_auto_fixes.py
 ```
@@ -411,7 +411,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: SOC 2 Security Validation
         uses: ./actions/security-scan
         with:
@@ -420,14 +420,14 @@ jobs:
           enable-trivy: true
           sbom-generation: true
           timeout: 1200
-      
+
       - name: Generate Compliance Report
         run: |
           python scripts/generate_compliance_report.py \
             --standard soc2 \
             --evidence-dir security-reports/ \
             --output compliance-report.pdf
-      
+
       - name: Archive Compliance Evidence
         uses: actions/upload-artifact@v3
         with:
@@ -454,7 +454,7 @@ class SecurityMetrics:
     scan_duration: float
     false_positive_rate: float
     remediation_time: float
-    
+
     def to_dashboard_data(self) -> dict:
         """Convert to dashboard JSON format."""
         return {
@@ -482,7 +482,7 @@ class SecurityMetrics:
     security-level: 'high'
     parallel: true
     timeout: 600
-    
+
   # Custom parallel execution
   strategy:
     matrix:
@@ -512,14 +512,14 @@ class SecurityMetrics:
 - name: Incremental Security Scanning
   uses: ./actions/change-detection
   id: changes
-  
+
 - name: Targeted Security Scan
   if: steps.changes.outputs.source-changed == 'true'
   uses: ./actions/security-scan
   with:
     security-level: 'medium'
     scan-paths: ${{ steps.changes.outputs.changed-files }}
-    
+
 - name: Dependency Security Scan
   if: steps.changes.outputs.dependencies-changed == 'true'
   run: |
@@ -561,7 +561,7 @@ repos:
       - id: bandit
         args: ['--severity-level', 'high', '--confidence-level', 'high']
         exclude: 'tests/'
-        
+
   - repo: https://github.com/gitguardian/ggshield
     rev: v1.25.0
     hooks:
@@ -629,7 +629,7 @@ class ThreatPattern:
 
 class ThreatDetector:
     """Automated threat pattern detection."""
-    
+
     COMMON_THREATS = [
         ThreatPattern(
             name="hardcoded_secret",
@@ -641,18 +641,18 @@ class ThreatDetector:
         ThreatPattern(
             name="sql_injection",
             pattern=r'execute\(["\'].*%.*["\']',
-            severity="CRITICAL", 
+            severity="CRITICAL",
             description="Potential SQL injection vulnerability",
             remediation="Use parameterized queries"
         )
     ]
-    
+
     def scan_threats(self, file_path: str) -> List[dict]:
         """Scan file for security threat patterns."""
         threats = []
         with open(file_path, 'r') as f:
             content = f.read()
-            
+
         for threat in self.COMMON_THREATS:
             matches = re.finditer(threat.pattern, content, re.IGNORECASE)
             for match in matches:
@@ -663,7 +663,7 @@ class ThreatDetector:
                     "description": threat.description,
                     "remediation": threat.remediation
                 })
-        
+
         return threats
 ```
 
@@ -671,8 +671,8 @@ class ThreatDetector:
 
 ### Case Study 1: Financial Services Application
 
-**Project**: High-security financial data processing  
-**Requirements**: SOC 2, PCI DSS compliance  
+**Project**: High-security financial data processing
+**Requirements**: SOC 2, PCI DSS compliance
 **Challenge**: Balance security depth with development velocity
 
 ```yaml
@@ -710,8 +710,8 @@ jobs:
 
 ### Case Study 2: Open Source Project Security
 
-**Project**: Popular Python package with 1M+ downloads  
-**Requirements**: Public security transparency, CVE management  
+**Project**: Popular Python package with 1M+ downloads
+**Requirements**: Public security transparency, CVE management
 **Challenge**: Open security scanning without exposing vulnerabilities
 
 ```yaml
@@ -796,25 +796,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Assess Vulnerability Impact
         run: |
           # Check if vulnerability affects our code
           safety check --vulnerability-id ${{ github.event.inputs.cve-id }}
-          
+
           # Generate impact assessment
           python scripts/vulnerability_impact.py \
             --cve-id ${{ github.event.inputs.cve-id }} \
             --codebase src/
-      
+
       - name: Apply Emergency Patches
         run: |
           # Update vulnerable dependencies
           pip-audit --fix --vulnerability-id ${{ github.event.inputs.cve-id }}
-          
+
           # Verify fix
           safety check
-          
+
           # Emergency deployment if critical
           if [[ "${{ steps.assess.outputs.severity }}" == "CRITICAL" ]]; then
             git commit -am "🚨 Emergency fix for ${{ github.event.inputs.cve-id }}"
@@ -864,7 +864,7 @@ jobs:
 ### Security Pattern Discovery
 
 1. **Document Threat Patterns**: Share discovered vulnerability patterns
-2. **Performance Benchmarks**: Contribute scan optimization techniques  
+2. **Performance Benchmarks**: Contribute scan optimization techniques
 3. **Tool Integration**: Add support for emerging security tools
 4. **Compliance Templates**: Develop industry-specific compliance configurations
 
@@ -890,8 +890,8 @@ The result is a security posture that **protects without impeding** - the hallma
 
 ---
 
-**Pattern Version**: 1.0.0  
-**Framework Version**: 1.0.0  
-**Last Updated**: January 2025  
-**Validated across**: 8 production projects with diverse security requirements  
+**Pattern Version**: 1.0.0
+**Framework Version**: 1.0.0
+**Last Updated**: January 2025
+**Validated across**: 8 production projects with diverse security requirements
 **Security Coverage**: 95%+ vulnerability detection across OWASP Top 10

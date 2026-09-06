@@ -40,10 +40,10 @@ Modified files:
 🔍 Analyzing changes between main...feature-branch
 📊 Change Detection Results:
    • Source files: 2 changed
-   • Test files: 1 changed  
+   • Test files: 1 changed
    • Documentation: 1 changed
    • Database migrations: 1 added
-   
+
 ⚡ Optimization Analysis:
    • Skip documentation build: ❌ (docs changed)
    • Skip security scan: ❌ (source code changed)
@@ -76,7 +76,7 @@ Since you changed source code AND tests, the CI system needs to run comprehensiv
 
 🧪 Fast Unit Tests (timeout: 30s):
    ✅ test_user_model: PASSED
-   ✅ test_user_endpoint: PASSED  
+   ✅ test_user_endpoint: PASSED
    ✅ test_new_field_validation: PASSED
    📊 3 tests passed in 8.2s
 
@@ -101,12 +101,12 @@ Python 3.10:
    ✅ Unit tests: 47 passed, 0 failed
    ✅ Integration tests: 12 passed, 0 failed
    ✅ Database migration test: PASSED
-   
+
 Python 3.11:
    ✅ Unit tests: 47 passed, 0 failed
    ✅ Integration tests: 12 passed, 0 failed
    ✅ Database migration test: PASSED
-   
+
 Python 3.12:
    ✅ Unit tests: 47 passed, 0 failed
    ✅ Integration tests: 12 passed, 0 failed
@@ -138,15 +138,15 @@ Your code works correctly across all supported Python versions! The new feature 
 🔍 Static Code Analysis (bandit):
    ✅ No security issues found in new code
    ✅ Scanned 156 lines across 2 files
-   
+
 💊 Dependency Vulnerability Scan (safety):
    ✅ All 47 dependencies are secure
    📅 Database last updated: 2 hours ago
-   
+
 📦 Package Audit (pip-audit):
    ✅ No known vulnerabilities in installed packages
    🔍 Checked 23 direct dependencies
-   
+
 📊 Security Summary:
    🟢 Security Level: SAFE
    🛡️ No vulnerabilities detected
@@ -165,7 +165,7 @@ Your code and dependencies are secure! The framework automatically scans for com
    🔥 Severity: HIGH
    📝 Issue: CVE-2023-32681 - Certificate verification bypass
    💊 Fix: Upgrade to requests>=2.31.0
-   
+
 🛑 Pipeline FAILED - Security gate blocked deployment
 ```
 
@@ -178,13 +178,13 @@ Your code and dependencies are secure! The framework automatically scans for com
 
 🏃‍♂️ API Endpoint Benchmarks:
    📈 GET /users: 23.4ms avg (baseline: 25.1ms) ✅ +7% faster
-   📈 POST /users: 45.2ms avg (baseline: 44.8ms) ✅ +1% faster  
+   📈 POST /users: 45.2ms avg (baseline: 44.8ms) ✅ +1% faster
    📈 GET /users/{id}: 12.1ms avg (baseline: 11.9ms) ✅ Same
-   
+
 🧮 Database Query Performance:
    📈 User.find_by_email(): 3.2ms avg ✅ Within threshold
    📈 User.create(): 8.1ms avg ✅ Within threshold
-   
+
 🎯 Regression Analysis:
    📊 No performance regressions detected
    📈 Overall performance: +2.3% improvement
@@ -201,12 +201,12 @@ Your changes actually improved performance slightly! The benchmarking catches pe
 ⚠️ PERFORMANCE REGRESSION DETECTED:
    📉 GET /users: 67.8ms avg (baseline: 25.1ms) ❌ 170% slower
    🎯 Threshold: 10% | Actual regression: 170%
-   
+
 🔍 Possible causes:
    • N+1 query pattern in new endpoint
    • Missing database index on new field
    • Inefficient data serialization
-   
+
 💡 Suggested fixes:
    • Add eager loading for related data
    • Create database index for new field
@@ -252,7 +252,7 @@ Your changes actually improved performance slightly! The benchmarking catches pe
 
 **What you learned:**
 - ✅ How change detection optimizes CI runs
-- ✅ Why quick checks provide immediate feedback  
+- ✅ Why quick checks provide immediate feedback
 - ✅ How comprehensive testing ensures reliability
 - ✅ Why security scanning protects your application
 - ✅ How performance monitoring prevents regressions
@@ -289,7 +289,7 @@ Modified files:
    • Source files: 1 changed (critical auth component)
    • Test files: 2 changed
    • No documentation changes
-   
+
 ⚡ Optimization Analysis:
    • Skip documentation build: ✅ (no doc changes)
    • Skip security scan: ❌ (auth component changed)
@@ -316,11 +316,11 @@ Authentication changes detected! The system automatically increases security sca
    ✅ test_auth_validator_success: PASSED
    ✅ test_auth_validator_invalid_input: PASSED
    ❌ test_auth_integration_flow: FAILED
-   
+
 📋 Quick Test Failure Details:
    File: tests/test_integration.py, line 45
    Error: AssertionError: Expected token to be valid
-   
+
    def test_auth_integration_flow():
        token = auth.generate_token(user)
    >   assert auth.validate_token(token) is True
@@ -348,20 +348,20 @@ Python 3.10:
    ✅ Unit tests: 45 passed, 2 failed
    ❌ Integration tests: 8 passed, 4 failed
    ✅ Auth-specific tests: 12 passed, 0 failed
-   
+
 Python 3.11:
-   ✅ Unit tests: 45 passed, 2 failed  
+   ✅ Unit tests: 45 passed, 2 failed
    ❌ Integration tests: 8 passed, 4 failed
    ✅ Auth-specific tests: 12 passed, 0 failed
-   
+
 Python 3.12:
    ✅ Unit tests: 45 passed, 2 failed
-   ❌ Integration tests: 8 passed, 4 failed  
+   ❌ Integration tests: 8 passed, 4 failed
    ✅ Auth-specific tests: 12 passed, 0 failed
 
 ❌ Pattern Analysis:
    🎯 Consistent failures across Python versions
-   🔍 All failures in integration tests  
+   🔍 All failures in integration tests
    ✅ New auth logic works correctly in isolation
    ❌ Integration between auth and other systems broken
 
@@ -381,7 +381,7 @@ Your bug fix works, but it introduced a breaking change! The CI system caught th
 
 **Decision Point:** How do you want to proceed?
 - 🔧 **Investigate and fix integration issues**
-- 🔄 **Revert changes and try different approach**  
+- 🔄 **Revert changes and try different approach**
 - 📞 **Get help from team members**
 
 ---
@@ -394,21 +394,21 @@ Your bug fix works, but it introduced a breaking change! The CI system caught th
 🔍 Static Code Analysis (bandit):
    ✅ No security issues in auth validator fix
    💡 Auth best practices check: PASSED
-   
+
 💊 Dependency Vulnerability Scan (safety):
    ✅ All auth-related dependencies secure
-   
+
 🔐 Auth-Specific Security Checks:
    ✅ No hardcoded secrets detected
    ✅ Proper input validation implemented
    ✅ No SQL injection vectors found
    ✅ Timing attack protection in place
-   
+
 🛡️ Enhanced Patterns (semgrep):
    ✅ Secure token generation patterns
    ✅ Proper error handling in auth flows
    ⚠️  Warning: Token validation might be too strict
-   
+
 📊 Security Summary:
    🟢 Security Level: SECURE
    ⚠️  1 warning about validation strictness
@@ -434,9 +434,9 @@ Your fix is secure but might be too strict. The security scanner provides sugges
 
 💡 Suggested Solutions:
    1. 🔧 Add backward compatibility for old token format
-   2. 🔄 Update all integration points to handle new format  
+   2. 🔄 Update all integration points to handle new format
    3. 🚀 Implement gradual rollout with feature flag
-   
+
 📋 Recommended Next Steps:
    1. Review integration test failures in detail
    2. Add migration path for existing tokens
@@ -456,7 +456,7 @@ Your fix is secure but might be too strict. The security scanner provides sugges
 
 📊 Impact Assessment:
    🟢 Production risk: LOW (would have been caught)
-   🟡 User experience: MEDIUM (auth flows affected)  
+   🟡 User experience: MEDIUM (auth flows affected)
    🔵 Development time: +2-4 hours for proper fix
 ```
 
@@ -481,7 +481,7 @@ Option B: 🏗️ Complete Solution (4 hours)
    • Update documentation
    • Add new tests for edge cases
 
-Option C: 🔄 Revert & Redesign (2 hours)  
+Option C: 🔄 Revert & Redesign (2 hours)
    • Revert current changes
    • Design backward-compatible solution
    • Implement with integration in mind
@@ -530,7 +530,7 @@ You're deploying a major release to production. The CI system runs the most comp
 Release: v2.1.0 - New Authentication System
 Modified files:
 ✏️  15 source files changed
-✏️  8 test files updated  
+✏️  8 test files updated
 ✏️  3 migration files added
 ✏️  Documentation updated
 ✏️  Dependencies upgraded
@@ -646,23 +646,23 @@ Modified files:
    ✅ bandit: 0 issues found
    ✅ semgrep: 0 critical, 2 info findings
    ✅ Custom security rules: PASSED
-   
+
 💊 Software Composition Analysis (SCA):
    ✅ safety: All dependencies secure
    ✅ pip-audit: No vulnerabilities detected
    ✅ License compliance: PASSED
-   
+
 🐳 Container Security Scanning:
    ✅ Trivy: Base images secure
    ✅ No malware detected
    ✅ Secrets scanning: PASSED
-   
+
 📋 Security Best Practices:
    ✅ Authentication implementation: SECURE
    ✅ Authorization patterns: COMPLIANT
    ✅ Data validation: COMPREHENSIVE
    ✅ Error handling: SECURE
-   
+
 🔐 Compliance Checks:
    ✅ OWASP Top 10: All mitigated
    ✅ Input sanitization: PASSED
@@ -687,7 +687,7 @@ Modified files:
       • POST /auth/login: 45.2ms (baseline: 67.8ms) ✅ +33% faster
       • POST /auth/refresh: 12.1ms (baseline: 23.4ms) ✅ +48% faster
       • DELETE /auth/logout: 8.7ms (baseline: 15.2ms) ✅ +43% faster
-   
+
    📈 Core API endpoints:
       • GET /users: 23.1ms (baseline: 25.8ms) ✅ +10% faster
       • POST /users: 89.3ms (baseline: 156.7ms) ✅ +43% faster
@@ -788,7 +788,7 @@ Now that you've experienced the CI workflow in action:
 ### **🔧 Customize Your Setup**
 → [Configuration Playground](./configuration-playground.md) - Build your perfect CI configuration
 
-### **🐛 Handle Problems** 
+### **🐛 Handle Problems**
 → [Troubleshooting Guide](./troubleshooting-guide.md) - Interactive problem solving
 
 ### **📖 Deep Dive**

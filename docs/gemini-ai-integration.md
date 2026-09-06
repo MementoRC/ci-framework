@@ -31,7 +31,7 @@ uses: Claire-s-Monster/ci-framework/.github/workflows/reusable-ci.yml@v1.1.0
 with:
   tier: 'comprehensive'
   enable-ai-analysis: true  # Enable AI-powered insights
-  
+
 secrets:
   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}  # Required for AI analysis
 ```
@@ -44,7 +44,7 @@ secrets:
 
 **Analysis Includes**:
 - Code quality and best practices assessment
-- Security vulnerability identification  
+- Security vulnerability identification
 - Performance impact analysis
 - Test coverage and quality evaluation
 - Architecture and design review
@@ -110,7 +110,7 @@ gh workflow run gemini-ai-analysis.yml \
 GEMINI_API_KEY     # Google AI Studio API key
 ```
 
-#### Required Variables  
+#### Required Variables
 ```
 ENABLE_AI_ANALYSIS=true    # Enable AI analysis features
 ```
@@ -153,7 +153,7 @@ issue_triage: |
 security_analysis: |
   Perform comprehensive security assessment:
   - Vulnerability scanning
-  - Dependency analysis  
+  - Dependency analysis
   - Code security patterns
   - Supply chain security
 ```
@@ -178,7 +178,7 @@ jobs:
       enable-ai-analysis: true
     secrets:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-  
+
   # Additional AI analysis (optional)
   ai-deep-dive:
     if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ai-review')
@@ -207,7 +207,7 @@ uses: Claire-s-Monster/ci-framework/.github/workflows/reusable-ci.yml@v1.1.0
 with:
   tier: 'essential'
   enable-ai-analysis: true
-  
+
 secrets:
   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 ```
@@ -216,15 +216,15 @@ secrets:
 - `ENABLE_AI_ANALYSIS` = `true`
 - `GEMINI_API_KEY` = `your-api-key`
 
-**Result**: 
+**Result**:
 - Automatic PR reviews on all pull requests
-- Issue triage for new issues  
+- Issue triage for new issues
 - AI insights integrated with CI results
 
 ### Example 2: Enterprise Project
 
 ```yaml
-# .github/workflows/ci.yml  
+# .github/workflows/ci.yml
 name: Enterprise CI Pipeline
 
 on:
@@ -240,7 +240,7 @@ with:
   enable-ai-analysis: true
   security-level: 'critical'
   performance-threshold: '5.0'  # Strict performance requirements
-  
+
 secrets:
   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 ```
@@ -271,7 +271,7 @@ uses: Claire-s-Monster/ci-framework/.github/workflows/reusable-ci.yml@v1.1.0
 with:
   tier: 'comprehensive'
   enable-ai-analysis: ${{ github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
-  
+
 secrets:
   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 ```
@@ -289,7 +289,7 @@ secrets:
 - Rotate API keys regularly
 - Monitor API usage and quotas
 
-### 2. Analysis Configuration  
+### 2. Analysis Configuration
 - Start with `basic` analysis level and increase as needed
 - Use `focus_area` parameter for large repositories
 - Customize prompts for domain-specific requirements

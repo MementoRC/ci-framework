@@ -19,7 +19,7 @@ This generator asks you simple questions about your project and creates a comple
 
 **Package Manager:**
 - 🟢 **Pixi** (Recommended - fastest, most reliable)
-- 🟡 **Poetry** (Good - widely used)  
+- 🟡 **Poetry** (Good - widely used)
 - 🟡 **pip** (Basic - works everywhere)
 
 **Framework:**
@@ -163,7 +163,7 @@ quality = { depends-on = ["test", "test-notebooks", "lint"] }
 
 **Platforms:**
 - [ ] Linux
-- [ ] macOS 
+- [ ] macOS
 - [ ] Windows
 - [ ] Cross-platform (all)
 
@@ -423,7 +423,7 @@ quality = { depends-on = ["test", "lint", "typecheck", "test-security"] }
 - Production deployments
 
 **Includes:**
-- ✅ Everything in Extended  
+- ✅ Everything in Extended
 - ✅ Complete test suite
 - ✅ Cross-platform testing
 - ✅ Security audit with SARIF
@@ -444,7 +444,7 @@ quality = { depends-on = ["test", "lint", "typecheck", "test-security"] }
 
 **Security Level:**
 - **Medium** - Standard vulnerability detection
-- **High** - Comprehensive security analysis  
+- **High** - Comprehensive security analysis
 - **Critical** - Enterprise-grade security with SBOM
 
 **Tools included:**
@@ -501,7 +501,7 @@ performance-benchmark:
 
 **Test Modes:**
 - **Smoke** - Basic installation verification
-- **Test** - Standard test suite execution  
+- **Test** - Standard test suite execution
 - **Full** - Complete validation with linting
 
 **Configuration added:**
@@ -553,7 +553,7 @@ Based on your selections above, here's your complete, ready-to-use CI configurat
 # Copy the specific configuration from your project type section
 ```
 
-#### `pyproject.toml` 
+#### `pyproject.toml`
 ```toml
 # This will be generated based on your selections above
 # Copy the specific configuration from your project type section

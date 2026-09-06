@@ -1,8 +1,8 @@
 # Video Tutorial Script: Quality Gates Deep Dive
 
-**Video Title**: "Quality Gates Deep Dive - Revolutionary 3-Tier System for Zero-Compromise Quality"  
-**Duration**: 8 minutes  
-**Target Audience**: Quality-focused teams, tech leads, engineering managers  
+**Video Title**: "Quality Gates Deep Dive - Revolutionary 3-Tier System for Zero-Compromise Quality"
+**Duration**: 8 minutes
+**Target Audience**: Quality-focused teams, tech leads, engineering managers
 **Objective**: Demonstrate comprehensive quality system with progressive validation tiers
 
 ---
@@ -109,7 +109,7 @@ git push
 
 **[Visual: Progress indicators for each check]**
 - ✅ Critical lint check (F, E9 violations) - 15 seconds
-- ✅ Fast unit tests - 45 seconds  
+- ✅ Fast unit tests - 45 seconds
 - ✅ Type checking (public interfaces) - 30 seconds
 - ✅ High-severity security scan - 20 seconds
 
@@ -131,7 +131,7 @@ class PaymentProcessor:
         fraud_score = self.fraud_detector.analyze(payment_method, amount)
         if fraud_score > self.risk_threshold:
             return PaymentResult.rejected("High fraud risk detected")
-        
+
         # Enhanced payment routing logic
         processor = self.select_processor(payment_method, amount)
         return processor.charge(amount, payment_method)
@@ -215,7 +215,7 @@ pixi run quality
 
 **Documentation Changes:**
 - Traditional CI: 12-20 minutes
-- Essential Tier: 1-2 minutes  
+- Essential Tier: 1-2 minutes
 - **Time Savings: 90%**
 
 **Feature Development:**
@@ -224,7 +224,7 @@ pixi run quality
 - **Time Savings: 67%**
 
 **Release Validation:**
-- Traditional CI: 20-30 minutes  
+- Traditional CI: 20-30 minutes
 - Full Tier: 10-15 minutes
 - **Quality Improvement: 40% more comprehensive**
 
@@ -244,7 +244,7 @@ pixi run quality
 
 # Tier time budgets (can be adjusted)
 essential_max_time = 300    # 5 minutes
-extended_max_time = 600     # 10 minutes  
+extended_max_time = 600     # 10 minutes
 full_max_time = 900         # 15 minutes
 
 # Zero-tolerance violations (customize for your standards)
@@ -266,7 +266,7 @@ extended = [
 
 full = [
     "main branch",      # Production releases
-    "release/*",        # Release candidates  
+    "release/*",        # Release candidates
     "security fixes"    # Critical patches
 ]
 ```
@@ -344,7 +344,7 @@ full = [
 
 ### Engagement Targets
 - **Completion Rate**: >75% (comprehensive technical content)
-- **Implementation Rate**: >60% attempt quality gates setup after viewing  
+- **Implementation Rate**: >60% attempt quality gates setup after viewing
 - **Configuration Success**: >80% successful customization without support
 - **Advanced Feature Adoption**: >40% use tier customization within 30 days
 

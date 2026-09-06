@@ -16,7 +16,7 @@ patterns:
       severity: "medium"
       requires_git_commit: true
       commit_message_template: "fix(format): Auto-fix ruff formatting violations"
-      
+
     - id: "ruff_import_sorting"
       name: "Ruff import sorting errors"
       pattern: "I001.*Missing import"
@@ -37,7 +37,7 @@ patterns:
       requires_git_commit: true
       commit_message_template: "fix(format): Auto-fix line length violations"
 
-  # Black patterns  
+  # Black patterns
   black:
     - id: "black_would_reformat"
       name: "Black would reformat files"
@@ -48,7 +48,7 @@ patterns:
       severity: "medium"
       requires_git_commit: true
       commit_message_template: "fix(format): Auto-format code with black"
-      
+
     - id: "black_check_failed"
       name: "Black check mode failed"
       pattern: "Oh no! 💥 💔 💥.*would reformat"
@@ -70,7 +70,7 @@ patterns:
       severity: "low"
       requires_git_commit: true
       commit_message_template: "fix(format): Auto-sort imports with isort"
-      
+
     - id: "isort_incorrectly_sorted"
       name: "isort incorrectly sorted imports"
       pattern: "Imports are incorrectly sorted"
@@ -124,16 +124,16 @@ engine_config:
   backup_before_fix: true
   verify_syntax_after_fix: true
   allowed_file_extensions: [".py", ".pyx", ".pyi"]
-  exclude_patterns: 
+  exclude_patterns:
     - "*.egg-info/*"
-    - "__pycache__/*" 
+    - "__pycache__/*"
     - ".git/*"
     - "build/*"
     - "dist/*"
     - ".pytest_cache/*"
     - ".mypy_cache/*"
     - ".coverage*"
-  
+
 # Git commit configuration
 git_config:
   create_commit: true

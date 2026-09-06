@@ -66,7 +66,7 @@ docker run --rm -v $(pwd):/workspace -w /workspace \
 graph TD
     A[Local Development<br/>pixi] --> B[CI Testing<br/>Docker + pixi]
     B --> C[Production Deployment<br/>Docker]
-    
+
     A -.->|Same Commands| B
     B -.->|Same Environment| C
 ```
@@ -95,10 +95,10 @@ production = {features = ["quality", "production"], solve-group = "default"}
 environments:
   # Essential (80% coverage)
   - ubuntu,alpine
-  
-  # Enterprise (90% coverage)  
+
+  # Enterprise (90% coverage)
   - ubuntu,alpine,centos
-  
+
   # Comprehensive (95% coverage)
   - ubuntu,alpine,centos,debian
 ```
@@ -111,11 +111,11 @@ environments:
 pull_request:
   test-mode: 'smoke'        # Quick validation (30-60s)
   environments: 'ubuntu'    # Single environment
-  
+
 main_branch:
   test-mode: 'test'         # Full test suite (5-10min)
   environments: 'ubuntu,alpine'  # Primary targets
-  
+
 release:
   test-mode: 'full'         # Comprehensive (15-20min)
   environments: 'ubuntu,alpine,centos,debian'  # All targets
@@ -155,7 +155,7 @@ COPY . .
 strategy:
   matrix:
     environment: [ubuntu, alpine, centos]
-    
+
 # Each environment runs simultaneously
 parallel: true
 
@@ -227,7 +227,7 @@ strategy:
   matrix:
     environment: [ubuntu, alpine]
     architecture: [amd64, arm64]
-    
+
 steps:
   - uses: ./actions/docker-cross-platform
     with:
@@ -265,8 +265,8 @@ steps:
 
 ### Case Study 1: MCP Server (llm-cli-runner)
 
-**Project**: MCP server with complex dependencies  
-**Challenge**: Test deployment across multiple Linux distributions  
+**Project**: MCP server with complex dependencies
+**Challenge**: Test deployment across multiple Linux distributions
 **Solution**: Docker + pixi integration pattern
 
 ```yaml
@@ -289,8 +289,8 @@ steps:
 
 ### Case Study 2: Large Application (hb-strategy-sandbox)
 
-**Project**: Complex application with 18K+ files  
-**Challenge**: Validate deployment without slowing development  
+**Project**: Complex application with 18K+ files
+**Challenge**: Validate deployment without slowing development
 **Solution**: Progressive testing with environment matrix
 
 ```yaml
@@ -322,7 +322,7 @@ strategy:
   run: |
     docker build -t test-ubuntu -f Dockerfile.ubuntu .
     docker run --rm test-ubuntu pytest
-    
+
     docker build -t test-alpine -f Dockerfile.alpine .
     docker run --rm test-alpine pytest
 ```
@@ -521,7 +521,7 @@ strategy:
 The Docker Cross-Platform Testing pattern represents a fundamental shift in CI/CD methodology. By combining the speed of pixi-based development with the reality of Docker-based deployment, it enables organizations to:
 
 - **Maintain developer productivity** without sacrificing deployment confidence
-- **Test actual production scenarios** without complicating development workflows  
+- **Test actual production scenarios** without complicating development workflows
 - **Validate across multiple platforms** with intelligent automation
 - **Scale CI/CD practices** across diverse project types
 
@@ -531,8 +531,8 @@ This pattern emerged from real-world innovation in the llm-cli-runner project an
 
 ---
 
-**Pattern Version**: 1.0.0  
-**Framework Version**: 1.0.0  
-**Last Updated**: January 2025  
-**Inspired by**: llm-cli-runner breakthrough Docker + pixi integration  
+**Pattern Version**: 1.0.0
+**Framework Version**: 1.0.0
+**Last Updated**: January 2025
+**Inspired by**: llm-cli-runner breakthrough Docker + pixi integration
 **Validated across**: 8 target projects in CI framework ecosystem

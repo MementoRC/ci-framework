@@ -1,8 +1,8 @@
 # Video Tutorial Script: Security Scanning Walkthrough
 
-**Video Title**: "Security Scanning Walkthrough - Multi-Layered Defense with Automated Remediation"  
-**Duration**: 6 minutes  
-**Target Audience**: Security-conscious developers, DevSecOps teams, compliance teams  
+**Video Title**: "Security Scanning Walkthrough - Multi-Layered Defense with Automated Remediation"
+**Duration**: 6 minutes
+**Target Audience**: Security-conscious developers, DevSecOps teams, compliance teams
 **Objective**: Demonstrate comprehensive security scanning with progressive levels and automated remediation
 
 ---
@@ -53,7 +53,7 @@ cd ~/demo-security-scanning
 **[Visual: Level 1 - Basic Security with bandit logo]**
 **Level 1 - BASIC**: Bandit static analysis for common Python security issues
 - Hardcoded passwords and secrets
-- SQL injection patterns  
+- SQL injection patterns
 - Shell injection vulnerabilities
 - Insecure random number generation
 
@@ -71,7 +71,7 @@ cd ~/demo-security-scanning
 - Advanced taint analysis
 - Business logic security patterns
 
-**[Visual: Level 4 - Critical Security with trivy logo]** 
+**[Visual: Level 4 - Critical Security with trivy logo]**
 **Level 4 - CRITICAL**: Trivy for comprehensive security analysis
 - Container image vulnerability scanning
 - Infrastructure as Code security analysis
@@ -92,7 +92,7 @@ from random import random
 # Security Issue 1: Hardcoded secret
 API_KEY = "sk-1234567890abcdef"  # B105: Hardcoded password
 
-# Security Issue 2: SQL injection vulnerability  
+# Security Issue 2: SQL injection vulnerability
 def get_user(user_id):
     query = f"SELECT * FROM users WHERE id = {user_id}"  # B608: SQL injection
     return execute_query(query)
@@ -121,12 +121,12 @@ pixi run security-basic
 ❌ HIGH SEVERITY (4 issues found):
 Issue 1: B105:hardcoded_password_string
   - File: src/app.py:4
-  - Severity: HIGH  
+  - Severity: HIGH
   - Confidence: MEDIUM
   - Description: Possible hardcoded password 'sk-1234567890abcdef'
 
 ❌ MEDIUM SEVERITY (2 issues found):
-Issue 2: B608:hardcoded_sql_expressions  
+Issue 2: B608:hardcoded_sql_expressions
   - File: src/app.py:8
   - Severity: MEDIUM
   - Confidence: MEDIUM
@@ -154,7 +154,7 @@ from secrets import token_urlsafe
 # Fixed: Use environment variable
 API_KEY = os.getenv("API_KEY")  # Secure: Environment variable
 
-# Fixed: Parameterized query  
+# Fixed: Parameterized query
 def get_user(user_id):
     query = "SELECT * FROM users WHERE id = %s"  # Secure: Parameterized
     return execute_query(query, (user_id,))
@@ -189,7 +189,7 @@ Vulnerability 1: requests 2.25.1
   - Description: Requests 2.25.1 vulnerable to proxy-authorization header leak
   - Fix: Upgrade to requests >= 2.31.0
 
-Vulnerability 2: pyyaml 5.4.1  
+Vulnerability 2: pyyaml 5.4.1
   - CVE: CVE-2023-44487
   - Severity: HIGH
   - CVSS Score: 7.5
@@ -219,7 +219,7 @@ pixi run security-update-deps
 **[Visual: GitHub Security dashboard showing vulnerability overview]**
 
 - **Code Scanning Alerts**: 4 security issues detected by Bandit
-- **Dependabot Alerts**: 3 vulnerable dependencies identified  
+- **Dependabot Alerts**: 3 vulnerable dependencies identified
 - **Secret Scanning**: 1 potential secret detected
 - **Security Policy**: Framework security policy automatically applied
 
@@ -267,7 +267,7 @@ Rule: privilege-escalation-pattern
   - Recommendation: Add privilege verification before role updates
 
 ❌ FRAMEWORK-SPECIFIC ISSUE:
-Rule: django-sql-injection  
+Rule: django-sql-injection
   - File: src/views.py:42
   - Severity: MEDIUM
   - Pattern: Django ORM raw query with user input
@@ -295,7 +295,7 @@ pixi run security-critical
 🔍 Enterprise Security & Compliance Analysis:
 
 ✅ SOC 2 Compliance: 94% compliant (3 issues to address)
-✅ PCI DSS Requirements: 89% compliant (5 issues to address)  
+✅ PCI DSS Requirements: 89% compliant (5 issues to address)
 ✅ Container Security: Base image vulnerabilities detected
 ✅ Supply Chain Analysis: Dependency integrity verified
 

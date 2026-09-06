@@ -1,8 +1,8 @@
 # Video Tutorial Script: Existing Project Integration
 
-**Video Title**: "Existing Project Integration - Add CI Framework to Any Python Project in 4 Minutes"  
-**Duration**: 4 minutes  
-**Target Audience**: Developers with existing Python projects and CI/CD  
+**Video Title**: "Existing Project Integration - Add CI Framework to Any Python Project in 4 Minutes"
+**Duration**: 4 minutes
+**Target Audience**: Developers with existing Python projects and CI/CD
 **Objective**: Demonstrate safe, non-disruptive integration with existing workflows
 
 ---

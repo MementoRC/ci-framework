@@ -526,7 +526,7 @@ deploy-production:
    # Add pixi configuration
    [tool.pixi.project]
    name = "your-project"
-   
+
    [tool.pixi.dependencies]
    python = ">=3.10"
    # Move dependencies from requirements.txt
@@ -675,7 +675,7 @@ Monitor CI performance:
 
 ## 🤝 Contributing
 
-Found an issue or want to improve this guide? 
+Found an issue or want to improve this guide?
 
 1. Check existing issues in the [ci-framework repository](https://github.com/MementoRC/ci-framework/issues)
 2. Submit a pull request with your improvements

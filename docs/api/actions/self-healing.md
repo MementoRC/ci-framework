@@ -23,7 +23,7 @@ The Self-Healing CI Action analyzes common CI failures and applies automated fix
 - **Missing Dependencies**: Auto-install missing packages and requirements
 - **Lock File Issues**: Regenerate and fix corrupted lock files
 
-### 2. Code Formatting Healing  
+### 2. Code Formatting Healing
 - **Lint Violations**: Auto-fix ruff, flake8, and other linting issues
 - **Import Sorting**: Fix import order and organization issues
 - **Code Style**: Apply consistent formatting and style fixes
@@ -37,7 +37,7 @@ The Self-Healing CI Action analyzes common CI failures and applies automated fix
 
 ### 4. Environment Issue Healing
 - **PIXI Environment**: Detect and rebuild corrupted environments
-- **Path Issues**: Fix PATH and environment variable problems  
+- **Path Issues**: Fix PATH and environment variable problems
 - **Permission Problems**: Resolve file and directory permission issues
 - **Cache Corruption**: Clear and rebuild corrupted caches
 
@@ -61,7 +61,7 @@ jobs:
     with:
       healing-level: 'comprehensive'  # quick/standard/comprehensive
       auto-fix: true                  # Enable automatic fixes
-      rollback-on-failure: true       # Safe rollback on failure  
+      rollback-on-failure: true       # Safe rollback on failure
       timeout-minutes: 15             # Healing timeout
       pixi-environment: 'quality'     # PIXI environment to use
     secrets: inherit
@@ -82,7 +82,7 @@ jobs:
       - name: Run Tests
         run: pixi run test
         continue-on-error: true
-        
+
   self-healing:
     needs: test
     if: failure()  # Only run if tests failed
@@ -90,7 +90,7 @@ jobs:
     with:
       healing-level: 'standard'
     secrets: inherit
-    
+
   retest:
     needs: self-healing
     if: needs.self-healing.outputs.healed == 'true'
@@ -119,14 +119,14 @@ jobs:
 - **Risk**: Low - only safe, reversible changes
 - **Use Case**: Fast fixes during PR validation
 
-#### Standard (`standard`)  
+#### Standard (`standard`)
 - **Duration**: < 5 minutes
 - **Scope**: Formatting, lint, basic dependency issues
 - **Risk**: Medium - includes environment changes
 - **Use Case**: Most common healing scenarios
 
 #### Comprehensive (`comprehensive`)
-- **Duration**: < 15 minutes  
+- **Duration**: < 15 minutes
 - **Scope**: Full analysis including test fixes and environment rebuilding
 - **Risk**: Higher - major environment and code changes
 - **Use Case**: Complex failure scenarios requiring deep analysis
@@ -147,7 +147,7 @@ The self-healing engine uses pattern-based detection and fixes:
 ```python
 # Detects and fixes:
 - "ModuleNotFoundError: No module named 'xyz'"
-- "ImportError: cannot import name 'xyz'"  
+- "ImportError: cannot import name 'xyz'"
 - "PackageNotFoundError: Package 'xyz' is not installed"
 - "CondaPackageNotFoundError: Package missing"
 ```
@@ -165,7 +165,7 @@ The self-healing engine uses pattern-based detection and fixes:
 ```python
 # Detects and fixes:
 - "pytest collection errors"
-- "Fixture not found errors"  
+- "Fixture not found errors"
 - "Parametrization syntax errors"
 - "Test configuration issues"
 ```
@@ -238,7 +238,7 @@ CI_BOT_GPG_KEY_ID: # GPG key ID
 | Healing Level | Avg Duration | Success Rate | Rollback Rate |
 |---------------|--------------|--------------|---------------|
 | Quick | 45 seconds | 95% | < 1% |
-| Standard | 2.5 minutes | 90% | < 3% |  
+| Standard | 2.5 minutes | 90% | < 3% |
 | Comprehensive | 8 minutes | 85% | < 5% |
 
 ## Troubleshooting
@@ -280,7 +280,7 @@ with:
 ### When to Use Self-Healing
 - **Automated CI Pipelines**: Reduce maintenance overhead
 - **Pull Request Validation**: Auto-fix common issues
-- **Development Branches**: Maintain branch health  
+- **Development Branches**: Maintain branch health
 - **Scheduled Maintenance**: Proactive issue resolution
 
 ### When NOT to Use Self-Healing
@@ -314,9 +314,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Quality Check
         run: pixi run quality
-        
+
   heal-if-needed:
-    needs: ci  
+    needs: ci
     if: failure()
     uses: Claire-s-Monster/ci-framework/.github/workflows/self-healing.yml@v1.0.0
     secrets: inherit
@@ -329,19 +329,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Initial Test Run
         id: initial-test
         run: pixi run test
         continue-on-error: true
-        
+
       - name: Self-Healing
         if: steps.initial-test.outcome == 'failure'
         uses: ./actions/self-healing
         with:
           healing-level: 'comprehensive'
           auto-fix: true
-          
+
       - name: Retry After Healing
         if: steps.initial-test.outcome == 'failure'
         run: pixi run test

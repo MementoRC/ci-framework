@@ -48,43 +48,41 @@ jobs:
       tier: 'comprehensive'  # essential|comprehensive|extended
       enable-ai-analysis: ${{ vars.ENABLE_AI_ANALYSIS == 'true' }}
       force-full-ci: ${{ github.event.inputs.force_full_ci == 'true' }}
-      
+
       # Quality Configuration
       fail-fast: true
       parallel: true
-      
-      # Performance Configuration  
+
+      # Performance Configuration
       performance-threshold: '15.0'  # 15% regression threshold
       enable-benchmarks: true
-      
+
       # Security Configuration
       security-level: 'high'  # low|medium|high|critical
       enable-sarif: true
       enable-sbom: true
-      
+
       # Platform Configuration
       platforms: '["ubuntu-latest", "windows-latest", "macos-latest"]'
-      
+
     secrets:
       # Required for AI analysis
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      # Pass through other secrets as needed
-      inherit
 
   # Additional AI Analysis (Optional - for detailed analysis)
   detailed-ai-analysis:
     name: Detailed AI Analysis
     needs: ci
     if: |
-      always() && 
-      github.event_name == 'pull_request' && 
+      always() &&
+      github.event_name == 'pull_request' &&
       vars.ENABLE_AI_ANALYSIS == 'true' &&
       (
         contains(github.event.pull_request.labels.*.name, 'ai-review') ||
         github.event.pull_request.changed_files > 10 ||
         contains(github.event.pull_request.title, '[major]')
       )
-    
+
     uses: Claire-s-Monster/ci-framework/.github/workflows/gemini-ai-analysis.yml@v1.1.0
     with:
       analysis_type: ${{ github.event.inputs.ai_analysis_type || 'comprehensive' }}
@@ -94,14 +92,14 @@ jobs:
         - Quality Gates: ${{ needs.ci.outputs.quality-status }}
         - Security Scan: ${{ needs.ci.outputs.security-status }}
         - Performance: ${{ needs.ci.outputs.performance-status }}
-        
+
         Focus on:
         1. Impact of changes on system architecture
-        2. Potential performance implications  
+        2. Potential performance implications
         3. Security considerations
         4. Code maintainability and technical debt
         5. Test coverage and quality
-    
+
     secrets:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
@@ -109,22 +107,22 @@ jobs:
   weekly-analysis:
     name: Weekly AI Health Check
     if: github.event_name == 'schedule' && vars.ENABLE_AI_ANALYSIS == 'true'
-    
+
     uses: Claire-s-Monster/ci-framework/.github/workflows/gemini-ai-analysis.yml@v1.1.0
     with:
       analysis_type: 'comprehensive'
       prompt: |
         Perform weekly project health analysis:
-        
+
         1. **Code Quality Trends**: Analyze changes over the past week
         2. **Technical Debt**: Identify accumulating technical debt
-        3. **Security Posture**: Review security improvements/regressions  
+        3. **Security Posture**: Review security improvements/regressions
         4. **Performance Trends**: Analyze performance impact of recent changes
         5. **Test Quality**: Evaluate test suite effectiveness
         6. **Documentation**: Check documentation completeness
-        
+
         Provide strategic recommendations for improving project health.
-    
+
     secrets:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
@@ -133,7 +131,6 @@ jobs:
 #   schedule:
 #     - cron: '0 9 * * MON'  # Every Monday at 9 AM UTC
 
----
 # SETUP INSTRUCTIONS:
 #
 # 1. Repository Secrets (required):
@@ -159,10 +156,10 @@ jobs:
 #    Create .github/gemini-prompts.yml for custom analysis prompts
 
 # COST CONSIDERATIONS:
-# 
+#
 # Gemini API usage is billed per token. Typical usage:
 # - Basic PR review: ~1,000-3,000 tokens
-# - Comprehensive analysis: ~5,000-10,000 tokens  
+# - Comprehensive analysis: ~5,000-10,000 tokens
 # - Weekly analysis: ~10,000-20,000 tokens
 #
 # Monitor usage in Google AI Studio console and adjust analysis

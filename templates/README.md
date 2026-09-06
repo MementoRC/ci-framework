@@ -30,7 +30,7 @@ This directory contains centralized configuration templates for consistent proje
 - Minimal dependencies
 - Fast CI execution
 
-#### Extended Tier  
+#### Extended Tier
 - Security scanning
 - Code quality analysis
 - Performance monitoring

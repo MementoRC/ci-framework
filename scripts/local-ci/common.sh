@@ -1,7 +1,7 @@
 #!/bin/bash
 # Common utilities for Local CI Scripts
 # ====================================
-# 
+#
 # Shared functions and utilities used across all local CI scripts.
 # Source this file in other scripts: source "$(dirname "$0")/common.sh"
 
@@ -80,7 +80,7 @@ get_project_root() {
 # Detect package manager in current directory
 detect_package_manager() {
     local dir="${1:-$PWD}"
-    
+
     if [[ -f "$dir/pyproject.toml" ]]; then
         # Check for pixi first, then poetry
         if grep -q "\[tool\.pixi\]" "$dir/pyproject.toml" 2>/dev/null; then
@@ -103,7 +103,7 @@ detect_package_manager() {
 get_package_manager_commands() {
     local pkg_manager="$1"
     local tier="${2:-essential}"
-    
+
     case "$pkg_manager" in
         pixi)
             case "$tier" in
@@ -180,9 +180,9 @@ execute_package_command() {
     local pkg_manager="$1"
     local command="$2"
     local directory="${3:-$PWD}"
-    
+
     log_debug "Executing '$command' with $pkg_manager in $directory"
-    
+
     case "$pkg_manager" in
         pixi)
             (cd "$directory" && pixi run "$command")
@@ -205,7 +205,7 @@ execute_package_command() {
 # Check if package manager is available
 check_package_manager() {
     local pkg_manager="$1"
-    
+
     case "$pkg_manager" in
         pixi)
             if ! command_exists pixi; then
@@ -236,7 +236,7 @@ check_package_manager() {
 # Get timeout for tier
 get_tier_timeout() {
     local tier="$1"
-    
+
     case "$tier" in
         essential)
             echo "300"  # 5 minutes
@@ -257,7 +257,7 @@ get_tier_timeout() {
 run_with_timeout() {
     local timeout_seconds="$1"
     shift
-    
+
     if command_exists timeout; then
         timeout "$timeout_seconds" "$@"
     else
@@ -304,13 +304,13 @@ cleanup_temp_dir() {
 parse_args() {
     local script_name="$1"
     shift
-    
+
     # Initialize default values
     VERBOSE=0
     DEBUG=0
     DRY_RUN=0
     HELP=0
-    
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             -v|--verbose)
@@ -342,10 +342,10 @@ parse_args() {
                 ;;
         esac
     done
-    
+
     # Export for use in other functions
     export VERBOSE DEBUG DRY_RUN
-    
+
     if [[ "$HELP" == "1" ]]; then
         show_usage "$script_name"
         exit 0
@@ -371,22 +371,22 @@ EOF
 # Validate environment
 validate_environment() {
     log_debug "Validating environment..."
-    
+
     # Check basic requirements
     if ! command_exists python3 && ! command_exists python; then
         die "Python is required but not found"
     fi
-    
+
     # Check if we can run package detection
     local package_detection_script="$SCRIPT_DIR/package-detection.py"
     if [[ ! -f "$package_detection_script" ]]; then
         die "Package detection script not found: $package_detection_script"
     fi
-    
+
     if [[ ! -x "$package_detection_script" ]]; then
         die "Package detection script is not executable: $package_detection_script"
     fi
-    
+
     log_debug "Environment validation passed"
 }
 
@@ -394,7 +394,7 @@ validate_environment() {
 show_header() {
     local script_name="$1"
     local description="$2"
-    
+
     echo -e "${CYAN}================================${NC}"
     echo -e "${CYAN}Local CI: $script_name${NC}"
     echo -e "${CYAN}$description${NC}"
