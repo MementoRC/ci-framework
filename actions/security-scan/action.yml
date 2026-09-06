@@ -210,18 +210,28 @@ runs:
         TIMEOUT="${{ inputs.timeout }}"
         PARALLEL="${{ inputs.parallel }}"
         PROJECT_DIR="${{ inputs.project-dir }}"
-        # shellcheck disable=SC2034  # inert input, tracked in #273
         CONFIG_FILE="${{ inputs.config-file }}"
-        # shellcheck disable=SC2034  # inert input, tracked in #273
         FAIL_FAST="${{ inputs.fail-fast }}"
         REPORTS_DIR="${{ inputs.reports-dir }}"
         PIXI_ENVIRONMENT="${{ inputs.pixi-environment }}"
+        # Passed to the python3 heredoc below via the environment: that
+        # heredoc's delimiter is quoted ('EOF'), so bash performs no
+        # substitution inside it and a literal "$VAR" there would never
+        # resolve (#273).
+        export CONFIG_FILE FAIL_FAST
 
         echo "🛡️ Security Scan Action v0.0.1"
         echo "🔒 Security Level: $SECURITY_LEVEL"
         echo "⏱️  Timeout: ${TIMEOUT}s"
         echo "🔄 Parallel: $PARALLEL"
         echo "📁 Project: $PROJECT_DIR"
+
+        # config-file must point at a real file when given - silently
+        # ignoring a typo'd path is the exact defect being fixed here (#273).
+        if [[ -n "$CONFIG_FILE" && ! -f "$CONFIG_FILE" ]]; then
+          echo "❌ config-file not found: $CONFIG_FILE" >&2
+          exit 1
+        fi
 
         # Create reports directory
         mkdir -p "$REPORTS_DIR"
@@ -241,6 +251,11 @@ runs:
         from typing import Dict, List, Any, Optional
         import tempfile
         import os
+
+        # Read via the environment rather than shell interpolation - see the
+        # `export` comment above the bash assignment for why (#273).
+        CONFIG_FILE = os.environ.get("CONFIG_FILE", "")
+        FAIL_FAST = os.environ.get("FAIL_FAST", "true").strip().lower() == "true"
 
         # Configuration based on security level
         SECURITY_CONFIGS = {
@@ -297,6 +312,8 @@ runs:
                         "--severity-level", self.config["bandit_severity"],
                         "-x", "**/tests/**,**/test_**"
                     ]
+                    if CONFIG_FILE:
+                        cmd += ["-c", CONFIG_FILE]
 
                     result = subprocess.run(
                         cmd,
@@ -313,6 +330,8 @@ runs:
                         "--severity-level", self.config["bandit_severity"],
                         "-x", "**/tests/**,**/test_**"
                     ]
+                    if CONFIG_FILE:
+                        sarif_cmd += ["-c", CONFIG_FILE]
 
                     subprocess.run(sarif_cmd, timeout=60, capture_output=True)
 
@@ -428,9 +447,11 @@ runs:
                 sarif_file = self.reports_dir / "semgrep.sarif"
 
                 try:
-                    # Run with auto config for security rules
+                    # config-file overrides the default "auto" rule config
+                    # when given (#273); otherwise unchanged.
+                    semgrep_config = CONFIG_FILE if CONFIG_FILE else "auto"
                     cmd = [
-                        "semgrep", "--config=auto",
+                        "semgrep", f"--config={semgrep_config}",
                         "--json", "--output", str(output_file),
                         str(self.project_dir)
                     ]
@@ -444,7 +465,7 @@ runs:
 
                     # Also generate SARIF
                     sarif_cmd = [
-                        "semgrep", "--config=auto",
+                        "semgrep", f"--config={semgrep_config}",
                         "--sarif", "--output", str(sarif_file),
                         str(self.project_dir)
                     ]
@@ -597,8 +618,25 @@ runs:
                 if "${{ inputs.enable-trivy }}" == "true" and "trivy" in self.config["required_tools"]:
                     enabled_scans["trivy"] = scan_functions["trivy"]
 
-                # Execute scans
-                if "${{ inputs.parallel }}" == "true":
+                # Execute scans. fail-fast forces sequential execution with an
+                # early stop after the first failing/critical tool, regardless
+                # of the parallel flag: aborting mid-flight is meaningless
+                # once parallel futures are already dispatched (#273).
+                if FAIL_FAST:
+                    for tool, func in enabled_scans.items():
+                        try:
+                            self.results[tool] = func()
+                        except Exception as e:
+                            self.results[tool] = {"success": False, "error": str(e)}
+                            self.failed_tools.append(tool)
+                        tool_failed = not self.results[tool].get("success", True)
+                        critical_found = (
+                            self.vulnerabilities["critical"] + self.vulnerabilities["high"] > 0
+                        )
+                        if tool_failed or critical_found:
+                            print(f"🛑 fail-fast: stopping after '{tool}' (failure or critical/high vulnerability)")
+                            break
+                elif "${{ inputs.parallel }}" == "true":
                     # Parallel execution
                     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
                         future_to_tool = {executor.submit(func): tool for tool, func in enabled_scans.items()}
@@ -702,7 +740,7 @@ runs:
             sys.exit(0)
         else:
             print(f"❌ Security scans failed: {result['failure_reason']}")
-            if "$FAIL_FAST".lower() == "true":
+            if FAIL_FAST:
                 sys.exit(1)
             else:
                 print("⚠️  Continuing despite failures (fail-fast disabled)")

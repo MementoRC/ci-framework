@@ -176,7 +176,6 @@ runs:
         PROJECT_DIR="${{ inputs.project-dir }}"
         BASE_REF="${{ inputs.base-ref }}"
         HEAD_REF="${{ inputs.head-ref }}"
-        # shellcheck disable=SC2034  # inert input, tracked in #273
         PATTERN_CONFIG="${{ inputs.pattern-config }}"
         ENABLE_TEST_OPT="${{ inputs.enable-test-optimization }}"
         ENABLE_JOB_SKIP="${{ inputs.enable-job-skipping }}"
@@ -192,6 +191,13 @@ runs:
         echo "🔄 Test Optimization: $ENABLE_TEST_OPT"
         echo "⏭️  Job Skipping: $ENABLE_JOB_SKIP"
         echo "📦 Monorepo Mode: $MONOREPO_MODE"
+
+        # pattern-config must point at a real file when given - silently
+        # ignoring a typo'd path is the exact defect being fixed here (#273).
+        if [[ -n "$PATTERN_CONFIG" && ! -f "$PATTERN_CONFIG" ]]; then
+          echo "❌ pattern-config not found: $PATTERN_CONFIG" >&2
+          exit 1
+        fi
 
         # Create reports directory
         mkdir -p "$REPORTS_DIR"
@@ -238,7 +244,7 @@ runs:
 
           # Standalone implementation for initial version
           class ChangeDetectionAction:
-            def __init__(self):
+            def __init__(self, pattern_config=None):
               self.project_dir = Path("$PROJECT_DIR")
               self.reports_dir = Path("$REPORTS_DIR")
               self.detection_level = "$DETECTION_LEVEL"
@@ -247,6 +253,7 @@ runs:
               self.enable_test_opt = "$ENABLE_TEST_OPT".lower() == "true"
               self.enable_job_skip = "$ENABLE_JOB_SKIP".lower() == "true"
               self.monorepo_mode = "$MONOREPO_MODE".lower() == "true"
+              self.pattern_config = pattern_config
 
               # Default file patterns for change classification
               self.patterns = {
@@ -258,6 +265,20 @@ runs:
                 "ci": [".github/workflows/**", ".github/actions/**", "*.yml", "*.yaml"],
                 "build": ["Dockerfile*", "docker-compose*.yml", "Makefile", "setup.py", "setup.cfg"]
               }
+
+              # A pattern-config file overrides only the categories it defines;
+              # any category it does not mention keeps its default (#273).
+              if self.pattern_config:
+                custom_patterns = self._load_custom_patterns(self.pattern_config)
+                if custom_patterns:
+                  self.patterns.update(custom_patterns)
+
+            def _load_custom_patterns(self, config_path):
+              """Load the [patterns] table from a TOML pattern-config file."""
+              import tomllib
+              with open(config_path, "rb") as f:
+                data = tomllib.load(f)
+              return data.get("patterns", {})
 
             def get_changed_files(self) -> List[str]:
               """Get list of changed files between base and head refs."""
@@ -536,7 +557,8 @@ runs:
                 }
 
         # Execute change detection
-        detector = ChangeDetectionAction()
+        pattern_config = "$PATTERN_CONFIG" or None
+        detector = ChangeDetectionAction(pattern_config=pattern_config)
         result = detector.execute()
 
         # Set outputs
