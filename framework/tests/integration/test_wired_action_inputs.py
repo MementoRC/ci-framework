@@ -245,9 +245,13 @@ class TestChangeDetectionPatternConfig:
         valid Python.
         """
         source = CHANGE_DETECTION_YML.read_text()
-        assert re.search(
-            r'pattern_config\s*=\s*"\$PATTERN_CONFIG"\s+or\s+None', source
-        ), "pattern_config is no longer read from the PATTERN_CONFIG shell variable"
+        # PATTERN_CONFIG is now read from the environment rather than
+        # spliced as "$PATTERN_CONFIG" into the python3 heredoc source - see
+        # the #273-follow-up injection fix. The wiring guard is updated to
+        # match, but still fails if the pattern_config plumbing regresses.
+        assert re.search(r"pattern_config\s*=\s*PATTERN_CONFIG\s+or\s+None", source), (
+            "pattern_config is no longer read from the PATTERN_CONFIG environment variable"
+        )
         assert "ChangeDetectionAction(pattern_config=pattern_config)" in source, (
             "pattern_config is no longer passed into ChangeDetectionAction()"
         )
@@ -260,7 +264,21 @@ class TestChangeDetectionPatternConfig:
             "class ChangeDetectionAction:",
             "def get_changed_files(self)",
         )
-        namespace: dict[str, Any] = {"Path": Path}
+        # __init__ now reads these as bare names resolved from os.environ at
+        # module scope (see the injection fix), rather than as literal
+        # "$VAR" strings baked into the source. Provide the same defaults
+        # the real heredoc's os.environ.get(...) calls use.
+        namespace: dict[str, Any] = {
+            "Path": Path,
+            "PROJECT_DIR": ".",
+            "REPORTS_DIR": "change-reports",
+            "DETECTION_LEVEL": "standard",
+            "BASE_REF": "",
+            "HEAD_REF": "",
+            "ENABLE_TEST_OPT": True,
+            "ENABLE_JOB_SKIP": True,
+            "MONOREPO_MODE": False,
+        }
         exec(snippet, namespace)  # noqa: S102 - exercising real action.yml source
         return namespace["ChangeDetectionAction"]
 
@@ -292,6 +310,202 @@ class TestChangeDetectionPatternConfig:
             "*.txt",
             "README*",
         ]
+
+
+# ===== change-detection: env-var injection regression (#273 follow-up) =====
+
+
+class TestChangeDetectionEnvVarInjectionRegression:
+    """Before this fix, HEAD_REF/PROJECT_DIR/PATTERN_CONFIG (and others) were
+    spliced directly into the python3 heredoc's *source text* as `"$VAR"`
+    inside an unquoted (`<< EOF`) heredoc. Bash performs no escaping when
+    expanding a variable inside a double-quoted context, so a value
+    containing a `"` followed by a newline and code breaks out of the Python
+    string literal and runs arbitrary code - e.g. a fork PR's branch name
+    flowing into `head-ref: ${{ github.event.pull_request.head.ref }}`.
+
+    The fix reads these values via `os.environ.get(...)` instead, so a
+    malicious value can only ever become a Python *string value*, never
+    Python *source*. These tests feed such a value through the real
+    action.yml source (extracted, not hand-copied) and assert it comes out
+    the other end as inert data.
+    """
+
+    MALICIOUS = 'foo"\nimport os\nos.system("touch /tmp/pwned")\n#'
+
+    def _instantiate(self, monkeypatch: pytest.MonkeyPatch, **env: str):
+        defaults = {
+            "PROJECT_DIR": ".",
+            "REPORTS_DIR": "change-reports",
+            "DETECTION_LEVEL": "standard",
+            "BASE_REF": "",
+            "HEAD_REF": "",
+            "ENABLE_TEST_OPT": "true",
+            "ENABLE_JOB_SKIP": "true",
+            "MONOREPO_MODE": "false",
+            "PATTERN_CONFIG": "",
+            "FAIL_FAST": "false",
+        }
+        defaults.update(env)
+        for key, value in defaults.items():
+            monkeypatch.setenv(key, value)
+
+        source = CHANGE_DETECTION_YML.read_text()
+        # The leading "\n        " keeps the first extracted line's own
+        # indentation intact (a bare mid-line marker would otherwise strip
+        # just that line's leading whitespace, leaving it at column 0 while
+        # every other line stays at column 8 - an IndentationError once
+        # dedented and exec'd).
+        env_reads = _extract(
+            source,
+            "\n        PROJECT_DIR = os.environ.get(",
+            "# Add framework to path",
+        )
+        class_def = _extract(
+            source,
+            "class ChangeDetectionAction:",
+            "def get_changed_files(self)",
+        )
+        namespace: dict[str, Any] = {"os": os, "Path": Path}
+        exec(env_reads, namespace)  # noqa: S102 - exercising real action.yml source
+        exec(class_def, namespace)  # noqa: S102 - exercising real action.yml source
+        pattern_config = namespace["PATTERN_CONFIG"] or None
+        return namespace["ChangeDetectionAction"](pattern_config=pattern_config)
+
+    def test_head_ref_injection_is_treated_as_data(self, monkeypatch):
+        detector = self._instantiate(monkeypatch, HEAD_REF=self.MALICIOUS)
+
+        assert detector.head_ref == self.MALICIOUS
+
+    def test_project_dir_injection_is_treated_as_data(self, monkeypatch):
+        detector = self._instantiate(monkeypatch, PROJECT_DIR=self.MALICIOUS)
+
+        assert detector.project_dir == Path(self.MALICIOUS)
+
+    def test_pattern_config_injection_is_treated_as_data(self, monkeypatch):
+        """A truthy pattern_config is opened as a file by __init__, so the
+        proof here is stronger than an attribute check: the malicious string
+        must surface as a literal, unparsed *filename* in a real filesystem
+        error, never as executed code.
+        """
+        with pytest.raises(FileNotFoundError) as exc_info:
+            self._instantiate(monkeypatch, PATTERN_CONFIG=self.MALICIOUS)
+
+        assert exc_info.value.filename == self.MALICIOUS
+
+    def test_no_injected_code_actually_executes(self, tmp_path, monkeypatch):
+        """No file is created by the injected `os.system("touch ...")` payload."""
+        marker = tmp_path / "pwned"
+        payload = f'foo"\nimport pathlib\npathlib.Path(r"{marker}").touch()\n#'
+
+        self._instantiate(monkeypatch, HEAD_REF=payload)
+
+        assert not marker.exists(), (
+            "injected code executed - the env-var read is no longer safe"
+        )
+
+    def test_bash_style_splicing_would_have_executed_injected_code(self, tmp_path):
+        """Proves the vulnerability class the fix above closes is real.
+
+        Reproduces - by hand, not by reading it back out of action.yml, since
+        the fix means it no longer exists there - exactly what bash does
+        when expanding a variable inside a double-quoted heredoc line: the
+        value is spliced into the *source text* verbatim, with no escaping.
+        This is what `self.head_ref = "$HEAD_REF"` compiled down to before
+        the fix, for a malicious HEAD_REF.
+        """
+        marker = tmp_path / "pwned"
+        payload = f'foo"\nimport pathlib\npathlib.Path(r"{marker}").touch()\n#'
+        vulnerable_source = f'value = "{payload}"\n'
+
+        exec(vulnerable_source, {})  # noqa: S102 - demonstrating the vulnerability class
+
+        assert marker.exists(), (
+            "simulated bash-style splicing should have executed injected code"
+        )
+
+
+# ===== guard by discovery: no python3 heredoc may splice a shell $VAR =====
+
+
+class TestNoShellInterpolationInsidePythonHeredocs:
+    """General form of the #273 follow-up fix.
+
+    Rather than relying on a hand-maintained list of sites, walk every
+    action.yml under `actions/` and every `python3 << ...` heredoc within
+    it, and fail loudly on any line that embeds a `$UPPERCASE_VAR`-shaped
+    shell variable reference. That is exactly the pattern that made the ten
+    (really fourteen) sites in change-detection/action.yml, and the three
+    in security-scan/action.yml, exploitable or silently broken - and it
+    would catch the next one automatically.
+    """
+
+    _HEREDOC_START = re.compile(r"^\s*(\S*python3?\S*)\s*<<-?\s*(['\"]?)(\w+)\2\s*$")
+    _SHELL_VAR = re.compile(r"\$[A-Z_][A-Z0-9_]*")
+
+    # Files with the same actively-exploitable shell-variable injection defect
+    # this guard detects in python3 heredocs. Excluded so this guard can land
+    # without blocking on their larger fix, tracked as #292. Removing these
+    # entries is part of fixing #292 - do NOT add new entries; fix the site.
+    _KNOWN_UNFIXED = {
+        "actions/performance-benchmark/action.yml",
+        "actions/quality-gates/action.yml",
+    }
+
+    @classmethod
+    def _heredoc_bodies(cls, text: str) -> list[str]:
+        lines = text.splitlines()
+        bodies = []
+        i = 0
+        while i < len(lines):
+            match = cls._HEREDOC_START.match(lines[i])
+            if match:
+                delimiter = match.group(3)
+                body: list[str] = []
+                i += 1
+                while i < len(lines) and lines[i].strip() != delimiter:
+                    body.append(lines[i])
+                    i += 1
+            else:
+                i += 1
+                continue
+            bodies.append("\n".join(body))
+        return bodies
+
+    def test_discovery_would_have_caught_the_original_sites(self):
+        """Sanity check on the parser itself: it must actually find the
+        heredoc and detect the pattern on a minimal reproduction, so a
+        broken regex can't make the real test below pass vacuously.
+        """
+        sample = (
+            "        python3 << 'EOF'\n"
+            '        self.head_ref = "$HEAD_REF"\n'
+            "        EOF\n"
+        )
+        bodies = self._heredoc_bodies(sample)
+        assert len(bodies) == 1
+        assert self._SHELL_VAR.search(bodies[0])
+
+    def test_no_action_yml_splices_shell_vars_into_python_heredocs(self):
+        actions_dir = REPO_ROOT / "actions"
+        offenders: dict[str, list[str]] = {}
+        for action_yml in sorted(actions_dir.rglob("action.yml")):
+            rel = str(action_yml.relative_to(REPO_ROOT))
+            if rel in self._KNOWN_UNFIXED:
+                continue
+            text = action_yml.read_text()
+            for body in self._heredoc_bodies(text):
+                bad_lines = [
+                    line for line in body.splitlines() if self._SHELL_VAR.search(line)
+                ]
+                if bad_lines:
+                    offenders.setdefault(rel, []).extend(bad_lines)
+
+        assert not offenders, (
+            "shell variable spliced directly into python3 heredoc source "
+            f"(arbitrary code injection risk if the heredoc is ever "
+            f"unquoted): {offenders}"
+        )
 
 
 # ===== shared guard: unused shell variables are caught by action-shellcheck =====

@@ -217,8 +217,12 @@ runs:
         # Passed to the python3 heredoc below via the environment: that
         # heredoc's delimiter is quoted ('EOF'), so bash performs no
         # substitution inside it and a literal "$VAR" there would never
-        # resolve (#273).
-        export CONFIG_FILE FAIL_FAST
+        # resolve (#273). PROJECT_DIR/REPORTS_DIR/SECURITY_LEVEL were
+        # missed by the original #273 fix - they were still spliced as
+        # literal "$VAR" text further down in this same heredoc, which the
+        # quoted delimiter left unresolved (a change-detection-style
+        # follow-up security sweep caught this).
+        export CONFIG_FILE FAIL_FAST PROJECT_DIR REPORTS_DIR SECURITY_LEVEL
 
         echo "🛡️ Security Scan Action v0.0.1"
         echo "🔒 Security Level: $SECURITY_LEVEL"
@@ -256,6 +260,9 @@ runs:
         # `export` comment above the bash assignment for why (#273).
         CONFIG_FILE = os.environ.get("CONFIG_FILE", "")
         FAIL_FAST = os.environ.get("FAIL_FAST", "true").strip().lower() == "true"
+        PROJECT_DIR = os.environ.get("PROJECT_DIR", ".")
+        REPORTS_DIR = os.environ.get("REPORTS_DIR", "security-reports")
+        SECURITY_LEVEL = os.environ.get("SECURITY_LEVEL", "medium")
 
         # Configuration based on security level
         SECURITY_CONFIGS = {
@@ -694,9 +701,9 @@ runs:
                 }
 
         # Main execution
-        project_dir = Path("$PROJECT_DIR")
-        reports_dir = Path("$REPORTS_DIR")
-        security_level = "$SECURITY_LEVEL"
+        project_dir = Path(PROJECT_DIR)
+        reports_dir = Path(REPORTS_DIR)
+        security_level = SECURITY_LEVEL
 
         scanner = SecurityScanner(security_level, project_dir, reports_dir)
         result = scanner.run_all_scans()
