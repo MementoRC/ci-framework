@@ -144,8 +144,10 @@ lint = "pixi run -e quality lint-impl"
 lint-impl = "ruff check framework/ --select=F,E9"
 lint-full = "pixi run -e quality lint-full-impl"
 lint-full-impl = "ruff check framework/"
-lint-fix = "ruff check --fix framework/"
-format = "ruff format framework/"
+lint-fix = "pixi run -e quality lint-fix-impl"
+lint-fix-impl = "ruff check --fix framework/"
+format = "pixi run -e quality format-impl"
+format-impl = "ruff format framework/"
 format-check = "pixi run -e quality format-check-impl"
 format-check-impl = "ruff format --check framework/"
 typecheck = "pixi run -e quality typecheck-impl"
@@ -164,8 +166,14 @@ emergency-fix = "pixi run lint-fix && pixi run format && pixi run test"
 
 # ===== TIER 2: SECURITY & COMPLIANCE TASKS =====
 # Security Scanning
-security-scan = "bandit -r framework/ --severity-level high -x framework/tests/"
-safety-check = "pip-audit --verbose"
+security-scan = "pixi run -e quality-extended security-scan-impl"
+security-scan-impl = "bandit -r framework/ --severity-level high -x framework/tests/"
+safety-check = "pixi run -e quality-extended safety-check-impl"
+safety-check-impl = "pip-audit --verbose"
+# radon and vulture are base [tool.pixi.dependencies] (lines 41-42), so they
+# are available in every environment including `default` — unlike the tasks
+# above, these two deliberately stay bare. There is no env-mismatch bug to
+# fix here (#268); do not add -impl delegation as unneeded churn.
 complexity-check = "radon cc framework/ --min B"
 dead-code-check = "vulture framework/ --min-confidence 80"
 
@@ -178,16 +186,20 @@ check-all = { depends-on = ["quality", "static-analysis"] }
 # ===== TIER 3: CI/CD & DEPLOYMENT TASKS =====
 # CI-specific variants
 ci-test = { cmd = "pytest framework/tests/ --cov=framework --cov-report=xml", env = { ENVIRONMENT = "ci" } }
-ci-lint = "ruff check framework/ --output-format=github"
+ci-lint = "pixi run -e quality ci-lint-impl"
+ci-lint-impl = "ruff check framework/ --output-format=github"
 ci-format-check = "pixi run -e quality format-check-impl"
 
 # Build & Deploy
-build = "python -m build"
+build = "pixi run -e dev build-impl"
+build-impl = "python -m build"
 clean = "rm -rf __pycache__ .pytest_cache .coverage htmlcov .ruff_cache dist build"
 
 # Pre-commit Integration - PREVENT CI FAILURES
-pre-commit = "pre-commit run --all-files"
-install-pre-commit = "pre-commit install --install-hooks"   # 🚨 ESSENTIAL: Run once per developer
+pre-commit = "pixi run -e quality-extended pre-commit-impl"
+pre-commit-impl = "pre-commit run --all-files"
+install-pre-commit = "pixi run -e quality-extended install-pre-commit-impl"   # 🚨 ESSENTIAL: Run once per developer
+install-pre-commit-impl = "pre-commit install --install-hooks"
 
 # ===== LEGACY/SPECIALIZED TASKS =====
 # Keep existing specialized tasks for backward compatibility
@@ -223,15 +235,26 @@ action-lint-impl = "actionlint"
 # silently narrow again.
 workflow-lint = "pixi run -e dev workflow-lint-impl"
 workflow-lint-impl = "python -m framework.workflow_lint"
-security-audit = "pip-audit --verbose"
-bandit-scan = "bandit -r framework/ -x framework/tests/ -s B101"
-detect-secrets = "detect-secrets scan --exclude-files '__pycache__' --exclude-files '*.pyc' --exclude-files '*.egg-info' --exclude-files '.git' --exclude-files 'pixi.lock'"
+security-audit = "pixi run -e quality-extended security-audit-impl"
+security-audit-impl = "pip-audit --verbose"
+bandit-scan = "pixi run -e quality-extended bandit-scan-impl"
+bandit-scan-impl = "bandit -r framework/ -x framework/tests/ -s B101"
+detect-secrets = "pixi run -e dev detect-secrets-impl"
+detect-secrets-impl = "detect-secrets scan --exclude-files '__pycache__' --exclude-files '*.pyc' --exclude-files '*.egg-info' --exclude-files '.git' --exclude-files 'pixi.lock'"
 unit-test = "pytest framework/tests/"
 
 # Performance & Benchmarking
-benchmark = "pytest framework/tests/benchmarks/ --benchmark-only --benchmark-sort=mean"
-benchmark-save = "pytest framework/tests/benchmarks/ --benchmark-only --benchmark-save=baseline"
-benchmark-compare = "pytest framework/tests/benchmarks/ --benchmark-only --benchmark-compare"
+# pytest-benchmark is dev-only. Unlike the exit-127 breakage fixed above, a
+# bare invocation here still resolves `pytest` itself (a base dependency) and
+# fails differently: a pytest usage error on the unrecognized
+# `--benchmark-only` flag, not "command not found" — a failure mode a
+# 127-only check would miss (#268).
+benchmark = "pixi run -e dev benchmark-impl"
+benchmark-impl = "pytest framework/tests/benchmarks/ --benchmark-only --benchmark-sort=mean"
+benchmark-save = "pixi run -e dev benchmark-save-impl"
+benchmark-save-impl = "pytest framework/tests/benchmarks/ --benchmark-only --benchmark-save=baseline"
+benchmark-compare = "pixi run -e dev benchmark-compare-impl"
+benchmark-compare-impl = "pytest framework/tests/benchmarks/ --benchmark-only --benchmark-compare"
 
 # Coverage Analysis
 test-coverage = "pixi run -e quality test-coverage-impl"
@@ -240,7 +263,8 @@ test-coverage-json = "pixi run -e quality test-coverage-json-impl"
 test-coverage-json-impl = "pytest framework/tests/ --cov=framework --cov-branch --cov-report=json --json-report --json-report-file=pytest-report.json"
 
 # Framework-specific tasks
-sbom-generate = "cyclonedx-py -o ci-framework-sbom.json"
+sbom-generate = "pixi run -e dev sbom-generate-impl"
+sbom-generate-impl = "cyclonedx-py -o ci-framework-sbom.json"
 
 [tool.ruff]
 # Must track `[project] requires-python` (#284). At py310, ruff classified

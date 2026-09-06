@@ -599,3 +599,262 @@ class TestTemplateQualityGateCoversTemplateCiLintRuleset:
             f"ci-lint runs {offenders}, gate runs "
             f"{[describe_ruleset(r) for r in local_rulesets]}"
         )
+
+
+# ===== #268: direct-task binary resolves in the `default` pixi env =====
+#
+# `pixi run <task>` with no `-e` resolves `<task>` in the `default`
+# environment. Every task fixed in #268 bare-invoked a quality/security/dev
+# only tool and therefore 127'd unless the caller happened to already be in
+# the right env; each was converted to the `<task> = "pixi run -e <env>
+# <task>-impl"` delegation pattern already used by `lint`/`format-check`/etc.
+# This section guards the defect class from recurring, built by DISCOVERY
+# over `[tool.pixi.tasks]` rather than a hand-maintained task list — the
+# #255/#261 failure mode (a narrower list than reality) this whole file
+# exists to avoid.
+
+# Binary -> conda package name, for every binary this manifest's tasks
+# directly invoke. An unmapped binary must fail the guard loudly (see
+# `resolve_binary_package`) rather than be silently skipped — silently
+# skipping unknowns is exactly the #255/#261 failure this guard exists to
+# prevent.
+BINARY_TO_PACKAGE = {
+    "ruff": "ruff",
+    "mypy": "mypy",
+    "pytest": "pytest",
+    "radon": "radon",
+    "vulture": "vulture",
+    "bandit": "bandit",
+    "pip-audit": "pip-audit",
+    "pre-commit": "pre-commit",
+    "detect-secrets": "bc-detect-secrets",
+    "cyclonedx-py": "cyclonedx-bom",
+    "yamllint": "yamllint",
+    "actionlint": "actionlint",
+    "shellcheck": "shellcheck",
+    "python -m build": "python-build",
+}
+
+# Shell/OS-level utilities that are never pixi-managed packages: they are on
+# PATH regardless of which pixi environment is active (coreutils, and `pixi`
+# itself — the tool orchestrating the whole task graph, invoked bare by
+# `emergency-fix`). Treated the same as "no package needed".
+ALWAYS_AVAILABLE_BINARIES = frozenset({"echo", "rm", "pixi"})
+
+# Sentinel returned by `resolve_binary_package` for a binary that needs no
+# pixi package: an `ALWAYS_AVAILABLE_BINARIES` entry, or one of this repo's
+# own `python -m framework.*` modules (stdlib-only, never pip/conda-installed
+# — see `install-editable`).
+NO_PACKAGE_NEEDED = "<no-package-needed>"
+
+
+def load_manifest() -> dict:
+    """Load the full parsed pyproject.toml manifest."""
+    return tomllib.loads(PYPROJECT.read_text())
+
+
+def classify_task(task: dict | str) -> str:
+    """Classify a pixi task as 'delegating', 'depends-only', or 'direct'.
+
+    - 'delegating': the command is a `pixi run -e/--environment <env> ...`
+      indirection to another task — always resolves, whatever env the
+      caller started from.
+    - 'depends-only': a dict with no `cmd` of its own (a `depends-on`
+      aggregate like `quality` or `static-analysis`).
+    - 'direct': any other command string — a bare tool invocation that
+      resolves in whatever env the caller happens to already be in.
+    """
+    cmd = task_cmd(task)
+    if cmd is None:
+        return "depends-only"
+    if ENV_DELEGATION_RE.match(cmd.strip()):
+        return "delegating"
+    return "direct"
+
+
+def extract_invoked_binary(cmd: str) -> str:
+    """Return the binary a 'direct' task command invokes.
+
+    Takes the first shell token, except for `python -m <module>`, which
+    returns `"python -m <module>"` verbatim — the module is what determines
+    the providing package (e.g. `python -m build` -> the `python-build`
+    package), not the interpreter.
+    """
+    tokens = cmd.strip().split()
+    if len(tokens) >= 3 and tokens[0] == "python" and tokens[1] == "-m":
+        return f"python -m {tokens[2]}"
+    return tokens[0]
+
+
+def resolve_binary_package(task_name: str, binary: str) -> str:
+    """Map an invoked binary to its providing conda package name.
+
+    Returns `NO_PACKAGE_NEEDED` for shell utilities and this repo's own
+    `python -m framework.*` modules. Raises for anything else not in
+    `BINARY_TO_PACKAGE` — an unmapped binary must fail loudly, naming the
+    task and the binary, so a maintainer adds a mapping entry instead of the
+    guard silently skipping a task it does not understand (#255, #261).
+    """
+    if binary in ALWAYS_AVAILABLE_BINARIES:
+        return NO_PACKAGE_NEEDED
+    if binary.startswith("python -m framework."):
+        return NO_PACKAGE_NEEDED
+    if binary in BINARY_TO_PACKAGE:
+        return BINARY_TO_PACKAGE[binary]
+    raise AssertionError(
+        f"task {task_name!r} directly invokes unmapped binary {binary!r} — "
+        "add a BINARY_TO_PACKAGE entry (or an ALWAYS_AVAILABLE_BINARIES / "
+        "python-module-prefix exemption) in test_pixi_quality_tasks.py "
+        "before this guard can classify it"
+    )
+
+
+def build_env_to_features(manifest: dict) -> dict[str, list[str]]:
+    """Map each `[tool.pixi.environments]` entry to its feature list.
+
+    `default` has no `features` key at all — it gets the base
+    `[tool.pixi.dependencies]` only, by pixi's own convention.
+    """
+    environments = manifest.get("tool", {}).get("pixi", {}).get("environments", {})
+    env_to_features: dict[str, list[str]] = {}
+    for env_name, env_table in environments.items():
+        features = env_table.get("features", []) if isinstance(env_table, dict) else []
+        env_to_features[env_name] = list(features)
+    return env_to_features
+
+
+def build_env_to_packages(manifest: dict) -> dict[str, set]:
+    """Map each pixi environment to the union of package names it provides.
+
+    An environment's package set is the base `[tool.pixi.dependencies]`
+    table plus every `[tool.pixi.feature.<f>.dependencies]` table for each
+    feature listed under it in `[tool.pixi.environments]` — mirroring how
+    pixi itself resolves an environment, so "available in an env" here means
+    what it means to pixi, not an approximation of it.
+    """
+    pixi = manifest.get("tool", {}).get("pixi", {})
+    base_packages = set(pixi.get("dependencies", {}))
+    features = pixi.get("feature", {})
+    env_to_packages: dict[str, set] = {}
+    for env_name, feature_names in build_env_to_features(manifest).items():
+        packages = set(base_packages)
+        for feature_name in feature_names:
+            feature_table = features.get(feature_name, {})
+            if isinstance(feature_table, dict):
+                packages |= set(feature_table.get("dependencies", {}))
+        env_to_packages[env_name] = packages
+    return env_to_packages
+
+
+class TestPixiTaskClassifier:
+    """Self-test for `classify_task`/`extract_invoked_binary`.
+
+    A classifier that mislabelled everything as 'delegating' would make
+    `TestDirectTasksResolveInDefaultEnv`'s main assertion pass for free —
+    this pins the classifier against literal, known-shape samples so that
+    can't happen silently.
+    """
+
+    def test_classifies_delegating_command(self):
+        assert classify_task("pixi run -e quality lint-impl") == "delegating"
+
+    def test_classifies_direct_command(self):
+        assert classify_task("ruff check framework/") == "direct"
+
+    def test_classifies_depends_only_table(self):
+        assert classify_task({"depends-on": ["a", "b"]}) == "depends-only"
+
+    def test_classifies_python_module_form_as_direct(self):
+        cmd = "python -m build"
+        assert classify_task(cmd) == "direct"
+        assert extract_invoked_binary(cmd) == "python -m build"
+
+
+class TestPixiTaskDiscoveryIsNonVacuous:
+    """Guard the discovery walk itself: an empty or broken walk must fail,
+    not silently pass every downstream assertion for free.
+    """
+
+    def test_discovery_found_a_non_trivial_task_set_with_every_class(self):
+        tasks = load_tasks()
+        classes = {name: classify_task(task) for name, task in tasks.items()}
+        assert len(classes) > 20, (
+            f"only {len(classes)} tasks discovered in [tool.pixi.tasks] — "
+            "the discovery walk is likely broken"
+        )
+        found_classes = set(classes.values())
+        assert found_classes == {"delegating", "depends-only", "direct"}, (
+            f"expected all three task classes present, found only {found_classes}"
+        )
+
+
+class TestEnvPackageResolution:
+    """Guard `build_env_to_packages` itself.
+
+    Pins the very fact that makes the #268 guard meaningful: `ruff` is a
+    `quality`-feature dependency, not a base one, so it is genuinely absent
+    from `default`. If this ever stopped being true, the whole delegation
+    convention would be unnecessary — this test would be the one to notice.
+    """
+
+    def test_ruff_absent_from_default_present_in_quality(self):
+        env_to_packages = build_env_to_packages(load_manifest())
+        assert "ruff" not in env_to_packages["default"], (
+            "'ruff' unexpectedly present in the default env's package set — "
+            "either the manifest changed or build_env_to_packages is wrong"
+        )
+        assert "ruff" in env_to_packages["quality"], (
+            "'ruff' expected in the quality env's package set via the quality feature"
+        )
+
+
+class TestDirectTasksResolveInDefaultEnv:
+    """The #268 guard: every bare, user-invocable pixi task must actually run.
+
+    `pixi run <task>` with no `-e` resolves `<task>` in the `default`
+    environment. A 'direct' task (see `classify_task`) whose invoked binary
+    is not a `default`-env package will 127 for any caller who runs it that
+    way — the exact defect class Parts 1-3 of #268 fixed. `-impl` tasks are
+    exempt by convention: they are leaf tasks only ever reached through a
+    `pixi run -e <env> <name>-impl` delegation, never invoked bare by a
+    human (the delegating wrapper is what a caller actually runs).
+    """
+
+    def test_every_direct_task_binary_has_a_package_mapping(self):
+        """Anti-vacuity: an unknown binary must fail loudly here — for
+        every direct task, `-impl` or not — rather than being silently
+        skipped.
+        """
+        tasks = load_tasks()
+        for name, task in tasks.items():
+            if classify_task(task) != "direct":
+                continue
+            binary = extract_invoked_binary(task_cmd(task))
+            resolve_binary_package(name, binary)  # raises AssertionError if unmapped
+
+    def test_every_non_impl_direct_task_resolves_in_default_env(self):
+        manifest = load_manifest()
+        tasks = load_tasks()
+        default_packages = build_env_to_packages(manifest)["default"]
+
+        offenders = []
+        for name, task in tasks.items():
+            if name.endswith("-impl"):
+                continue
+            if classify_task(task) != "direct":
+                continue
+            binary = extract_invoked_binary(task_cmd(task))
+            package = resolve_binary_package(name, binary)
+            if package == NO_PACKAGE_NEEDED:
+                continue
+            if package not in default_packages:
+                offenders.append(
+                    f"{name!r} bare-invokes {binary!r} (package {package!r}), "
+                    "not present in the default env's package set"
+                )
+        assert not offenders, (
+            "these tasks are directly invocable via `pixi run <task>` (no "
+            "-e) but bare-invoke a tool the default env does not provide, "
+            "so they 127 for any caller who is not already in the right "
+            "env: " + "; ".join(offenders)
+        )
