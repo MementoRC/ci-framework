@@ -50,7 +50,7 @@ jobs:
             ".aider*"
             "ai_docs"
             "ai_docs/"
-            
+
             # Python Development Artifacts
             "__pycache__"
             "__pycache__/"
@@ -70,7 +70,7 @@ jobs:
             ".mypy_cache/"
             ".ruff_cache"
             ".ruff_cache/"
-            
+
             # Build & Distribution
             "build/"
             "dist/"
@@ -78,7 +78,7 @@ jobs:
             "*.egg-info/"
             ".tox/"
             ".nox/"
-            
+
             # Development Directories
             "artifacts"
             "artifacts/"
@@ -92,7 +92,7 @@ jobs:
             "debug/"
             ".cache"
             ".cache/"
-            
+
             # Editor & IDE Files
             ".vscode/settings.json"
             ".idea"
@@ -101,7 +101,7 @@ jobs:
             ".spyderproject"
             ".spyproject"
             ".ropeproject"
-            
+
             # Temporary & OS Files
             "*.dev"
             "*.tmp"
@@ -117,25 +117,25 @@ jobs:
             "Desktop.ini"
             "$RECYCLE.BIN/"
             "*.stackdump"
-            
+
             # Security & Environment
             ".env.local"
             ".env.*.local"
             "secrets.json"
             ".secrets.baseline"
-            
+
             # Performance & Profiling
             "performance_data"
             "performance_data/"
             ".prof"
             "*.prof"
-            
+
             # Package Manager Artifacts
             "node_modules/"
             "package-lock.json"
             "yarn.lock"
             ".pixi/envs"
-            
+
             # Backup Files
             "*.bak"
             "*.backup"
@@ -191,26 +191,26 @@ jobs:
             git commit -m "chore: comprehensive cleanup of development artifacts after PR merge
 
             Automatically removed development files that shouldn't be in production branches:
-            
+
             🤖 AI Development Tools:
             - CLAUDE.md, .claude/, .mcp.json, .taskmaster/, ai_docs/
             - .cursor/, .aider* (Editor AI configs)
-            
+
             🐍 Python Development Artifacts:
             - __pycache__/, *.pyc, .pytest_cache/, htmlcov/, coverage.xml
             - .mypy_cache/, .ruff_cache/, build/, dist/, *.egg-info/
-            
+
             📁 Development Directories:
             - artifacts/, logs/, performance_data/, tmp/, debug/
-            
+
             🔧 Editor & IDE Files:
             - .vscode/settings.json, .idea/, *.code-workspace
-            
+
             🗃️ Temporary & OS Files:
             - *.tmp, *.dev, .DS_Store, Thumbs.db, *~
-            
+
             This keeps production branches clean while preserving dev context in feature branches.
-            
+
             PR: #${{ github.event.pull_request.number }}
             Source: ${{ github.event.pull_request.head.ref }}"
 
@@ -235,7 +235,7 @@ jobs:
                 The following development files have been automatically removed from the `${{ github.event.pull_request.base.ref }}` branch after merge:
 
                 - 🤖 **AI Development Tools**: CLAUDE.md, .taskmaster/, ai_docs/, .claude/, .mcp.json
-                - 🐍 **Python Artifacts**: __pycache__/, coverage files, build artifacts, cache directories  
+                - 🐍 **Python Artifacts**: __pycache__/, coverage files, build artifacts, cache directories
                 - 📁 **Development Directories**: artifacts/, logs/, performance_data/, tmp/
                 - 🔧 **Editor Configs**: .vscode/, .idea/, editor-specific files
                 - 🗃️ **Temporary Files**: *.tmp, *.dev, OS-specific files

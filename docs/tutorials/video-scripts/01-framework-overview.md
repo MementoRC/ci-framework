@@ -1,8 +1,8 @@
 # Video Tutorial Script: CI Framework Overview
 
-**Video Title**: "5-Minute CI Framework Overview - Transform Your Development Workflow"  
-**Duration**: 5 minutes  
-**Target Audience**: First-time users, decision makers  
+**Video Title**: "5-Minute CI Framework Overview - Transform Your Development Workflow"
+**Duration**: 5 minutes
+**Target Audience**: First-time users, decision makers
 **Objective**: Introduce framework value proposition and key benefits
 
 ---
@@ -108,7 +108,7 @@ curl -sSL https://raw.githubusercontent.com/MementoRC/ci-framework/main/scripts/
 
 **[Visual: Showing generated files one by one]**
 - "Production-ready GitHub workflows"
-- "Optimized pixi configuration with quality tools"  
+- "Optimized pixi configuration with quality tools"
 - "Security scanning with SARIF integration"
 - "Performance benchmarking with statistical analysis"
 - "Change detection for intelligent CI optimization"
@@ -134,7 +134,7 @@ pixi run quality
 **[Visual: Time savings chart]**
 - **"Dramatic Time Savings**: 67-93% reduction in CI execution time"
 
-**[Visual: Quality metrics dashboard]**  
+**[Visual: Quality metrics dashboard]**
 - **"Maintained Quality Standards**: Zero-tolerance policy with comprehensive validation"
 
 **[Visual: Security scan results]**
@@ -154,7 +154,7 @@ pixi run quality
 
 **[Visual: Text overlay with clear steps]**
 - "Visit github.com/MementoRC/ci-framework"
-- "Follow our 5-minute Quick Start guide"  
+- "Follow our 5-minute Quick Start guide"
 - "Join our community of thousands of developers"
 
 **[Visual: Community links - GitHub Discussions, Discord, Documentation]**

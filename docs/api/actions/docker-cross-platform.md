@@ -12,17 +12,17 @@
     environments: 'ubuntu,alpine'           # Docker environments to test
     test-mode: 'test'                       # Testing mode: smoke, test, full
     pixi-environment: 'quality'             # Pixi environment for testing
-    
+
     # Execution control
     parallel: 'true'                        # Run environments in parallel
     timeout: '600'                          # Timeout per environment (seconds)
     fail-fast: 'false'                     # Stop on first failure
-    
+
     # Docker configuration
     python-version: '3.12'                 # Python version in containers
     build-args: ''                          # Additional Docker build args
     registry-url: ''                        # Custom Docker registry
-    
+
     # Customization
     test-command: 'pixi run -e $PIXI_ENV test'  # Custom test command
     project-dir: '.'                        # Project directory to test
@@ -40,7 +40,7 @@ docker run --rm -v $(pwd):/workspace -w /workspace \
 
 **Why This Matters**:
 - **Local Speed**: Developers use pixi for fast local development
-- **Production Reality**: CI tests actual Docker deployment scenarios  
+- **Production Reality**: CI tests actual Docker deployment scenarios
 - **Zero Friction**: No changes to development workflow required
 - **Platform Coverage**: Validates multiple Linux distributions
 
@@ -184,7 +184,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Test Deployment Scenarios
         uses: ./actions/docker-cross-platform
         with:
@@ -199,7 +199,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Comprehensive Cross-Platform Testing
         uses: ./actions/docker-cross-platform
         with:
@@ -242,7 +242,7 @@ jobs:
         with:
           test-mode: 'smoke'
           environments: 'ubuntu'
-  
+
   full-test:
     if: github.ref == 'refs/heads/main'
     steps:
@@ -259,20 +259,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       # Standard quality validation
       - name: Quality Gates
         uses: ./actions/quality-gates
         with:
           tier: 'essential'
-      
+
       # Cross-platform deployment validation
       - name: Docker Cross-Platform Test
         uses: ./actions/docker-cross-platform
         with:
           environments: 'ubuntu,alpine'
           test-mode: 'test'
-      
+
       # Security validation
       - name: Security Scan
         uses: ./actions/security-scan
@@ -500,7 +500,7 @@ echo "*.log" >> .dockerignore
 
 ---
 
-**Action Version**: 1.0.0  
-**Framework Version**: 1.0.0  
-**Last Updated**: January 2025  
+**Action Version**: 1.0.0
+**Framework Version**: 1.0.0
+**Last Updated**: January 2025
 **Inspired by**: llm-cli-runner project's innovative Docker + pixi integration

@@ -17,17 +17,17 @@ jobs:
       skip-tests: ${{ steps.detect.outputs.skip-tests }}
       skip-security: ${{ steps.detect.outputs.skip-security }}
       optimization-score: ${{ steps.detect.outputs.optimization-score }}
-      
+
       # Matrix optimization outputs for dynamic job creation
       package-matrix: ${{ steps.matrix.outputs.package-matrix }}
       test-matrix: ${{ steps.matrix.outputs.test-matrix }}
-      
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Comprehensive Monorepo Change Detection
         id: detect
         uses: ./actions/change-detection
@@ -37,30 +37,30 @@ jobs:
           enable-test-optimization: true
           enable-job-skipping: true
           timeout: 600  # Longer timeout for comprehensive analysis
-          
+
       - name: Generate Dynamic Matrix
         id: matrix
         run: |
           # Create package matrix from affected packages
           affected_packages="${{ steps.detect.outputs.affected-packages }}"
-          
+
           if [ -n "$affected_packages" ]; then
             # Convert comma-separated to JSON array
             package_array=$(echo "$affected_packages" | jq -R 'split(",") | map(select(length > 0))')
             echo "package-matrix=$package_array" >> $GITHUB_OUTPUT
-            
+
             # Create test matrix (package + Python version combinations)
             test_matrix=$(echo "$package_array" | jq '
-              [.[] as $pkg | 
-               ["3.10", "3.11", "3.12"] as $versions | 
-               $versions[] as $ver | 
+              [.[] as $pkg |
+               ["3.10", "3.11", "3.12"] as $versions |
+               $versions[] as $ver |
                {package: $pkg, python: $ver}]')
             echo "test-matrix=$test_matrix" >> $GITHUB_OUTPUT
           else
             echo "package-matrix=[]" >> $GITHUB_OUTPUT
             echo "test-matrix=[]" >> $GITHUB_OUTPUT
           fi
-          
+
       - name: Display Monorepo Analysis
         run: |
           echo "📦 Monorepo Analysis Results:"
@@ -78,23 +78,23 @@ jobs:
       fail-fast: false
       matrix:
         package: ${{ fromJson(needs.monorepo-change-detection.outputs.package-matrix) }}
-    
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
-      
+
       - name: Test Package
         run: |
           echo "🧪 Testing package: ${{ matrix.package }}"
-          
+
           # Navigate to package directory
           cd ${{ matrix.package }}
-          
+
           # Install package dependencies using PIXI
           if [ -f "pyproject.toml" ]; then
             # Install PIXI first
@@ -102,7 +102,7 @@ jobs:
             export PATH="$HOME/.pixi/bin:$PATH"
             pixi install
           fi
-          
+
           # Run package-specific tests
           if [ -d "tests" ]; then
             pixi run test
@@ -121,34 +121,34 @@ jobs:
       needs.monorepo-change-detection.outputs.affected-packages != '' &&
       contains(needs.monorepo-change-detection.outputs.affected-packages, ',')
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
-      
+
       - name: Run Integration Tests
         run: |
           echo "🔄 Running cross-package integration tests"
           affected_packages="${{ needs.monorepo-change-detection.outputs.affected-packages }}"
           echo "📦 Testing integration between: $affected_packages"
-          
+
           # Install all affected packages using PIXI
           # Install PIXI first
           curl -fsSL https://pixi.sh/install.sh | bash
           export PATH="$HOME/.pixi/bin:$PATH"
-          
+
           for package in $(echo $affected_packages | tr ',' ' '); do
             if [ -d "$package" ] && [ -f "$package/pyproject.toml" ]; then
               echo "Installing $package..."
               cd $package && pixi install && cd ..
             fi
           done
-          
+
           # Run integration test suite
           if [ -d "tests/integration" ]; then
             pixi run test-integration
@@ -165,11 +165,11 @@ jobs:
     strategy:
       matrix:
         package: ${{ fromJson(needs.monorepo-change-detection.outputs.package-matrix) }}
-    
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      
+
       - name: Package-Specific Security Scan
         uses: ./actions/security-scan
         with:
@@ -183,16 +183,16 @@ jobs:
     needs: monorepo-change-detection
     if: needs.monorepo-change-detection.outputs.skip-docs != 'true'
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      
+
       - name: Determine Docs to Build
         id: docs
         run: |
           affected_packages="${{ needs.monorepo-change-detection.outputs.affected-packages }}"
-          
+
           if [ -n "$affected_packages" ]; then
             echo "📚 Building docs for affected packages: $affected_packages"
             echo "build-all=false" >> $GITHUB_OUTPUT
@@ -202,7 +202,7 @@ jobs:
             echo "build-all=true" >> $GITHUB_OUTPUT
             echo "packages=" >> $GITHUB_OUTPUT
           fi
-      
+
       - name: Build Documentation
         run: |
           if [ "${{ steps.docs.outputs.build-all }}" = "true" ]; then
@@ -224,23 +224,23 @@ jobs:
     needs: [monorepo-change-detection, package-tests, integration-tests, package-security]
     if: always()
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Analyze Monorepo CI Performance
         run: |
           echo "📊 Monorepo CI Performance Analysis"
           echo "===================================="
-          
+
           # Count affected packages
           affected_packages="${{ needs.monorepo-change-detection.outputs.affected-packages }}"
           package_count=0
           if [ -n "$affected_packages" ]; then
             package_count=$(echo "$affected_packages" | tr ',' '\n' | wc -l)
           fi
-          
+
           echo "📦 Affected Packages: $package_count"
           echo "📊 Optimization Score: ${{ needs.monorepo-change-detection.outputs.optimization-score }}%"
-          
+
           # Calculate estimated vs actual time
           total_packages=10  # Example: assume 10 total packages in monorepo
           if [ "$package_count" -eq "0" ]; then
@@ -248,13 +248,13 @@ jobs:
           else
             efficiency=$(( (total_packages - package_count) * 100 / total_packages ))
           fi
-          
+
           echo "⚡ Package-Level Efficiency: ${efficiency}%"
-          
+
           # Job efficiency
           total_jobs=4
           skipped_jobs=0
-          
+
           if [ "${{ needs.package-tests.result }}" = "skipped" ]; then
             skipped_jobs=$((skipped_jobs + 1))
           fi
@@ -267,15 +267,15 @@ jobs:
           if [ "${{ needs.docs-build.result }}" = "skipped" ]; then
             skipped_jobs=$((skipped_jobs + 1))
           fi
-          
+
           job_efficiency=$(( skipped_jobs * 100 / total_jobs ))
-          
+
           echo "🚦 Job-Level Efficiency: ${job_efficiency}%"
-          
+
           # Overall monorepo optimization
           overall_optimization=$(( (efficiency + job_efficiency) / 2 ))
           echo "🎯 Overall Monorepo Optimization: ${overall_optimization}%"
-          
+
           # Validate monorepo optimization targets
           if [ "$overall_optimization" -ge "60" ]; then
             echo "✅ Excellent monorepo optimization (≥60%)"
@@ -286,7 +286,7 @@ jobs:
           else
             echo "⚠️ Limited optimization possible (comprehensive changes)"
           fi
-          
+
           # Generate summary
           echo "## 📦 Monorepo CI Optimization Report" >> $GITHUB_STEP_SUMMARY
           echo "**Affected Packages:** $package_count/$total_packages" >> $GITHUB_STEP_SUMMARY
@@ -300,7 +300,7 @@ jobs:
     needs: [monorepo-change-detection, package-tests, integration-tests, package-security, docs-build, monorepo-performance-analysis]
     if: always()
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Generate Monorepo Summary
         run: |

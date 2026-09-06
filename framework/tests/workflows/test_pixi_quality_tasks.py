@@ -783,9 +783,11 @@ class TestPixiTaskDiscoveryIsNonVacuous:
             "the discovery walk is likely broken"
         )
         found_classes = set(classes.values())
-        assert found_classes == {"delegating", "depends-only", "direct"}, (
-            f"expected all three task classes present, found only {found_classes}"
-        )
+        assert found_classes == {
+            "delegating",
+            "depends-only",
+            "direct",
+        }, f"expected all three task classes present, found only {found_classes}"
 
 
 class TestEnvPackageResolution:

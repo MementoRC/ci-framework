@@ -153,7 +153,7 @@ The Performance Benchmark Action provides comprehensive performance monitoring t
 - **Type**: Number
 - **Example**: `15.3`
 
-#### `baseline-comparison`  
+#### `baseline-comparison`
 - **Description**: Performance comparison with baseline
 - **Type**: String
 - **Example**: `'5.2% faster than baseline'`
@@ -227,19 +227,19 @@ import pytest
 from myproject import algorithms
 
 class TestAlgorithmPerformance:
-    
+
     @pytest.mark.benchmark(group="sorting")
     def test_quicksort_performance(self, benchmark):
         data = list(range(1000, 0, -1))  # Worst case
         result = benchmark(algorithms.quicksort, data)
         assert result == list(range(1, 1001))
-    
-    @pytest.mark.benchmark(group="sorting") 
+
+    @pytest.mark.benchmark(group="sorting")
     def test_mergesort_performance(self, benchmark):
         data = list(range(1000, 0, -1))
         result = benchmark(algorithms.mergesort, data)
         assert result == list(range(1, 1001))
-    
+
     @pytest.mark.benchmark(group="search")
     def test_binary_search_performance(self, benchmark):
         data = list(range(10000))
@@ -286,7 +286,7 @@ jobs:
         with:
           suite: 'quick'
           regression-threshold: '15.0'
-  
+
   full-benchmark:
     needs: quick-benchmark
     if: github.ref == 'refs/heads/main'
@@ -298,7 +298,7 @@ jobs:
           suite: 'full'
           regression-threshold: '10.0'
           store-results: 'true'
-  
+
   load-testing:
     needs: full-benchmark
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -325,7 +325,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Need full history for baseline comparison
-      
+
       - name: Benchmark Current Changes
         uses: ./actions/performance-benchmark
         id: current
@@ -335,7 +335,7 @@ jobs:
           baseline-branch: 'main'
           fail-on-regression: 'true'
           regression-threshold: '10.0'
-      
+
       - name: Comment Performance Results
         uses: actions/github-script@v6
         if: always()
@@ -344,15 +344,15 @@ jobs:
             const regressionDetected = '${{ steps.current.outputs.regression-detected }}' === 'true';
             const regressionPercent = '${{ steps.current.outputs.regression-percentage }}';
             const baselineComparison = '${{ steps.current.outputs.baseline-comparison }}';
-            
+
             let comment = '## 📊 Performance Benchmark Results\n\n';
-            
+
             if (regressionDetected) {
               comment += `⚠️ **Performance Regression Detected**: ${regressionPercent}% slower\n\n`;
             } else {
               comment += `✅ **No Performance Regression**: ${baselineComparison}\n\n`;
             }
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
@@ -377,14 +377,14 @@ jobs:
             threshold: "20.0"
             timeout: "300"
           - suite: full
-            threshold: "10.0" 
+            threshold: "10.0"
             timeout: "1800"
           - suite: load
             threshold: "5.0"
             timeout: "3600"
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Performance Benchmark - ${{ matrix.suite }}
         uses: ./actions/performance-benchmark
         with:
@@ -410,14 +410,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Download Historical Data
         uses: actions/download-artifact@v3
         continue-on-error: true
         with:
           name: performance-history
           path: performance-history
-      
+
       - name: Run Performance Benchmarks
         uses: ./actions/performance-benchmark
         id: benchmarks
@@ -425,7 +425,7 @@ jobs:
           suite: 'full'
           store-results: 'true'
           compare-baseline: 'true'
-      
+
       - name: Store Performance History
         uses: actions/upload-artifact@v3
         with:
@@ -446,13 +446,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Quality Gates
         uses: ./actions/quality-gates
         id: quality
         with:
           tier: 'extended'
-      
+
       - name: Performance Benchmarks
         if: steps.quality.outputs.success == 'true'
         uses: ./actions/performance-benchmark
@@ -500,12 +500,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Security Scan
         uses: ./actions/security-scan
         with:
           security-level: 'medium'
-      
+
       - name: Performance Impact Analysis
         uses: ./actions/performance-benchmark
         with:
@@ -571,8 +571,8 @@ warmup_iterations = 3
     # For standard runners (2 cores)
     parallel: 'false'
     suite: 'quick'
-    
-    # For larger runners (4+ cores) 
+
+    # For larger runners (4+ cores)
     # parallel: 'true'
     # suite: 'full'
 ```
@@ -599,22 +599,22 @@ import pytest
 import time
 
 class TestPerformanceBestPractices:
-    
+
     def test_good_benchmark(self, benchmark):
         """Well-designed benchmark with proper setup."""
-        
+
         # Good: Setup data outside of benchmark
         data = list(range(1000))
-        
+
         # Good: Benchmark only the specific operation
         result = benchmark(my_algorithm, data)
-        
+
         # Good: Verify correctness
         assert len(result) == 1000
-    
+
     def test_avoid_this_benchmark(self, benchmark):
         """Example of what NOT to do."""
-        
+
         def bad_benchmark_function():
             # Bad: Setup inside benchmark
             data = list(range(1000))
@@ -623,7 +623,7 @@ class TestPerformanceBestPractices:
             result2 = operation2(result1)
             # Bad: No verification
             return result2
-        
+
         # This benchmarks setup + multiple operations
         benchmark(bad_benchmark_function)
 ```
@@ -636,7 +636,7 @@ class TestPerformanceBestPractices:
 def test_list_performance(self, benchmark):
     pass
 
-@pytest.mark.benchmark(group="data-structures")  
+@pytest.mark.benchmark(group="data-structures")
 def test_dict_performance(self, benchmark):
     pass
 
@@ -728,6 +728,6 @@ Replace direct pytest-benchmark usage with action for:
 
 ---
 
-**Action Version**: 0.0.1  
-**Last Updated**: January 2025  
+**Action Version**: 0.0.1
+**Last Updated**: January 2025
 **Compatibility**: GitHub Actions v4+, Python 3.10+, pytest-benchmark 4.0+

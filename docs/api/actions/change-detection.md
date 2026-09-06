@@ -265,7 +265,7 @@ Create custom change patterns:
 # Core source files
 critical_source = [
     "src/core/**",
-    "src/api/**", 
+    "src/api/**",
     "src/auth/**"
 ]
 
@@ -311,7 +311,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Required for change detection
-      
+
       - uses: ./actions/change-detection
         id: detection
         with:
@@ -365,7 +365,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - uses: ./actions/change-detection
         id: detection
         with:
@@ -402,7 +402,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Detect Changes with Custom Patterns
         uses: ./actions/change-detection
         id: changes
@@ -411,7 +411,7 @@ jobs:
           pattern-config: './custom-patterns.toml'
           base-ref: ${{ github.event.pull_request.base.sha }}
           head-ref: ${{ github.sha }}
-      
+
       - name: Display Change Analysis
         run: |
           echo "🔍 Change Detection Results:"
@@ -419,7 +419,7 @@ jobs:
           echo "Categories: ${{ steps.changes.outputs.change-categories }}"
           echo "Optimization score: ${{ steps.changes.outputs.optimization-score }}%"
           echo "Time savings: ${{ steps.changes.outputs.time-savings }}s"
-          
+
           echo ""
           echo "🚀 CI Optimizations:"
           [[ "${{ steps.changes.outputs.skip-tests }}" == "true" ]] && echo "✅ Skip tests"
@@ -445,18 +445,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - uses: ./actions/change-detection
         id: changes
         with:
           detection-level: 'comprehensive'
           timeout: '600'
-      
+
       - name: Determine Execution Strategy
         id: strategy
         run: |
           optimization_score=${{ steps.changes.outputs.optimization-score }}
-          
+
           if [[ $optimization_score -gt 70 ]]; then
             echo "strategy=minimal" >> $GITHUB_OUTPUT
           elif [[ $optimization_score -gt 40 ]]; then
@@ -539,13 +539,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Analyze Changes
         uses: ./actions/change-detection
         id: changes
         with:
           detection-level: 'standard'
-      
+
       - name: Security Scan
         if: steps.changes.outputs.skip-security != 'true'
         uses: ./actions/security-scan
@@ -564,12 +564,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - uses: ./actions/change-detection
         id: changes
         with:
           pattern-config: './performance-patterns.toml'
-      
+
       - name: Performance Benchmarks
         if: contains(steps.changes.outputs.change-categories, 'performance-critical')
         uses: ./actions/performance-benchmark
@@ -622,7 +622,7 @@ package_directories = [
     # Small project
     detection-level: 'quick'
     timeout: '120'
-    
+
     # Large monorepo
     # detection-level: 'comprehensive'
     # timeout: '600'
@@ -646,7 +646,7 @@ package_directories = [
     echo "Changed files: ${{ steps.changes.outputs.changed-files }}"
     echo "Categories: ${{ steps.changes.outputs.change-categories }}"
     echo "Optimization score: ${{ steps.changes.outputs.optimization-score }}"
-    
+
     if [[ -f "${{ steps.changes.outputs.reports-path }}/change-detection-report.json" ]]; then
       echo "Full report:"
       cat "${{ steps.changes.outputs.reports-path }}/change-detection-report.json"
@@ -668,11 +668,11 @@ DEFAULT_PATTERNS = {
         "CHANGELOG*", "LICENSE*", "CONTRIBUTING*"
     ],
     "source": [
-        "src/**", "**/*.py", "**/*.js", "**/*.ts", 
+        "src/**", "**/*.py", "**/*.js", "**/*.ts",
         "framework/**", "lib/**", "**/*.go", "**/*.rs"
     ],
     "tests": [
-        "tests/**", "**/test_*.py", "**/*_test.py", 
+        "tests/**", "**/test_*.py", "**/*_test.py",
         "**/*_tests.py", "**/conftest.py", "**/*.test.js"
     ],
     "config": [
@@ -769,6 +769,6 @@ Typical CI time savings by change type:
 
 ---
 
-**Action Version**: 0.0.1  
-**Last Updated**: January 2025  
+**Action Version**: 0.0.1
+**Last Updated**: January 2025
 **Compatibility**: GitHub Actions v4+, Git 2.0+

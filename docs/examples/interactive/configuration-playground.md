@@ -19,7 +19,7 @@ This playground lets you build, compare, and optimize CI configurations interact
 
 ### 📊 **Minimal Configuration**
 
-**⏱️ Execution Time:** 2-4 minutes  
+**⏱️ Execution Time:** 2-4 minutes
 **🎯 Best For:** Personal projects, rapid prototyping, development branches
 
 ```yaml
@@ -83,7 +83,7 @@ quality = { depends-on = ["test", "lint"] }
 
 ### 📊 **Balanced Configuration**
 
-**⏱️ Execution Time:** 6-10 minutes  
+**⏱️ Execution Time:** 6-10 minutes
 **🎯 Best For:** Team projects, feature branches, production-ready code
 
 ```yaml
@@ -198,7 +198,7 @@ extended_max_time = 600
 
 ### 📊 **Enterprise Configuration**
 
-**⏱️ Execution Time:** 12-20 minutes  
+**⏱️ Execution Time:** 12-20 minutes
 **🎯 Best For:** Production releases, compliance requirements, critical systems
 
 ```yaml
@@ -720,10 +720,10 @@ jobs:
 jobs:
   quality-gates:
     # Fast essential checks first
-  
+
   security-scan:
     needs: quality-gates  # Only after basic validation
-    
+
   performance-tests:
     needs: quality-gates  # Run in parallel with security
 ```
@@ -748,10 +748,10 @@ jobs:
 # Adjust timeouts based on project size
 small-project:
   timeout: '300'  # 5 minutes
-  
+
 medium-project:
   timeout: '600'  # 10 minutes
-  
+
 large-project:
   timeout: '1800' # 30 minutes
 ```
@@ -797,14 +797,14 @@ jobs:
     with:
       quality-level: 'essential'
       security-level: 'medium'
-      
+
   staging:
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/ci-template.yml
     with:
       quality-level: 'extended'
       security-level: 'high'
-      
+
   production:
     if: startsWith(github.ref, 'refs/tags/')
     uses: ./.github/workflows/ci-template.yml
@@ -825,7 +825,7 @@ strategy:
       - python-version: "3.11"
         os: ubuntu-latest
         quality-tier: "essential"
-        
+
       # Comprehensive for main branch
       - python-version: "3.10"
         os: ubuntu-latest
@@ -833,7 +833,7 @@ strategy:
       - python-version: "3.12"
         os: ubuntu-latest
         quality-tier: "extended"
-        
+
       # Cross-platform for releases
       - python-version: "3.11"
         os: macos-latest
@@ -846,24 +846,24 @@ strategy:
 jobs:
   quick-checks:
     # Always run for immediate feedback
-    
+
   comprehensive-tests:
     needs: quick-checks
     if: |
-      github.event_name == 'push' && 
+      github.event_name == 'push' &&
       github.ref == 'refs/heads/main'
-      
+
   security-audit:
     needs: quick-checks
     if: |
       contains(github.event.head_commit.message, '[security]') ||
       github.event_name == 'schedule'
-      
+
   performance-tests:
     needs: comprehensive-tests
     if: |
-      github.event_name == 'push' && 
-      (github.ref == 'refs/heads/main' || 
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' ||
        startsWith(github.ref, 'refs/tags/'))
 ```
 

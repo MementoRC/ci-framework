@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Required for change detection
-      
+
       - name: Detect Changes
         id: detect
         uses: ./actions/change-detection
@@ -285,7 +285,7 @@ jobs:
 ## Performance Targets
 
 - **Quick Detection**: < 30 seconds
-- **Standard Detection**: < 2 minutes  
+- **Standard Detection**: < 2 minutes
 - **Comprehensive Detection**: < 5 minutes
 - **Time Savings**: 50%+ for typical documentation/config changes
 - **Accuracy**: 95%+ precision in change classification

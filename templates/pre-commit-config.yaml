@@ -11,14 +11,14 @@ repos:
         name: ruff-lint-essential
         args: [--select=F,E9, --fix]
         exclude: "{{ exclude_patterns | default('^$') }}"
-      
+
       # Full linting (matches pixi run lint-full)
       - id: ruff
         name: ruff-lint-full
         args: [--fix]
         exclude: "{{ exclude_patterns | default('^$') }}"
         stages: [manual]  # Run manually for comprehensive checks
-      
+
       # Code formatting (matches pixi run format)
       - id: ruff-format
         exclude: "{{ exclude_patterns | default('^$') }}"
@@ -84,7 +84,7 @@ repos:
         language: system
         files: '(requirements.*\.txt|pyproject\.toml)$'
         stages: [manual]
-      
+
       # Dependency audit
       - id: pip-audit
         name: pip-audit-check

@@ -24,11 +24,11 @@ on:
       - '*.tmp'
       - '*.dev'
       - '.DS_Store'
-  
+
   # Optional: Schedule automatic cleanup
   schedule:
     - cron: '0 2 * * *'  # Daily at 2 AM UTC
-  
+
   # Allow manual trigger
   workflow_dispatch:
     inputs:
@@ -48,13 +48,13 @@ jobs:
     with:
       # Customize which branches to clean (JSON array)
       target_branches: '["main", "master", "development"]'
-      
+
       # Customize which file patterns to clean (JSON array)
       cleanup_patterns: >
         [
           "CLAUDE.md",
           ".claude/**",
-          ".taskmaster/**", 
+          ".taskmaster/**",
           ".mcp.json",
           "ai_docs/**",
           ".cursor/**",
@@ -82,10 +82,10 @@ jobs:
           ".DS_Store",
           "Thumbs.db"
         ]
-      
+
       # Customize workflow name for commit messages
       workflow_name: 'My Project Cleanup'
-      
+
       # Optional: customize schedule (empty string to disable)
       schedule_cron: '0 2 * * *'
 

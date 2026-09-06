@@ -7,59 +7,59 @@
 ### Quick Start Tutorials (Essential)
 
 #### 1. [5-Minute Framework Overview](video-scripts/01-framework-overview.md)
-**Duration**: 5 minutes  
-**Audience**: First-time users  
+**Duration**: 5 minutes
+**Audience**: First-time users
 **Covers**: Framework value proposition, key features, and success stories
 
 #### 2. [New Project Setup](video-scripts/02-new-project-setup.md)
-**Duration**: 3 minutes  
-**Audience**: Developers starting new projects  
+**Duration**: 3 minutes
+**Audience**: Developers starting new projects
 **Covers**: Template usage, basic configuration, first CI run
 
 #### 3. [Existing Project Integration](video-scripts/03-existing-project-integration.md)
-**Duration**: 4 minutes  
-**Audience**: Teams with existing CI/CD  
+**Duration**: 4 minutes
+**Audience**: Teams with existing CI/CD
 **Covers**: Migration process, conflict resolution, validation
 
 ### Advanced Feature Tutorials
 
 #### 4. [Quality Gates Deep Dive](video-scripts/04-quality-gates-deep-dive.md)
-**Duration**: 8 minutes  
-**Audience**: Quality-focused teams  
+**Duration**: 8 minutes
+**Audience**: Quality-focused teams
 **Covers**: 3-tier system, configuration, troubleshooting
 
 #### 5. [Security Scanning Walkthrough](video-scripts/05-security-scanning-walkthrough.md)
-**Duration**: 6 minutes  
-**Audience**: Security-conscious developers  
+**Duration**: 6 minutes
+**Audience**: Security-conscious developers
 **Covers**: Multi-tool integration, SARIF reports, remediation
 
 #### 6. [Performance Benchmarking](video-scripts/06-performance-benchmarking.md)
-**Duration**: 7 minutes  
-**Audience**: Performance-focused teams  
+**Duration**: 7 minutes
+**Audience**: Performance-focused teams
 **Covers**: Statistical analysis, regression detection, optimization
 
 ### Best Practices Tutorials
 
 #### 7. [Change Detection Optimization](video-scripts/07-change-detection-optimization.md)
-**Duration**: 6 minutes  
-**Audience**: Teams wanting CI speed improvements  
+**Duration**: 6 minutes
+**Audience**: Teams wanting CI speed improvements
 **Covers**: Smart CI optimization, 50%+ time savings, safety mechanisms
 
 #### 8. [Docker Cross-Platform Testing](video-scripts/08-docker-cross-platform-testing.md)
-**Duration**: 5 minutes  
-**Audience**: Teams deploying across environments  
+**Duration**: 5 minutes
+**Audience**: Teams deploying across environments
 **Covers**: Hybrid pixi+Docker strategy, environment matrix testing
 
 ### Troubleshooting & Maintenance
 
 #### 9. [Common Issues Resolution](video-scripts/09-common-issues-resolution.md)
-**Duration**: 10 minutes  
-**Audience**: All users  
+**Duration**: 10 minutes
+**Audience**: All users
 **Covers**: Top 10 issues, diagnostic tools, emergency fixes
 
 #### 10. [Enterprise Deployment](video-scripts/10-enterprise-deployment.md)
-**Duration**: 12 minutes  
-**Audience**: Enterprise teams  
+**Duration**: 12 minutes
+**Audience**: Enterprise teams
 **Covers**: Organization rollout, customization, governance
 
 ---

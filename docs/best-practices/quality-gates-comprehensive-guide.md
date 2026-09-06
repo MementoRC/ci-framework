@@ -18,8 +18,8 @@ Quality Gates represents a paradigm shift from traditional "all-or-nothing" CI a
 
 ### Tier 1: Essential Quality Gates (≤5 minutes)
 
-**Purpose**: Rapid feedback for development workflow  
-**When to Use**: Every commit, pull requests, development iterations  
+**Purpose**: Rapid feedback for development workflow
+**When to Use**: Every commit, pull requests, development iterations
 **Failure Policy**: **ZERO TOLERANCE** - any failure blocks progress
 
 #### Core Validations
@@ -46,8 +46,8 @@ Quality Gates represents a paradigm shift from traditional "all-or-nothing" CI a
 
 ### Tier 2: Extended Quality Gates (≤10 minutes)
 
-**Purpose**: Comprehensive validation for integration  
-**When to Use**: Pull request validation, pre-merge checks  
+**Purpose**: Comprehensive validation for integration
+**When to Use**: Pull request validation, pre-merge checks
 **Failure Policy**: Strict with configurable thresholds
 
 #### Additional Validations
@@ -70,8 +70,8 @@ Quality Gates represents a paradigm shift from traditional "all-or-nothing" CI a
 
 ### Tier 3: Full Quality Gates (≤15 minutes)
 
-**Purpose**: Complete quality validation for releases  
-**When to Use**: Main branch pushes, release candidates, deployments  
+**Purpose**: Complete quality validation for releases
+**When to Use**: Main branch pushes, release candidates, deployments
 **Failure Policy**: Comprehensive with full reporting
 
 #### Complete Validations
@@ -126,7 +126,7 @@ typecheck-impl = "mypy framework/"
 # Combined Essential Gate - 🚨 MANDATORY BEFORE COMMIT
 quality = { depends-on = ["test", "lint", "typecheck"] }
 
-# Emergency Quality Fix - USE FOR "Found X errors" CI FAILURES  
+# Emergency Quality Fix - USE FOR "Found X errors" CI FAILURES
 emergency-fix = "pixi run lint-fix && pixi run format && pixi run test"
 ```
 
@@ -188,9 +188,9 @@ Create `.github/quality-gates.toml` for advanced control:
 timeouts = { test = 240, lint = 90, typecheck = 120, security = 180 }
 
 # Quality thresholds and targets
-thresholds = { 
-    coverage = 90, 
-    complexity = 10, 
+thresholds = {
+    coverage = 90,
+    complexity = 10,
     duplication = 5.0,
     maintainability = 7.0
 }
@@ -276,7 +276,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # For baseline comparison
-      
+
       - name: PR Quality Validation
         uses: ./actions/quality-gates
         with:
@@ -298,7 +298,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Release Quality Validation
         uses: ./actions/quality-gates
         with:
@@ -328,11 +328,11 @@ jobs:
             tier: extended
           - python-version: '3.10'
             tier: extended
-    
+
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Quality Gates - ${{ matrix.tier }}
         uses: ./actions/quality-gates
         with:
@@ -400,7 +400,7 @@ jobs:
     echo "Quality gate failures detected:"
     echo "Failed checks: ${{ steps.quality.outputs.failed-checks }}"
     echo "Failure reason: ${{ steps.quality.outputs.failure-reason }}"
-    
+
     # Attempt automated fixes for common issues
     if [[ "${{ steps.quality.outputs.failure-reason }}" =~ "lint" ]]; then
       echo "Attempting automated lint fixes..."
@@ -441,7 +441,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Apply Emergency Fix
         run: |
           case "${{ github.event.inputs.fix-type }}" in
@@ -459,12 +459,12 @@ jobs:
               ruff format .
               ;;
           esac
-      
+
       - name: Verify Fix
         uses: ./actions/quality-gates
         with:
           tier: essential
-      
+
       - name: Commit Fix
         run: |
           git config --local user.email "action@github.com"
@@ -632,7 +632,7 @@ mypy --ignore-missing-imports .  # Temporary
     tier: extended
     parallel: true
     timeout: 600
-    
+
   # Environment tuning for CI runners
   env:
     PYTEST_XDIST_WORKER_COUNT: 4
@@ -662,8 +662,8 @@ mypy --ignore-missing-imports .  # Temporary
 
 ### Case Study 1: Large Application (hb-strategy-sandbox)
 
-**Project**: 18K+ files, complex codebase  
-**Challenge**: Maintain quality without slowing development  
+**Project**: 18K+ files, complex codebase
+**Challenge**: Maintain quality without slowing development
 **Solution**: Progressive quality gates with change detection
 
 ```yaml
@@ -710,8 +710,8 @@ jobs:
 
 ### Case Study 2: MCP Server (llm-cli-runner)
 
-**Project**: TypeScript/Python hybrid with complex dependencies  
-**Challenge**: Quality validation across multiple languages  
+**Project**: TypeScript/Python hybrid with complex dependencies
+**Challenge**: Quality validation across multiple languages
 **Solution**: Multi-language quality gates with Docker integration
 
 ```yaml
@@ -753,10 +753,10 @@ jobs:
 # Legacy manual quality checks
 - name: Run Tests
   run: pytest
-  
+
 - name: Run Linter
   run: flake8 .
-  
+
 - name: Run Type Check
   run: mypy .
 ```
@@ -889,8 +889,8 @@ This comprehensive approach enables teams to **move fast without breaking things
 
 ---
 
-**Pattern Version**: 1.0.0  
-**Framework Version**: 1.0.0  
-**Last Updated**: January 2025  
-**Validated across**: 8 target projects in CI framework ecosystem  
+**Pattern Version**: 1.0.0
+**Framework Version**: 1.0.0
+**Last Updated**: January 2025
+**Validated across**: 8 target projects in CI framework ecosystem
 **Performance**: 90%+ time savings for documentation changes, 5-minute feedback for code changes

@@ -88,7 +88,7 @@ ci-migrate migrate . --project-type=library --optimize-for=packaging
 ```
 **[📚 Library Migration Guide](project-types/python-library.md)**
 
-### Python Application Migration  
+### Python Application Migration
 ```bash
 ci-migrate migrate . --project-type=application --optimize-for=deployment
 ```

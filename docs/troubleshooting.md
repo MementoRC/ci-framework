@@ -518,8 +518,8 @@ pixi run test 2>&1 | tee error.log
 ### Quality Gates Action Issues
 
 #### "Quality gates timeout"
-**Symptoms**: Action exceeds timeout limits  
-**Cause**: Large codebase or slow environment  
+**Symptoms**: Action exceeds timeout limits
+**Cause**: Large codebase or slow environment
 
 **Solutions**:
 ```yaml
@@ -759,12 +759,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Quality Gates
         uses: ./actions/quality-gates
         with:
           tier: essential
-      
+
       - name: Security Scan (after quality)
         if: success()
         uses: ./actions/security-scan
@@ -782,13 +782,13 @@ jobs:
     steps:
       - name: Quality Gates
         uses: ./actions/quality-gates
-  
+
   performance:
     runs-on: ubuntu-latest
     steps:
       - name: Performance Benchmarks
         uses: ./actions/performance-benchmark
-  
+
   security:
     needs: [quality]  # Run after quality
     runs-on: ubuntu-latest

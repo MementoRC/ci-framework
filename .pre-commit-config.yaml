@@ -5,6 +5,11 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        # This file is a Jinja2 scaffolding template (uses {{ }} / {% %}
+        # control tags), not standalone YAML — it is only valid after a
+        # templating engine renders it. check-yaml would otherwise reject it
+        # on every run for content it was never meant to parse as-is.
+        exclude: ^templates/github/dependabot\.yml$
       - id: check-added-large-files
       - id: check-merge-conflict
       - id: check-toml
@@ -15,7 +20,13 @@ repos:
         args: ['--fix=lf']
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.6
+    # Pinned to match the `ruff` version pixi resolves in the `quality` env
+    # (pixi.lock: ruff-0.12.5). v0.1.6 (Nov 2023) and 0.12.5 disagree on
+    # formatter output for several files, so this hook's ruff-format and
+    # `pixi run -e quality format-check` fought each other — whichever ran
+    # last would undo the other's fixes. Bump this rev whenever the `quality`
+    # env's resolved ruff version changes, or the two gates will drift again.
+    rev: v0.12.5
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]

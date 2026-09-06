@@ -1,8 +1,8 @@
 # Video Tutorial Script: New Project Setup
 
-**Video Title**: "New Python Project Setup - Production-Ready CI/CD in 2 Minutes"  
-**Duration**: 3 minutes  
-**Target Audience**: Developers starting new Python projects  
+**Video Title**: "New Python Project Setup - Production-Ready CI/CD in 2 Minutes"
+**Duration**: 3 minutes
+**Target Audience**: Developers starting new Python projects
 **Objective**: Demonstrate fastest path from zero to production-ready project
 
 ---
@@ -97,7 +97,7 @@ pixi run quality
 
 **[Visual: GitHub Actions tab showing running workflows]**
 - Quality Gates (Essential Tier)
-- Security Scanning  
+- Security Scanning
 - Performance Benchmarking
 - Change Detection Baseline
 

@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Needed for baseline comparison
-      
+
       - name: Run Performance Benchmarks
         uses: ./actions/performance-benchmark
         with:
@@ -77,7 +77,7 @@ jobs:
 - **When to Use**: Pull requests, frequent commits
 
 ### Full Suite
-- **Duration**: ~5 minutes max per benchmark  
+- **Duration**: ~5 minutes max per benchmark
 - **Rounds**: 5 minimum
 - **Use Case**: Comprehensive performance validation
 - **When to Use**: Release preparation, nightly builds
@@ -133,7 +133,7 @@ def test_api_endpoint_performance(benchmark):
     """Benchmark API endpoint response time."""
     def call_api():
         return requests.get("http://localhost:8000/api/data")
-    
+
     response = benchmark(call_api)
     assert response.status_code == 200
 
@@ -233,7 +233,7 @@ The action automatically comments on PRs with performance analysis:
 
 ### 📈 Results Summary
 - ✅ 12 benchmarks completed successfully
-- 📈 No performance regression detected  
+- 📈 No performance regression detected
 - 🚀 Performance within acceptable thresholds
 
 ---
@@ -287,11 +287,11 @@ This action integrates seamlessly with other CI Framework actions:
   with:
     tier: 'essential'
 
-- name: Performance Benchmarks  
+- name: Performance Benchmarks
   uses: ./actions/performance-benchmark
   with:
     suite: 'quick'
-    
+
 - name: Security Scan
   uses: ./actions/security-scan
   with:

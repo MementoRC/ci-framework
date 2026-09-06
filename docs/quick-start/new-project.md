@@ -1,7 +1,7 @@
 # 🆕 New Project Setup (2 Minutes)
 
-> **For**: Python projects starting from scratch  
-> **Time**: 2-3 minutes  
+> **For**: Python projects starting from scratch
+> **Time**: 2-3 minutes
 > **Result**: Production-ready project with full CI/CD pipeline
 
 ## ⏱️ Quick Setup Path
@@ -117,10 +117,10 @@ jobs:
     with:
       python-versions: "3.10,3.11,3.12"
       quality-level: "essential"
-      
+
   security-scan:
     uses: MementoRC/ci-framework/.github/workflows/security-scan.yml@main
-    
+
   performance-check:
     uses: MementoRC/ci-framework/.github/workflows/performance-benchmark.yml@main
 ```
@@ -186,7 +186,7 @@ After setup, you should see:
 curl -sSL https://github.com/MementoRC/ci-framework/templates/library-template.sh | bash
 ```
 
-### Application Project  
+### Application Project
 ```bash
 curl -sSL https://github.com/MementoRC/ci-framework/templates/application-template.sh | bash
 ```

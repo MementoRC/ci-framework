@@ -8,7 +8,7 @@ This action provides unified security scanning by integrating multiple security 
 
 - **bandit** - AST-based security analysis for Python code
 - **safety** - Dependency vulnerability scanning
-- **pip-audit** - Package auditing for known vulnerabilities  
+- **pip-audit** - Package auditing for known vulnerabilities
 - **semgrep** - Pattern-based security detection
 - **Trivy** - Container scanning and SBOM generation
 
@@ -98,7 +98,7 @@ This action provides unified security scanning by integrating multiple security 
 
 ### Medium (Default)
 - **Tools**: bandit, safety, pip-audit
-- **Timeout**: 120s per tool  
+- **Timeout**: 120s per tool
 - **Fail on vulnerabilities**: Yes (critical/high only)
 - **Use case**: PR validation, CI pipelines
 
@@ -127,13 +127,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Security Scan
         uses: ./actions/security-scan
         with:
           security-level: 'medium'
           sarif-upload: true
-        
+
       - name: Upload Security Reports
         uses: actions/upload-artifact@v3
         if: always()
@@ -155,7 +155,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Comprehensive Security Scan
         uses: ./actions/security-scan
         with:
@@ -180,7 +180,7 @@ jobs:
         security-level: [low, medium, high]
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Security Scan - ${{ matrix.security-level }}
         uses: ./actions/security-scan
         with:
@@ -193,7 +193,7 @@ The action generates several artifacts:
 
 ### Security Reports
 - `bandit-results.json` - Bandit scan results
-- `safety-results.json` - Safety vulnerability results  
+- `safety-results.json` - Safety vulnerability results
 - `pip-audit-results.json` - Pip-audit findings
 - `semgrep-results.json` - Semgrep pattern matches
 - `trivy-results.json` - Trivy scan results
@@ -204,7 +204,7 @@ The action generates several artifacts:
 - `trivy.sarif` - Trivy SARIF format
 - `security-unified.sarif` - Combined SARIF report
 
-### SBOM Files  
+### SBOM Files
 - `trivy-sbom.json` - Software Bill of Materials
 
 ## Troubleshooting
