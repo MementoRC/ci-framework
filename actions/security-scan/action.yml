@@ -258,11 +258,23 @@ runs:
 
         # Read via the environment rather than shell interpolation - see the
         # `export` comment above the bash assignment for why (#273).
+        #
+        # `os.environ.get(key, default)` only falls back to `default` when
+        # the key is *absent*. A composite action always exports every
+        # input, so an empty-but-explicitly-set input (e.g. `fail-fast: ''`)
+        # yields "" here, not the declared default - silently flipping a
+        # `true`-by-default flag to False. For FAIL_FAST that means a
+        # failing security scan would exit 0 instead of 1 (the same
+        # silent-disable failure mode as #290). `os.environ.get(key) or
+        # default` treats "" the same as unset for every input below whose
+        # default is non-empty. CONFIG_FILE is intentionally left as a plain
+        # two-arg `.get()`: an empty value there legitimately means "no
+        # custom config file", which is exactly what the "" default means.
         CONFIG_FILE = os.environ.get("CONFIG_FILE", "")
-        FAIL_FAST = os.environ.get("FAIL_FAST", "true").strip().lower() == "true"
-        PROJECT_DIR = os.environ.get("PROJECT_DIR", ".")
-        REPORTS_DIR = os.environ.get("REPORTS_DIR", "security-reports")
-        SECURITY_LEVEL = os.environ.get("SECURITY_LEVEL", "medium")
+        FAIL_FAST = (os.environ.get("FAIL_FAST") or "true").strip().lower() == "true"
+        PROJECT_DIR = os.environ.get("PROJECT_DIR") or "."
+        REPORTS_DIR = os.environ.get("REPORTS_DIR") or "security-reports"
+        SECURITY_LEVEL = os.environ.get("SECURITY_LEVEL") or "medium"
 
         # Configuration based on security level
         SECURITY_CONFIGS = {

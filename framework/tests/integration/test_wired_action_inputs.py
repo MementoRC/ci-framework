@@ -73,6 +73,34 @@ def _extract(text: str, start_marker: str, end_marker: str) -> str:
     return textwrap.dedent(text[start:end])
 
 
+_HEREDOC_START = re.compile(r"^\s*(\S*python3?\S*)\s*<<-?\s*(['\"]?)(\w+)\2\s*$")
+
+
+def _heredoc_bodies(text: str) -> list[str]:
+    """The body of every `python3 << 'EOF' ... EOF` heredoc in `text`.
+
+    Shared by every "walk every action.yml" discovery test below, so the
+    heredoc-boundary parsing logic exists exactly once.
+    """
+    lines = text.splitlines()
+    bodies = []
+    i = 0
+    while i < len(lines):
+        match = _HEREDOC_START.match(lines[i])
+        if match:
+            delimiter = match.group(3)
+            body: list[str] = []
+            i += 1
+            while i < len(lines) and lines[i].strip() != delimiter:
+                body.append(lines[i])
+                i += 1
+        else:
+            i += 1
+            continue
+        bodies.append("\n".join(body))
+    return bodies
+
+
 # ===== security-scan: config-file =====
 
 
@@ -663,7 +691,6 @@ class TestNoShellInterpolationInsidePythonHeredocs:
     would catch the next one automatically.
     """
 
-    _HEREDOC_START = re.compile(r"^\s*(\S*python3?\S*)\s*<<-?\s*(['\"]?)(\w+)\2\s*$")
     _SHELL_VAR = re.compile(r"\$[A-Z_][A-Z0-9_]*")
 
     # Must stay empty. #292 closed the last two entries (performance-benchmark,
@@ -671,26 +698,6 @@ class TestNoShellInterpolationInsidePythonHeredocs:
     # new entry here needs a tracked issue - do not add one to make this
     # guard pass; fix the site instead.
     _KNOWN_UNFIXED: set[str] = set()
-
-    @classmethod
-    def _heredoc_bodies(cls, text: str) -> list[str]:
-        lines = text.splitlines()
-        bodies = []
-        i = 0
-        while i < len(lines):
-            match = cls._HEREDOC_START.match(lines[i])
-            if match:
-                delimiter = match.group(3)
-                body: list[str] = []
-                i += 1
-                while i < len(lines) and lines[i].strip() != delimiter:
-                    body.append(lines[i])
-                    i += 1
-            else:
-                i += 1
-                continue
-            bodies.append("\n".join(body))
-        return bodies
 
     def test_discovery_would_have_caught_the_original_sites(self):
         """Sanity check on the parser itself: it must actually find the
@@ -702,7 +709,7 @@ class TestNoShellInterpolationInsidePythonHeredocs:
             '        self.head_ref = "$HEAD_REF"\n'
             "        EOF\n"
         )
-        bodies = self._heredoc_bodies(sample)
+        bodies = _heredoc_bodies(sample)
         assert len(bodies) == 1
         assert self._SHELL_VAR.search(bodies[0])
 
@@ -714,7 +721,7 @@ class TestNoShellInterpolationInsidePythonHeredocs:
             if rel in self._KNOWN_UNFIXED:
                 continue
             text = action_yml.read_text()
-            for body in self._heredoc_bodies(text):
+            for body in _heredoc_bodies(text):
                 bad_lines = [
                     line for line in body.splitlines() if self._SHELL_VAR.search(line)
                 ]
@@ -725,6 +732,125 @@ class TestNoShellInterpolationInsidePythonHeredocs:
             "shell variable spliced directly into python3 heredoc source "
             f"(arbitrary code injection risk if the heredoc is ever "
             f"unquoted): {offenders}"
+        )
+
+
+# ===== guard by discovery: two-arg os.environ.get() must not gate a
+# boolean or numeric cast (#292 follow-up: security-scan, change-detection) =====
+
+
+class TestEnvGetTwoArgFormNotUsedForBoolOrNumericCasts:
+    """General form of the empty-but-set env var fix.
+
+    `os.environ.get(key, default)` only falls back to `default` when `key`
+    is *absent* from the environment. A composite action always exports
+    every declared input (see the `export` comments throughout action.yml),
+    so an empty-but-explicitly-set input (e.g. `fail-fast: ''`) reads back
+    as `""`, not the declared default - silently flipping a `true`-by-default
+    flag to `False`, or feeding a numeric cast a value that crashes or
+    coerces unpredictably. security-scan's FAIL_FAST was exactly this: an
+    empty `fail-fast` input made the scan exit 0 on findings - the same
+    silent-disable failure mode #290 fixed via a different mechanism.
+
+    This walks every `python3 << ...` heredoc in every action.yml under
+    `actions/` (discovery, not a hand-maintained site list) and flags any
+    two-arg `VAR = os.environ.get("VAR", "default")` assignment where `VAR`
+    is later:
+      - cast to bool via a `.lower() == "true"`/`"false"` comparison chained
+        directly onto the assignment (the pattern used everywhere in this
+        codebase), or
+      - passed to `int(...)`/`float(...)` anywhere else in the same heredoc
+        body - UNLESS that body also guards the cast with a `VAR.isdigit()`
+        check (as quality-gates' TIMEOUT does: `""` already fails
+        `.isdigit()` and falls back correctly, so the two-arg form there is
+        not a bug).
+
+    What this does NOT cover - a static regex, not full data-flow analysis:
+    variables read via `os.environ.get(VAR, default)` and used only as
+    plain strings (e.g. a directory or git ref passed to `Path(...)`) are
+    never flagged, even where an empty value could in principle differ from
+    the declared default. Judging whether "empty" is a valid value for a
+    plain string requires the kind of semantic call several sibling tests
+    in this file document by hand (CONFIG_FILE, PATTERN_CONFIG, BASE_REF,
+    HEAD_REF are all intentionally left two-arg). It also only looks inside
+    the extracted heredoc body text, so a cast reached through indirection
+    (e.g. assigning `int` to a variable first) would not be detected.
+    """
+
+    _ENV_GET_TWO_ARG = re.compile(
+        r"^\s*(?P<var>[A-Z_][A-Z0-9_]*)\s*=\s*"
+        r'os\.environ\.get\(\s*"(?P=var)"\s*,\s*"[^"]*"\s*\)'
+        r"(?P<rest>.*)$"
+    )
+    _BOOL_CAST = re.compile(r'\.lower\(\)\s*==\s*["\'](?:true|false)["\']')
+
+    @staticmethod
+    def _numeric_cast_pattern(var: str) -> re.Pattern[str]:
+        return re.compile(rf"\b(?:int|float)\(\s*{re.escape(var)}\s*\)")
+
+    @staticmethod
+    def _isdigit_guard_pattern(var: str) -> re.Pattern[str]:
+        return re.compile(rf"\b{re.escape(var)}\.isdigit\(\)")
+
+    @classmethod
+    def _violations_in(cls, text: str) -> list[str]:
+        violations = []
+        for body in _heredoc_bodies(text):
+            for line in body.splitlines():
+                match = cls._ENV_GET_TWO_ARG.match(line)
+                if not match:
+                    continue
+                var = match.group("var")
+                if cls._BOOL_CAST.search(match.group("rest")):
+                    violations.append(var)
+                    continue
+                if cls._numeric_cast_pattern(var).search(
+                    body
+                ) and not cls._isdigit_guard_pattern(var).search(body):
+                    violations.append(var)
+        return violations
+
+    def test_discovery_would_have_caught_fail_fast(self):
+        """Sanity check on the parser itself: it must actually flag the
+        exact shape of the FAIL_FAST bug this suite fixed on a minimal
+        reproduction, so a broken regex can't make the real test below pass
+        vacuously.
+        """
+        sample = (
+            "        python3 << 'EOF'\n"
+            '        FAIL_FAST = os.environ.get("FAIL_FAST", "true").strip().lower() == "true"\n'
+            "        EOF\n"
+        )
+        assert self._violations_in(sample) == ["FAIL_FAST"]
+
+    def test_isdigit_guarded_numeric_cast_is_not_flagged(self):
+        """Sanity check for the one deliberate exception (quality-gates'
+        TIMEOUT): a two-arg get() feeding an `.isdigit()`-guarded int() cast
+        must NOT be flagged, so the real test isn't over-strict either.
+        """
+        sample = (
+            "        python3 << 'EOF'\n"
+            '        TIMEOUT = os.environ.get("TIMEOUT", "300")\n'
+            "        timeout = int(TIMEOUT) if TIMEOUT.isdigit() else 300\n"
+            "        EOF\n"
+        )
+        assert self._violations_in(sample) == []
+
+    def test_no_action_yml_uses_two_arg_get_for_a_bool_or_numeric_cast(self):
+        actions_dir = REPO_ROOT / "actions"
+        offenders: dict[str, list[str]] = {}
+        for action_yml in sorted(actions_dir.rglob("action.yml")):
+            rel = str(action_yml.relative_to(REPO_ROOT))
+            violations = self._violations_in(action_yml.read_text())
+            if violations:
+                offenders[rel] = violations
+
+        assert not offenders, (
+            "os.environ.get(key, default) two-arg form feeds a boolean or "
+            "numeric cast: an empty-but-set input (which every composite "
+            "action input becomes once exported) silently bypasses the "
+            "declared default instead of falling back to it - use "
+            f"`os.environ.get(key) or default` instead: {offenders}"
         )
 
 
