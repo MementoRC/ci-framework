@@ -134,6 +134,47 @@ class TestSecurityScanConfigFile:
         assert "-c" in json_cmd, json_cmd
         assert json_cmd[json_cmd.index("-c") + 1] == config_path
 
+    def test_nonexistent_config_file_fails_fast_in_bash(self):
+        """A typo'd config-file must abort before the python3 heredoc ever runs.
+
+        This is bash logic (`exit 1`), not Python, so it is executed for
+        real via `bash -c` against the exact text extracted from
+        action.yml, rather than mirrored by hand or exercised through the
+        Python-only exec() fixtures above.
+        """
+        source = SECURITY_SCAN_YML.read_text()
+        snippet = _extract(
+            source, 'if [[ -n "$CONFIG_FILE"', "# Create reports directory"
+        )
+
+        result = subprocess.run(
+            ["bash", "-c", snippet],
+            env={**os.environ, "CONFIG_FILE": "/nonexistent/does-not-exist.yaml"},
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 1, result.stderr
+        assert "config-file not found" in result.stderr
+
+    def test_existing_config_file_does_not_abort_in_bash(self, tmp_path):
+        """The same bash guard must be a no-op once the file actually exists."""
+        source = SECURITY_SCAN_YML.read_text()
+        snippet = _extract(
+            source, 'if [[ -n "$CONFIG_FILE"', "# Create reports directory"
+        )
+        config_path = tmp_path / "bandit.yaml"
+        config_path.write_text("")
+
+        result = subprocess.run(
+            ["bash", "-c", snippet],
+            env={**os.environ, "CONFIG_FILE": str(config_path)},
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, result.stderr
+
 
 # ===== security-scan: fail-fast =====
 
@@ -255,6 +296,46 @@ class TestChangeDetectionPatternConfig:
         assert "ChangeDetectionAction(pattern_config=pattern_config)" in source, (
             "pattern_config is no longer passed into ChangeDetectionAction()"
         )
+
+    def test_nonexistent_pattern_config_fails_fast_in_bash(self):
+        """A typo'd pattern-config must abort before the python3 heredoc ever runs.
+
+        Same rationale as the security-scan config-file test: this is a
+        bash `exit 1` guard, so it is executed for real via `bash -c`
+        against the exact text extracted from action.yml.
+        """
+        source = CHANGE_DETECTION_YML.read_text()
+        snippet = _extract(
+            source, 'if [[ -n "$PATTERN_CONFIG"', "# Create reports directory"
+        )
+
+        result = subprocess.run(
+            ["bash", "-c", snippet],
+            env={**os.environ, "PATTERN_CONFIG": "/nonexistent/does-not-exist.toml"},
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 1, result.stderr
+        assert "pattern-config not found" in result.stderr
+
+    def test_existing_pattern_config_does_not_abort_in_bash(self, tmp_path):
+        """The same bash guard must be a no-op once the file actually exists."""
+        source = CHANGE_DETECTION_YML.read_text()
+        snippet = _extract(
+            source, 'if [[ -n "$PATTERN_CONFIG"', "# Create reports directory"
+        )
+        config_path = tmp_path / "patterns.toml"
+        config_path.write_text("")
+
+        result = subprocess.run(
+            ["bash", "-c", snippet],
+            env={**os.environ, "PATTERN_CONFIG": str(config_path)},
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, result.stderr
 
     @pytest.fixture
     def action_class(self):
