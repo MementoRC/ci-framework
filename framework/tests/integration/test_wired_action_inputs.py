@@ -33,6 +33,10 @@ import pytest
 REPO_ROOT = Path(__file__).parent.parent.parent.parent
 SECURITY_SCAN_YML = REPO_ROOT / "actions" / "security-scan" / "action.yml"
 CHANGE_DETECTION_YML = REPO_ROOT / "actions" / "change-detection" / "action.yml"
+PERFORMANCE_BENCHMARK_YML = (
+    REPO_ROOT / "actions" / "performance-benchmark" / "action.yml"
+)
+QUALITY_GATES_YML = REPO_ROOT / "actions" / "quality-gates" / "action.yml"
 
 
 def _pinned_shellcheck() -> str | None:
@@ -506,6 +510,144 @@ class TestChangeDetectionEnvVarInjectionRegression:
         )
 
 
+# ===== performance-benchmark: env-var injection regression (#292) =====
+
+
+class TestPerformanceBenchmarkEnvVarInjectionRegression:
+    """Same vulnerability class as change-detection's #273 follow-up, closed
+    for this action by #292: SUITE/BASELINE_BRANCH/CONFIG_FILE and friends
+    were spliced directly into the python3 heredoc's *source text* as
+    `"$VAR"` inside an unquoted (`<< EOF`) heredoc - a value containing a
+    `"` followed by a newline and code broke out of the Python string
+    literal and ran arbitrary code, e.g. a malicious `baseline-branch` or
+    `suite` input. The fix reads these values via `os.environ.get(...)`
+    instead, so a malicious value can only ever become a Python *string
+    value*, never Python *source*.
+    """
+
+    MALICIOUS = 'foo"\nimport os\nos.system("touch /tmp/pwned")\n#'
+
+    def _read_env(self, monkeypatch: pytest.MonkeyPatch, **env: str) -> dict[str, Any]:
+        defaults = {
+            "SUITE": "quick",
+            "BASELINE_BRANCH": "main",
+            "REGRESSION_THRESHOLD": "10.0",
+            "TIMEOUT": "1800",
+            "PROJECT_DIR": ".",
+            "CONFIG_FILE": "",
+            "STORE_RESULTS": "true",
+            "RESULTS_DIR": "benchmark-results",
+            "COMPARE_BASELINE": "true",
+            "FAIL_ON_REGRESSION": "true",
+            "PARALLEL": "false",
+        }
+        defaults.update(env)
+        for key, value in defaults.items():
+            monkeypatch.setenv(key, value)
+
+        source = PERFORMANCE_BENCHMARK_YML.read_text()
+        # The leading "\n        " keeps the first extracted line's own
+        # indentation intact - see the identical note on the
+        # change-detection version of this helper above.
+        env_reads = _extract(
+            source,
+            "\n        SUITE = os.environ.get(",
+            "# Add framework to path",
+        )
+        namespace: dict[str, Any] = {"os": os}
+        exec(env_reads, namespace)  # noqa: S102 - exercising real action.yml source
+        return namespace
+
+    def test_suite_injection_is_treated_as_data(self, monkeypatch):
+        namespace = self._read_env(monkeypatch, SUITE=self.MALICIOUS)
+
+        assert namespace["SUITE"] == self.MALICIOUS
+
+    def test_baseline_branch_injection_is_treated_as_data(self, monkeypatch):
+        namespace = self._read_env(monkeypatch, BASELINE_BRANCH=self.MALICIOUS)
+
+        assert namespace["BASELINE_BRANCH"] == self.MALICIOUS
+
+    def test_config_file_injection_is_treated_as_data(self, monkeypatch):
+        namespace = self._read_env(monkeypatch, CONFIG_FILE=self.MALICIOUS)
+
+        assert namespace["CONFIG_FILE"] == self.MALICIOUS
+
+    def test_no_injected_code_actually_executes(self, tmp_path, monkeypatch):
+        """No file is created by the injected `os.system("touch ...")` payload."""
+        marker = tmp_path / "pwned"
+        payload = f'foo"\nimport pathlib\npathlib.Path(r"{marker}").touch()\n#'
+
+        self._read_env(monkeypatch, SUITE=payload)
+
+        assert not marker.exists(), (
+            "injected code executed - the env-var read is no longer safe"
+        )
+
+
+# ===== quality-gates: env-var injection regression (#292) =====
+
+
+class TestQualityGatesEnvVarInjectionRegression:
+    """Same vulnerability class as change-detection's #273 follow-up, closed
+    for this action by #292: TIER/CONFIG_FILE and friends were spliced
+    directly into the python3 heredoc's *source text* as `"$VAR"` inside an
+    unquoted (`<< EOF`) heredoc - a value containing a `"` followed by a
+    newline and code broke out of the Python string literal and ran
+    arbitrary code, e.g. a malicious `tier` or `config-file` input. The fix
+    reads these values via `os.environ.get(...)` instead, so a malicious
+    value can only ever become a Python *string value*, never Python
+    *source*.
+    """
+
+    MALICIOUS = 'foo"\nimport os\nos.system("touch /tmp/pwned")\n#'
+
+    def _read_env(self, monkeypatch: pytest.MonkeyPatch, **env: str) -> dict[str, Any]:
+        defaults = {
+            "TIER": "essential",
+            "TIMEOUT": "300",
+            "PARALLEL": "true",
+            "PROJECT_DIR": ".",
+            "CONFIG_FILE": "",
+            "FAIL_FAST": "true",
+            "REPORTS_DIR": "reports",
+        }
+        defaults.update(env)
+        for key, value in defaults.items():
+            monkeypatch.setenv(key, value)
+
+        source = QUALITY_GATES_YML.read_text()
+        env_reads = _extract(
+            source,
+            "\n        TIER = os.environ.get(",
+            "# Add framework to path",
+        )
+        namespace: dict[str, Any] = {"os": os}
+        exec(env_reads, namespace)  # noqa: S102 - exercising real action.yml source
+        return namespace
+
+    def test_tier_injection_is_treated_as_data(self, monkeypatch):
+        namespace = self._read_env(monkeypatch, TIER=self.MALICIOUS)
+
+        assert namespace["TIER"] == self.MALICIOUS
+
+    def test_config_file_injection_is_treated_as_data(self, monkeypatch):
+        namespace = self._read_env(monkeypatch, CONFIG_FILE=self.MALICIOUS)
+
+        assert namespace["CONFIG_FILE"] == self.MALICIOUS
+
+    def test_no_injected_code_actually_executes(self, tmp_path, monkeypatch):
+        """No file is created by the injected `os.system("touch ...")` payload."""
+        marker = tmp_path / "pwned"
+        payload = f'foo"\nimport pathlib\npathlib.Path(r"{marker}").touch()\n#'
+
+        self._read_env(monkeypatch, TIER=payload)
+
+        assert not marker.exists(), (
+            "injected code executed - the env-var read is no longer safe"
+        )
+
+
 # ===== guard by discovery: no python3 heredoc may splice a shell $VAR =====
 
 
@@ -524,14 +666,11 @@ class TestNoShellInterpolationInsidePythonHeredocs:
     _HEREDOC_START = re.compile(r"^\s*(\S*python3?\S*)\s*<<-?\s*(['\"]?)(\w+)\2\s*$")
     _SHELL_VAR = re.compile(r"\$[A-Z_][A-Z0-9_]*")
 
-    # Files with the same actively-exploitable shell-variable injection defect
-    # this guard detects in python3 heredocs. Excluded so this guard can land
-    # without blocking on their larger fix, tracked as #292. Removing these
-    # entries is part of fixing #292 - do NOT add new entries; fix the site.
-    _KNOWN_UNFIXED = {
-        "actions/performance-benchmark/action.yml",
-        "actions/quality-gates/action.yml",
-    }
+    # Must stay empty. #292 closed the last two entries (performance-benchmark,
+    # quality-gates); every action.yml is now covered with no exclusions. Any
+    # new entry here needs a tracked issue - do not add one to make this
+    # guard pass; fix the site instead.
+    _KNOWN_UNFIXED: set[str] = set()
 
     @classmethod
     def _heredoc_bodies(cls, text: str) -> list[str]:
