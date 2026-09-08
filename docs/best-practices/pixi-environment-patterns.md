@@ -118,8 +118,12 @@ coverage = ">=7.0.0"
 sarif-tools = ">=0.1.0"
 
 [tool.pixi.feature.ci-reporting.tasks]
-ci-test = "pytest framework/tests/ --cov=framework --cov-report=xml --json-report"
-ci-lint = "ruff check framework/ --output-format=github"
+# Delegate to an env that actually provides the tool; a bare invocation here
+# exits 127 whenever the caller is not already in the right env (#267, #268).
+ci-test = "pixi run -e ci ci-test-impl"
+ci-test-impl = "pytest framework/tests/ --cov=framework --cov-report=xml --json-report"
+ci-lint = "pixi run -e quality ci-lint-impl"
+ci-lint-impl = "ruff check framework/ --output-format=github"
 ```
 
 **Use Case**: GitHub Actions, GitLab CI, automated reporting
