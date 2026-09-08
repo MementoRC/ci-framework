@@ -325,14 +325,28 @@ class TestQualityGateTasksAreEnvSelfContained:
             "'pixi run --environment <env>'): " + "; ".join(offenders)
         )
 
-    def test_ci_format_check_delegates_to_quality_env(self):
-        """`ci-format-check` must delegate to the quality env, not run bare."""
+    def test_no_dead_ci_task_variants_reappear(self):
+        """The #294 `ci-*` variants must stay deleted from this repo's manifest.
+
+        `ci-test`, `ci-lint`, `ci-lint-impl` and `ci-format-check` were
+        removed in #294: no workflow invoked any of them, and `ci-test`
+        ran in `default` (its `ENVIRONMENT = "ci"` is a shell variable,
+        not a pixi env selector) where ruff is absent. This asserts they
+        do not drift back in as documented-but-unrun commands. The
+        template's own `ci-*` tasks are deliberately kept and are guarded
+        separately below.
+        """
         tasks = load_tasks()
-        assert "ci-format-check" in tasks, "'ci-format-check' task not found"
-        cmd = task_cmd(tasks["ci-format-check"])
-        assert cmd is not None, "'ci-format-check' has no command"
-        assert QUALITY_ENV_DELEGATION_RE.match(cmd), (
-            f"'ci-format-check' command {cmd!r} does not delegate to the quality env"
+        assert tasks, "Parsed pixi tasks table is empty - parse likely failed silently"
+        resurrected = sorted(
+            name
+            for name in ("ci-test", "ci-lint", "ci-lint-impl", "ci-format-check")
+            if name in tasks
+        )
+        assert not resurrected, (
+            f"{resurrected!r} reappeared in [tool.pixi.tasks]. These were deleted "
+            "in #294 as tasks no workflow runs. If CI now genuinely needs one, "
+            "wire it into a workflow in the same change and delete this guard."
         )
 
 

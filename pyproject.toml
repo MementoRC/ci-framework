@@ -184,11 +184,22 @@ static-analysis = { depends-on = ["security-scan", "safety-check", "complexity-c
 check-all = { depends-on = ["quality", "static-analysis"] }
 
 # ===== TIER 3: CI/CD & DEPLOYMENT TASKS =====
-# CI-specific variants
-ci-test = { cmd = "pytest framework/tests/ --cov=framework --cov-report=xml", env = { ENVIRONMENT = "ci" } }
-ci-lint = "pixi run -e quality ci-lint-impl"
-ci-lint-impl = "ruff check framework/ --output-format=github"
-ci-format-check = "pixi run -e quality format-check-impl"
+# The `ci-test` / `ci-lint` / `ci-lint-impl` / `ci-format-check` variants used
+# to live here and were removed in #294. No workflow ever invoked any of them:
+# ci.yml lints via `pixi run -e quality lint-full` (ci.yml:34) and runs the
+# suite by invoking pytest inline (ci.yml:163-167), never through a `ci-*`
+# task. So these four were documented commands that nothing ran - the same
+# shape as #250, #251, #255, #261, #268 and #277.
+#
+# `ci-test` was additionally broken: it carried `env = { ENVIRONMENT = "ci" }`,
+# which sets a shell VARIABLE named ci and has nothing to do with pixi
+# environment selection, so it ran in `default` where ruff does not exist and
+# any test shelling out to ruff died with FileNotFoundError.
+#
+# Do not reintroduce these without a workflow that actually calls them. The
+# consumer-facing equivalents still ship in
+# templates/pyproject-tiered-template.toml, where they delegate correctly and
+# are guarded by framework/tests/workflows/test_pixi_quality_tasks.py.
 
 # Build & Deploy
 build = "pixi run -e dev build-impl"
