@@ -283,16 +283,20 @@ runs:
 
           # Standalone implementation for initial version
           class ChangeDetectionAction:
-            def __init__(self, pattern_config=None):
-              self.project_dir = Path(PROJECT_DIR)
-              self.reports_dir = Path(REPORTS_DIR)
-              self.detection_level = DETECTION_LEVEL
-              self.base_ref = BASE_REF
-              self.head_ref = HEAD_REF
-              self.enable_test_opt = ENABLE_TEST_OPT
-              self.enable_job_skip = ENABLE_JOB_SKIP
-              self.monorepo_mode = MONOREPO_MODE
-              self.pattern_config = pattern_config
+            def __init__(self, project_dir=None, reports_dir=None, detection_level="standard", **kwargs):
+              # Signature mirrors actions.change_detection.ChangeDetectionAction
+              # so both the import path and this fallback accept the same
+              # nine constructor keywords (#291) - falling back to the
+              # module globals only when a value is not passed explicitly.
+              self.project_dir = Path(project_dir) if project_dir is not None else Path(PROJECT_DIR)
+              self.reports_dir = Path(reports_dir) if reports_dir is not None else Path(REPORTS_DIR)
+              self.detection_level = detection_level
+              self.base_ref = kwargs.get("base_ref", BASE_REF)
+              self.head_ref = kwargs.get("head_ref", HEAD_REF)
+              self.enable_test_opt = kwargs.get("enable_test_optimization", ENABLE_TEST_OPT)
+              self.enable_job_skip = kwargs.get("enable_job_skipping", ENABLE_JOB_SKIP)
+              self.monorepo_mode = kwargs.get("monorepo_mode", MONOREPO_MODE)
+              self.pattern_config = kwargs.get("pattern_config")
 
               # Default file patterns for change classification
               self.patterns = {
@@ -597,7 +601,22 @@ runs:
 
         # Execute change detection
         pattern_config = PATTERN_CONFIG or None
-        detector = ChangeDetectionAction(pattern_config=pattern_config)
+        # #291: every declared input must reach the constructor on BOTH the
+        # packaged-class import path and the standalone fallback below - a
+        # bare `pattern_config=pattern_config` call silently dropped the
+        # other eight on the import path even though the fallback path
+        # worked (it read the module globals directly).
+        detector = ChangeDetectionAction(
+          project_dir=Path(PROJECT_DIR),
+          reports_dir=Path(REPORTS_DIR),
+          detection_level=DETECTION_LEVEL,
+          base_ref=BASE_REF,
+          head_ref=HEAD_REF,
+          enable_test_optimization=ENABLE_TEST_OPT,
+          enable_job_skipping=ENABLE_JOB_SKIP,
+          monorepo_mode=MONOREPO_MODE,
+          pattern_config=pattern_config,
+        )
         result = detector.execute()
 
         # Set outputs

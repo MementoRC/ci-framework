@@ -18,6 +18,7 @@ fires is worth nothing), rather than re-implementing discovery.
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 import re
@@ -99,6 +100,131 @@ def _heredoc_bodies(text: str) -> list[str]:
             continue
         bodies.append("\n".join(body))
     return bodies
+
+
+_CHANGE_DETECTION_EXPECTED_KWARGS = (
+    "project_dir",
+    "reports_dir",
+    "detection_level",
+    "base_ref",
+    "head_ref",
+    "enable_test_optimization",
+    "enable_job_skipping",
+    "monorepo_mode",
+    "pattern_config",
+)
+
+
+def _change_detection_constructor_violations(text: str) -> list[str]:
+    """AST-based signature-parity check for `ChangeDetectionAction(...)` (#291).
+
+    Walks every python3 heredoc in `text`, and for each one that calls
+    `ChangeDetectionAction(...)`:
+      - asserts the call passes exactly the nine expected keywords (no
+        fewer - that was the #291 bug - and no unexpected extras),
+      - asserts none of those keyword values is a hardcoded literal (each
+        must be threaded from the environment, i.e. a Name or Call), and
+      - if the same heredoc also defines a fallback `class
+        ChangeDetectionAction`, asserts its `__init__` accepts every
+        keyword passed at the call site (named explicitly or absorbed by
+        `**kwargs`), so the import path and the fallback path cannot drift.
+
+    Shared by the real guard and its own vacuity self-test below, so
+    neither can duplicate (and thereby desync from) the other's logic.
+    Returns a list of violation messages; empty means clean.
+    """
+    violations: list[str] = []
+    for body in _heredoc_bodies(text):
+        try:
+            tree = ast.parse(textwrap.dedent(body))
+        except SyntaxError as exc:
+            violations.append(f"failed to parse python3 heredoc body: {exc}")
+            continue
+
+        call_node = next(
+            (
+                node
+                for node in ast.walk(tree)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "ChangeDetectionAction"
+            ),
+            None,
+        )
+        if call_node is None:
+            continue
+
+        call_kwargs = {kw.arg: kw.value for kw in call_node.keywords if kw.arg}
+
+        missing = sorted(
+            name
+            for name in _CHANGE_DETECTION_EXPECTED_KWARGS
+            if name not in call_kwargs
+        )
+        if missing:
+            violations.append(
+                "ChangeDetectionAction(...) call is missing expected keyword(s): "
+                f"{missing}"
+            )
+
+        extra = sorted(
+            name
+            for name in call_kwargs
+            if name not in _CHANGE_DETECTION_EXPECTED_KWARGS
+        )
+        if extra:
+            violations.append(
+                f"ChangeDetectionAction(...) call has unexpected keyword(s): {extra}"
+            )
+
+        for name, value_node in call_kwargs.items():
+            if isinstance(value_node, ast.Constant):
+                violations.append(
+                    f"ChangeDetectionAction(...) keyword '{name}' is a hardcoded "
+                    f"literal ({value_node.value!r}) instead of being threaded "
+                    "from the environment"
+                )
+
+        class_node = next(
+            (
+                node
+                for node in ast.walk(tree)
+                if isinstance(node, ast.ClassDef)
+                and node.name == "ChangeDetectionAction"
+            ),
+            None,
+        )
+        if class_node is None:
+            continue
+
+        init_node = next(
+            (
+                node
+                for node in class_node.body
+                if isinstance(node, ast.FunctionDef) and node.name == "__init__"
+            ),
+            None,
+        )
+        if init_node is None:
+            violations.append("fallback ChangeDetectionAction class has no __init__")
+            continue
+
+        accepted = {a.arg for a in init_node.args.args} | {
+            a.arg for a in init_node.args.kwonlyargs
+        }
+        accepted.discard("self")
+        accepts_kwargs = init_node.args.kwarg is not None
+
+        unaccepted = sorted(
+            name for name in call_kwargs if name not in accepted and not accepts_kwargs
+        )
+        if unaccepted:
+            violations.append(
+                "fallback ChangeDetectionAction.__init__ does not accept "
+                f"keyword(s) passed at the call site (and has no **kwargs): {unaccepted}"
+            )
+
+    return violations
 
 
 # ===== security-scan: config-file =====
@@ -308,14 +434,53 @@ class TestSecurityScanFailFast:
 class TestChangeDetectionPatternConfig:
     """`pattern-config` must reach both the instantiation and the classifier."""
 
+    def test_constructor_call_site_was_actually_found(self):
+        """Vacuity guard: `_change_detection_constructor_violations` skips any
+        heredoc body that does not contain a `ChangeDetectionAction(` call. If
+        `_heredoc_bodies` ever stopped extracting bodies from the real
+        `action.yml` (regex drift, YAML restructure), it would return zero
+        violations and the wiring test would pass trivially. This asserts the
+        real file is actually being scanned. Follows the same convention as
+        the existing `test_template_task_table_was_actually_found`-style
+        vacuity guards elsewhere in the suite.
+        """
+        source = CHANGE_DETECTION_YML.read_text()
+        bodies = _heredoc_bodies(source)
+        assert bodies, (
+            "No python3 heredoc bodies were extracted from change-detection/action.yml"
+        )
+        assert any("ChangeDetectionAction(" in body for body in bodies), (
+            "The constructor call site was not found in any extracted "
+            "heredoc body, so the wiring guard would pass vacuously"
+        )
+        parsed_any = False
+        for body in bodies:
+            try:
+                ast.parse(textwrap.dedent(body))
+            except SyntaxError:
+                continue
+            parsed_any = True
+        assert parsed_any, (
+            "No extracted heredoc body could be ast.parse'd, so the wiring "
+            "guard would pass vacuously"
+        )
+
     def test_wiring_reaches_the_constructor_call(self):
         """Static guard against reverting to the original inert pattern.
 
         Before #273 the standalone class was instantiated with zero
         arguments (`ChangeDetectionAction()`), so PATTERN_CONFIG was read
-        into a shell variable and never referenced again. This fails if that
-        reverts, even though the reverted code would still be syntactically
-        valid Python.
+        into a shell variable and never referenced again. Before #291 the
+        call site passed only `pattern_config`, silently dropping the other
+        eight declared inputs on the packaged-class import path (the
+        fallback path happened to work because it read module globals
+        directly). A literal substring match on the pre-#291 call proved
+        text presence, not that every value actually reaches the
+        constructor - this is why #291 was missed. This now uses an
+        AST-based check (`_change_detection_constructor_violations`) that
+        fails if any of the nine expected keywords go missing, are
+        hardcoded literals, or diverge between the import path and the
+        fallback class's `__init__`.
         """
         source = CHANGE_DETECTION_YML.read_text()
         # PATTERN_CONFIG is now read from the environment rather than
@@ -325,9 +490,57 @@ class TestChangeDetectionPatternConfig:
         assert re.search(r"pattern_config\s*=\s*PATTERN_CONFIG\s+or\s+None", source), (
             "pattern_config is no longer read from the PATTERN_CONFIG environment variable"
         )
-        assert "ChangeDetectionAction(pattern_config=pattern_config)" in source, (
-            "pattern_config is no longer passed into ChangeDetectionAction()"
+        violations = _change_detection_constructor_violations(source)
+        assert not violations, violations
+
+    def test_discovery_would_have_caught_the_dropped_constructor_arguments(self):
+        """Sanity check on the parser itself: it must actually flag the
+        exact shape of the #291 bug (only `pattern_config` reaching the
+        constructor) on a minimal reproduction, so a broken AST walk can't
+        make the real test above pass vacuously.
+        """
+        sample = (
+            "        python3 << 'EOF'\n"
+            "        import os\n"
+            "        from pathlib import Path\n"
+            '        PROJECT_DIR = os.environ.get("PROJECT_DIR") or "."\n'
+            "        try:\n"
+            "            from actions.change_detection import ChangeDetectionAction\n"
+            "        except ImportError:\n"
+            "            class ChangeDetectionAction:\n"
+            "                def __init__(self, pattern_config=None):\n"
+            "                    self.pattern_config = pattern_config\n"
+            "        pattern_config = PATTERN_CONFIG or None\n"
+            "        detector = ChangeDetectionAction(pattern_config=pattern_config)\n"
+            "        EOF\n"
         )
+
+        violations = _change_detection_constructor_violations(sample)
+
+        assert violations, "parser failed to flag the pre-#291 inert wiring"
+        expected_missing = {
+            "project_dir",
+            "reports_dir",
+            "detection_level",
+            "base_ref",
+            "head_ref",
+            "enable_test_optimization",
+            "enable_job_skipping",
+            "monorepo_mode",
+        }
+        missing_message = next(
+            (
+                v
+                for v in violations
+                if v.startswith("ChangeDetectionAction(...) call is missing")
+            ),
+            "",
+        )
+        assert missing_message, violations
+        for name in expected_missing:
+            assert name in missing_message, (name, missing_message)
+        # pattern_config *is* passed, so it must not show up as missing.
+        assert "'pattern_config'" not in missing_message, missing_message
 
     def test_nonexistent_pattern_config_fails_fast_in_bash(self):
         """A typo'd pattern-config must abort before the python3 heredoc ever runs.
