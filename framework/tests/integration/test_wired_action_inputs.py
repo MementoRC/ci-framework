@@ -387,6 +387,98 @@ def _change_detection_attribute_parity_violations(
     return violations
 
 
+def _find_init_node(tree: ast.AST, class_name: str) -> ast.FunctionDef | None:
+    """The `__init__` `FunctionDef` of `class_name` in `tree`, if any."""
+    class_node = next(
+        (
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ClassDef) and node.name == class_name
+        ),
+        None,
+    )
+    if class_node is None:
+        return None
+    return next(
+        (
+            node
+            for node in class_node.body
+            if isinstance(node, ast.FunctionDef) and node.name == "__init__"
+        ),
+        None,
+    )
+
+
+def _init_param_names(node: ast.FunctionDef) -> set[str]:
+    """Parameter names an `__init__` node accepts, excluding `self`."""
+    names = {a.arg for a in node.args.args} | {a.arg for a in node.args.kwonlyargs}
+    names.discard("self")
+    return names
+
+
+def _change_detection_signature_parity_violations(
+    packaged_source: str | None = None,
+    fallback_source: str | None = None,
+) -> list[str]:
+    """Parameter-name-parity check between the two `ChangeDetectionAction`
+    constructors (#291 follow-up).
+
+    Both constructors used to collapse everything but `project_dir` /
+    `reports_dir` / `detection_level` into `**kwargs`, so
+    `_change_detection_constructor_violations`'s `accepts_kwargs` escape
+    hatch made an unaccepted-keyword drift invisible on either side.  Now
+    that both declare their nine parameters explicitly, nothing checks that
+    the *names* of those parameters actually still match between the
+    packaged class and the standalone fallback - a rename on one side would
+    go unnoticed by every other guard in this file.  This asserts the two
+    parameter-name sets (excluding `self`) are identical and reports the
+    symmetric difference in both directions when they are not.
+
+    Defaults to reading the real packaged module and the real fallback
+    class out of `action.yml`; accepts explicit source strings so the
+    vacuity self-test below can exercise the exact same logic against a
+    synthetic pair.
+    """
+    if packaged_source is None:
+        packaged_source = CHANGE_DETECTION_PY.read_text()
+    if fallback_source is None:
+        fallback_source = CHANGE_DETECTION_YML.read_text()
+
+    packaged_init = _find_init_node(ast.parse(packaged_source), "ChangeDetectionAction")
+    if packaged_init is None:
+        return ["no packaged ChangeDetectionAction.__init__ found"]
+    packaged_params = _init_param_names(packaged_init)
+
+    fallback_init = None
+    for body in _heredoc_bodies(fallback_source):
+        try:
+            tree = ast.parse(textwrap.dedent(body))
+        except SyntaxError:
+            continue
+        candidate = _find_init_node(tree, "ChangeDetectionAction")
+        if candidate is not None:
+            fallback_init = candidate
+            break
+    if fallback_init is None:
+        return ["no fallback ChangeDetectionAction.__init__ found in any heredoc body"]
+    fallback_params = _init_param_names(fallback_init)
+
+    violations: list[str] = []
+    only_in_packaged = sorted(packaged_params - fallback_params)
+    only_in_fallback = sorted(fallback_params - packaged_params)
+    if only_in_packaged:
+        violations.append(
+            "parameter(s) accepted by the packaged ChangeDetectionAction.__init__ "
+            f"but not by the fallback's: {only_in_packaged}"
+        )
+    if only_in_fallback:
+        violations.append(
+            "parameter(s) accepted by the fallback ChangeDetectionAction.__init__ "
+            f"but not by the packaged class's: {only_in_fallback}"
+        )
+    return violations
+
+
 # ===== security-scan: config-file =====
 
 
@@ -792,6 +884,102 @@ class TestChangeDetectionPatternConfig:
             assert name in joined, (name, violations)
         for name in ("enable_test_opt", "enable_job_skip"):
             assert name in joined, (name, violations)
+
+    def test_fallback_class_parameter_names_match_the_packaged_class(self):
+        """Signature-name-parity guard for the post-#291 explicit-parameter
+        constructors.
+
+        `_change_detection_constructor_violations`'s `accepted`/
+        `accepts_kwargs` check only proves the fallback `__init__` does not
+        *reject* a keyword the call site passes - with `**kwargs` gone from
+        both classes, it says nothing about whether the two `__init__`
+        signatures still name the same nine parameters. This asserts they
+        do, independently of `_change_detection_attribute_parity_violations`
+        (which checks what each side stores `self.X` under, not what the
+        parameters are named).
+        """
+        packaged_params = _init_param_names(
+            _find_init_node(
+                ast.parse(CHANGE_DETECTION_PY.read_text()), "ChangeDetectionAction"
+            )
+        )
+        fallback_init = None
+        for body in _heredoc_bodies(CHANGE_DETECTION_YML.read_text()):
+            try:
+                tree = ast.parse(textwrap.dedent(body))
+            except SyntaxError:
+                continue
+            candidate = _find_init_node(tree, "ChangeDetectionAction")
+            if candidate is not None:
+                fallback_init = candidate
+                break
+
+        # Vacuity guard: a failed lookup on either side would make the
+        # symmetric-difference check below pass trivially (empty == empty).
+        assert packaged_params, (
+            "no parameters were parsed from the packaged "
+            "ChangeDetectionAction.__init__ - the parity check below would "
+            "pass vacuously"
+        )
+        assert fallback_init is not None, (
+            "no fallback ChangeDetectionAction.__init__ was found in any "
+            "heredoc body - the parity check below would pass vacuously"
+        )
+
+        violations = _change_detection_signature_parity_violations()
+        assert not violations, violations
+
+    def test_parameter_parity_check_would_have_caught_a_dropped_parameter(self):
+        """Sanity check on the signature-parity parser itself: it must
+        actually flag a fallback `__init__` that drops a parameter the
+        packaged class still accepts, so a broken AST walk can't make the
+        real test above pass vacuously. Exercises
+        `_change_detection_signature_parity_violations` directly (via its
+        optional source-string parameters), not a copy of its logic.
+        """
+        packaged_source = textwrap.dedent(
+            """
+            class ChangeDetectionAction:
+                def __init__(
+                    self,
+                    project_dir=None,
+                    reports_dir=None,
+                    detection_level="standard",
+                    base_ref="HEAD~1",
+                    head_ref="HEAD",
+                    enable_test_optimization=True,
+                    enable_job_skipping=True,
+                    monorepo_mode=False,
+                    pattern_config=None,
+                ):
+                    self.project_dir = project_dir or Path.cwd()
+            """
+        )
+        fallback_source = (
+            "        python3 << 'EOF'\n"
+            "        class ChangeDetectionAction:\n"
+            "            def __init__(\n"
+            "              self,\n"
+            "              project_dir=None,\n"
+            "              reports_dir=None,\n"
+            "              detection_level=None,\n"
+            "              base_ref=None,\n"
+            "              enable_test_optimization=None,\n"
+            "              enable_job_skipping=None,\n"
+            "              monorepo_mode=None,\n"
+            "              pattern_config=None,\n"
+            "            ):\n"
+            "                self.project_dir = Path(project_dir or PROJECT_DIR)\n"
+            "        EOF\n"
+        )
+
+        violations = _change_detection_signature_parity_violations(
+            packaged_source, fallback_source
+        )
+
+        assert violations, "parser failed to flag the dropped head_ref parameter"
+        joined = " ".join(violations)
+        assert "head_ref" in joined, violations
 
     def test_nonexistent_pattern_config_fails_fast_in_bash(self):
         """A typo'd pattern-config must abort before the python3 heredoc ever runs.

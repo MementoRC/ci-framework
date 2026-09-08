@@ -283,20 +283,38 @@ runs:
 
           # Standalone implementation for initial version
           class ChangeDetectionAction:
-            def __init__(self, project_dir=None, reports_dir=None, detection_level="standard", **kwargs):
+            def __init__(
+              self,
+              project_dir=None,
+              reports_dir=None,
+              detection_level=None,
+              base_ref=None,
+              head_ref=None,
+              enable_test_optimization=None,
+              enable_job_skipping=None,
+              monorepo_mode=None,
+              pattern_config=None,
+            ):
               # Signature mirrors actions.change_detection.ChangeDetectionAction
               # so both the import path and this fallback accept the same
               # nine constructor keywords (#291) - falling back to the
               # module globals only when a value is not passed explicitly.
-              self.project_dir = Path(project_dir) if project_dir else Path(PROJECT_DIR)
-              self.reports_dir = Path(reports_dir) if reports_dir else Path(REPORTS_DIR)
-              self.detection_level = detection_level
-              self.base_ref = kwargs.get("base_ref", BASE_REF)
-              self.head_ref = kwargs.get("head_ref", HEAD_REF)
-              self.enable_test_optimization = kwargs.get("enable_test_optimization", ENABLE_TEST_OPT)
-              self.enable_job_skipping = kwargs.get("enable_job_skipping", ENABLE_JOB_SKIP)
-              self.monorepo_mode = kwargs.get("monorepo_mode", MONOREPO_MODE)
-              self.pattern_config = kwargs.get("pattern_config")
+              self.project_dir = Path(project_dir or PROJECT_DIR)
+              self.reports_dir = Path(reports_dir or REPORTS_DIR)
+              self.detection_level = detection_level or DETECTION_LEVEL
+              self.base_ref = base_ref or BASE_REF
+              self.head_ref = head_ref or HEAD_REF
+              # Booleans must not use `or`: an explicitly passed False would be
+              # replaced by the module global, silently re-enabling a disabled
+              # feature - the same bug shape fixed in #290.
+              self.enable_test_optimization = (
+                ENABLE_TEST_OPT if enable_test_optimization is None else enable_test_optimization
+              )
+              self.enable_job_skipping = (
+                ENABLE_JOB_SKIP if enable_job_skipping is None else enable_job_skipping
+              )
+              self.monorepo_mode = MONOREPO_MODE if monorepo_mode is None else monorepo_mode
+              self.pattern_config = pattern_config
 
               # Default file patterns for change classification
               self.patterns = {
