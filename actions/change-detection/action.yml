@@ -288,13 +288,13 @@ runs:
               # so both the import path and this fallback accept the same
               # nine constructor keywords (#291) - falling back to the
               # module globals only when a value is not passed explicitly.
-              self.project_dir = Path(project_dir) if project_dir is not None else Path(PROJECT_DIR)
-              self.reports_dir = Path(reports_dir) if reports_dir is not None else Path(REPORTS_DIR)
+              self.project_dir = Path(project_dir) if project_dir else Path(PROJECT_DIR)
+              self.reports_dir = Path(reports_dir) if reports_dir else Path(REPORTS_DIR)
               self.detection_level = detection_level
               self.base_ref = kwargs.get("base_ref", BASE_REF)
               self.head_ref = kwargs.get("head_ref", HEAD_REF)
-              self.enable_test_opt = kwargs.get("enable_test_optimization", ENABLE_TEST_OPT)
-              self.enable_job_skip = kwargs.get("enable_job_skipping", ENABLE_JOB_SKIP)
+              self.enable_test_optimization = kwargs.get("enable_test_optimization", ENABLE_TEST_OPT)
+              self.enable_job_skipping = kwargs.get("enable_job_skipping", ENABLE_JOB_SKIP)
               self.monorepo_mode = kwargs.get("monorepo_mode", MONOREPO_MODE)
               self.pattern_config = kwargs.get("pattern_config")
 
@@ -370,7 +370,7 @@ runs:
 
             def analyze_test_impact(self, source_files: List[str]) -> Dict[str, Any]:
               """Analyze which tests might be affected by source changes."""
-              if not self.enable_test_opt or not source_files:
+              if not self.enable_test_optimization or not source_files:
                 return {"affected_tests": [], "can_skip": False}
 
               # Simple heuristic: find test files that might test the changed source files

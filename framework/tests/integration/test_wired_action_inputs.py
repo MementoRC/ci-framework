@@ -34,6 +34,7 @@ import pytest
 REPO_ROOT = Path(__file__).parent.parent.parent.parent
 SECURITY_SCAN_YML = REPO_ROOT / "actions" / "security-scan" / "action.yml"
 CHANGE_DETECTION_YML = REPO_ROOT / "actions" / "change-detection" / "action.yml"
+CHANGE_DETECTION_PY = REPO_ROOT / "framework" / "actions" / "change_detection.py"
 PERFORMANCE_BENCHMARK_YML = (
     REPO_ROOT / "actions" / "performance-benchmark" / "action.yml"
 )
@@ -224,6 +225,165 @@ def _change_detection_constructor_violations(text: str) -> list[str]:
                 f"keyword(s) passed at the call site (and has no **kwargs): {unaccepted}"
             )
 
+    return violations
+
+
+def _value_references_config_surface(node: ast.expr, param_names: set[str]) -> bool:
+    """True iff `node` (an assigned value) is threaded from the constructor.
+
+    An attribute belongs to the config surface iff its assigned value
+    either names one of `__init__`'s own parameters (e.g. `project_dir or
+    Path.cwd()`) or calls `kwargs.get(...)` (e.g. `kwargs.get("base_ref",
+    ...)`). Everything else in `ChangeDetectionAction.__init__` - the
+    component-construction block (`self.pattern_matcher =
+    FilePatternMatcher(...)`, etc.) - only ever reads those values back via
+    `self.xxx`, never the bare parameter name or `kwargs` directly, so this
+    single rule isolates the nine config attributes without needing to
+    hard-code the component attribute names or a line-number cutoff that
+    would silently drift out of sync with the source.
+    """
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Name) and sub.id in param_names:
+            return True
+        if (
+            isinstance(sub, ast.Call)
+            and isinstance(sub.func, ast.Attribute)
+            and sub.func.attr == "get"
+            and isinstance(sub.func.value, ast.Name)
+            and sub.func.value.id == "kwargs"
+        ):
+            return True
+    return False
+
+
+def _config_surface_attrs(tree: ast.AST) -> set[str]:
+    """The `self.X` names in `ChangeDetectionAction.__init__`'s config surface.
+
+    Finds the `ChangeDetectionAction` class and its `__init__` in `tree`,
+    then collects every `self.X = ...` assignment (anywhere in the method,
+    not just top-level, so it also reaches assignments inside conditionals)
+    whose value satisfies `_value_references_config_surface`. Returns an
+    empty set if no such class/`__init__` is found.
+    """
+    class_node = next(
+        (
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ClassDef) and node.name == "ChangeDetectionAction"
+        ),
+        None,
+    )
+    if class_node is None:
+        return set()
+
+    init_node = next(
+        (
+            node
+            for node in class_node.body
+            if isinstance(node, ast.FunctionDef) and node.name == "__init__"
+        ),
+        None,
+    )
+    if init_node is None:
+        return set()
+
+    param_names = (
+        {a.arg for a in init_node.args.args}
+        | {a.arg for a in init_node.args.posonlyargs}
+        | {a.arg for a in init_node.args.kwonlyargs}
+    )
+    param_names.discard("self")
+
+    attrs: set[str] = set()
+    for node in ast.walk(init_node):
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if (
+                isinstance(target, ast.Attribute)
+                and isinstance(target.value, ast.Name)
+                and target.value.id == "self"
+                and _value_references_config_surface(node.value, param_names)
+            ):
+                attrs.add(target.attr)
+    return attrs
+
+
+def _change_detection_attribute_parity_violations(
+    packaged_source: str | None = None,
+    fallback_source: str | None = None,
+) -> list[str]:
+    """AST-based attribute-parity check between the packaged and fallback
+    `ChangeDetectionAction.__init__` (#291 follow-up).
+
+    `_change_detection_constructor_violations` above only checks that both
+    constructors *accept* the same keywords - it never looks at what each
+    `__init__` actually assigns to `self`. That gap is exactly how the
+    enable_test_opt/enable_test_optimization split (and the matching
+    enable_job_skip/enable_job_skipping split) went unnoticed: both
+    constructors accepted `enable_test_optimization` as a kwarg, but only
+    the packaged class stored it under that name.
+
+    Of the two attribute-collection strategies discussed for this guard - a
+    "stop before the first `self.X_matcher`/`_analyzer`/`_handler`/
+    `_engine`/`_generator` assignment" cutoff, versus "collect only
+    `self.X` assigned from a parameter name or a `kwargs.get(...)` call" -
+    this uses the latter (`_config_surface_attrs` /
+    `_value_references_config_surface`). The cutoff approach is asymmetric:
+    the packaged class's component-construction block starts with
+    `self.pattern_matcher = ...`, but the fallback class has no such block
+    at all (it builds its `self.patterns` dict inline instead), so a
+    cutoff tuned for one class's shape does not stop at the right place -
+    or at all - in the other. The parameter/`kwargs.get(...)` rule instead
+    asks the same structural question of every assignment regardless of
+    which class it is in, and naturally excludes the packaged class's
+    component attributes (they are built from `self.xxx`, i.e. attribute
+    reads, not from the parameter names or `kwargs` directly) without
+    needing to know their names.
+
+    Defaults to reading the real packaged module and the real fallback
+    class out of `action.yml`; accepts explicit source strings so the
+    vacuity self-test below can exercise the exact same logic against a
+    synthetic pair.
+    """
+    if packaged_source is None:
+        packaged_source = CHANGE_DETECTION_PY.read_text()
+    if fallback_source is None:
+        fallback_source = CHANGE_DETECTION_YML.read_text()
+
+    packaged_attrs = _config_surface_attrs(ast.parse(packaged_source))
+
+    fallback_attrs: set[str] = set()
+    found_fallback_class = False
+    for body in _heredoc_bodies(fallback_source):
+        try:
+            tree = ast.parse(textwrap.dedent(body))
+        except SyntaxError:
+            continue
+        if not any(
+            isinstance(node, ast.ClassDef) and node.name == "ChangeDetectionAction"
+            for node in ast.walk(tree)
+        ):
+            continue
+        found_fallback_class = True
+        fallback_attrs |= _config_surface_attrs(tree)
+
+    if not found_fallback_class:
+        return ["no fallback ChangeDetectionAction class found in any heredoc body"]
+
+    violations: list[str] = []
+    only_in_packaged = sorted(packaged_attrs - fallback_attrs)
+    only_in_fallback = sorted(fallback_attrs - packaged_attrs)
+    if only_in_packaged:
+        violations.append(
+            "attribute(s) set by the packaged ChangeDetectionAction.__init__ "
+            f"but not by the fallback's: {only_in_packaged}"
+        )
+    if only_in_fallback:
+        violations.append(
+            "attribute(s) set by the fallback ChangeDetectionAction.__init__ "
+            f"but not by the packaged class's: {only_in_fallback}"
+        )
     return violations
 
 
@@ -541,6 +701,97 @@ class TestChangeDetectionPatternConfig:
             assert name in missing_message, (name, missing_message)
         # pattern_config *is* passed, so it must not show up as missing.
         assert "'pattern_config'" not in missing_message, missing_message
+
+    def test_fallback_class_attribute_names_match_the_packaged_class(self):
+        """Attribute-parity guard for #291's actual failure mode.
+
+        `test_wiring_reaches_the_constructor_call` (via
+        `_change_detection_constructor_violations`) only proves both
+        constructors *accept* the same nine keywords - it says nothing
+        about what each `__init__` stores them under. That gap let the
+        fallback keep `self.enable_test_opt`/`self.enable_job_skip` while
+        the packaged class used `self.enable_test_optimization`/
+        `self.enable_job_skipping`, unnoticed. This closes it directly.
+        """
+        packaged_attrs = _config_surface_attrs(
+            ast.parse(CHANGE_DETECTION_PY.read_text())
+        )
+        fallback_attrs: set[str] = set()
+        for body in _heredoc_bodies(CHANGE_DETECTION_YML.read_text()):
+            try:
+                tree = ast.parse(textwrap.dedent(body))
+            except SyntaxError:
+                continue
+            fallback_attrs |= _config_surface_attrs(tree)
+
+        # Vacuity guard: a failed parse on either side would make the
+        # symmetric-difference check below pass trivially (empty == empty).
+        assert packaged_attrs, (
+            "no config-surface attributes were parsed from the packaged "
+            "ChangeDetectionAction.__init__ - the parity check below would "
+            "pass vacuously"
+        )
+        assert fallback_attrs, (
+            "no config-surface attributes were parsed from the fallback "
+            "ChangeDetectionAction.__init__ - the parity check below would "
+            "pass vacuously"
+        )
+
+        violations = _change_detection_attribute_parity_violations()
+        assert not violations, violations
+
+    def test_attribute_parity_check_would_have_caught_the_short_names(self):
+        """Sanity check on the parity parser itself: it must actually flag
+        the exact shape of the enable_test_opt/enable_job_skip drift on a
+        minimal reproduction, so a broken AST walk can't make the real test
+        above pass vacuously. Exercises
+        `_change_detection_attribute_parity_violations` directly (via its
+        optional source-string parameters), not a copy of its logic.
+        """
+        packaged_source = textwrap.dedent(
+            """
+            class ChangeDetectionAction:
+                def __init__(self, project_dir=None, reports_dir=None, detection_level="standard", **kwargs):
+                    self.project_dir = project_dir or Path.cwd()
+                    self.reports_dir = reports_dir or (self.project_dir / "change-reports")
+                    self.detection_level = detection_level
+                    self.base_ref = kwargs.get("base_ref", "HEAD~1")
+                    self.head_ref = kwargs.get("head_ref", "HEAD")
+                    self.enable_test_optimization = kwargs.get("enable_test_optimization", True)
+                    self.enable_job_skipping = kwargs.get("enable_job_skipping", True)
+                    self.monorepo_mode = kwargs.get("monorepo_mode", False)
+                    self.pattern_config = kwargs.get("pattern_config")
+                    self.pattern_matcher = FilePatternMatcher()
+            """
+        )
+        fallback_source = (
+            "        python3 << 'EOF'\n"
+            "        class ChangeDetectionAction:\n"
+            "            def __init__(self, project_dir=None, reports_dir=None, detection_level='standard', **kwargs):\n"
+            "                self.project_dir = project_dir or Path.cwd()\n"
+            "                self.reports_dir = reports_dir or Path.cwd()\n"
+            "                self.detection_level = detection_level\n"
+            "                self.base_ref = kwargs.get('base_ref', 'HEAD~1')\n"
+            "                self.head_ref = kwargs.get('head_ref', 'HEAD')\n"
+            "                self.enable_test_opt = kwargs.get('enable_test_optimization', True)\n"
+            "                self.enable_job_skip = kwargs.get('enable_job_skipping', True)\n"
+            "                self.monorepo_mode = kwargs.get('monorepo_mode', False)\n"
+            "                self.pattern_config = kwargs.get('pattern_config')\n"
+            "        EOF\n"
+        )
+
+        violations = _change_detection_attribute_parity_violations(
+            packaged_source, fallback_source
+        )
+
+        assert violations, (
+            "parser failed to flag the enable_test_opt/enable_job_skip drift"
+        )
+        joined = " ".join(violations)
+        for name in ("enable_test_optimization", "enable_job_skipping"):
+            assert name in joined, (name, violations)
+        for name in ("enable_test_opt", "enable_job_skip"):
+            assert name in joined, (name, violations)
 
     def test_nonexistent_pattern_config_fails_fast_in_bash(self):
         """A typo'd pattern-config must abort before the python3 heredoc ever runs.
