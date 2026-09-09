@@ -215,6 +215,22 @@ runs:
           HEAD_REF="${{ github.sha }}"
         fi
 
+        # A leading '-' in a resolved ref would be parsed by `git diff` as an
+        # option rather than a revision - e.g. base-ref="--output=/tmp/pwned"
+        # produces the single argument "--output=/tmp/pwned...HEAD", which
+        # git honours as an output-file option, giving arbitrary file write
+        # with diff content. Git itself refuses to create a ref beginning
+        # with '-', so rejecting it here cannot reject any real ref (#291
+        # follow-up security fix).
+        if [[ "$BASE_REF" == -* ]]; then
+          echo "❌ base-ref cannot begin with '-' (would be parsed by git as an option): $BASE_REF" >&2
+          exit 1
+        fi
+        if [[ "$HEAD_REF" == -* ]]; then
+          echo "❌ head-ref cannot begin with '-' (would be parsed by git as an option): $HEAD_REF" >&2
+          exit 1
+        fi
+
         # Exported (after the defaulting above, so the FINAL values are what
         # the python3 heredoc below sees) rather than interpolated into the
         # python source as "$VAR" - the heredoc delimiter is quoted ('EOF'),
@@ -343,6 +359,15 @@ runs:
 
             def get_changed_files(self) -> List[str]:
               """Get list of changed files between base and head refs."""
+              # A ref beginning with '-' would be parsed by git as an option
+              # (e.g. --output=...), not a revision - reject it before it
+              # ever reaches subprocess (#291 follow-up security fix). Kept
+              # outside the try/except below so it is not silently swallowed.
+              for ref_name, ref_value in (("base_ref", self.base_ref), ("head_ref", self.head_ref)):
+                if ref_value.startswith("-"):
+                  raise ValueError(
+                    f"{ref_name} {ref_value!r} cannot start with '-': git would parse it as an option"
+                  )
               try:
                 # Get changed files using git diff
                 cmd = ["git", "diff", "--name-only", f"{self.base_ref}...{self.head_ref}"]

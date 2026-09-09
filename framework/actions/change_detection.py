@@ -1162,6 +1162,18 @@ class ChangeDetectionAction:
 
     def _get_changed_files(self) -> list[str]:
         """Get list of changed files between base and head refs."""
+        # A ref beginning with '-' would be parsed by git as an option
+        # (e.g. --output=...), not a revision - reject it before it ever
+        # reaches subprocess (#291 follow-up security fix). Kept outside the
+        # try/except below so it is not silently swallowed.
+        for ref_name, ref_value in (
+            ("base_ref", self.base_ref),
+            ("head_ref", self.head_ref),
+        ):
+            if ref_value.startswith("-"):
+                raise ValueError(
+                    f"{ref_name} {ref_value!r} cannot start with '-': git would parse it as an option"
+                )
         try:
             cmd = ["git", "diff", "--name-only", f"{self.base_ref}...{self.head_ref}"]
             result = subprocess.run(

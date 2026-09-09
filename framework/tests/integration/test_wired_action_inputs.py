@@ -1190,6 +1190,135 @@ class TestChangeDetectionEnvVarInjectionRegression:
         )
 
 
+# ===== change-detection: git ref option-injection (#291 follow-up) =====
+
+
+class TestChangeDetectionRefOptionInjection:
+    """A resolved base-ref/head-ref beginning with '-' is parsed by `git
+    diff` as an OPTION, not a revision - e.g.
+    base-ref="--output=/tmp/pwned" produces the single argument
+    "--output=/tmp/pwned...HEAD", which git honours as an output-file
+    option, giving arbitrary file write with diff content. This is git
+    OPTION injection, a distinct vulnerability from the shell/Python source
+    injection covered by `TestChangeDetectionEnvVarInjectionRegression`
+    above: both call sites already use list-form `subprocess.run` with no
+    `shell=True`, so no shell ever sees these values, and that existing
+    class's tests do not exercise this path at all.
+
+    The fix rejects any ref beginning with '-' before it reaches a git
+    subprocess, both in the bash step (fail-fast, before the python3
+    heredoc even runs) and in the packaged `ChangeDetectionAction` (which
+    is also reachable directly via the module's `argparse` CLI, bypassing
+    the bash step entirely).
+    """
+
+    MALICIOUS_REF = "--output=/tmp/pwned"
+
+    def test_base_ref_option_injection_fails_fast_in_bash(self):
+        """Model: `test_nonexistent_pattern_config_fails_fast_in_bash` above."""
+        source = CHANGE_DETECTION_YML.read_text()
+        snippet = _extract(
+            source,
+            'if [[ "$BASE_REF" == -*',
+            "# Exported (after the defaulting above",
+        )
+
+        result = subprocess.run(
+            ["bash", "-c", snippet],
+            env={**os.environ, "BASE_REF": self.MALICIOUS_REF, "HEAD_REF": "HEAD"},
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 1, result.stderr
+        assert "base-ref" in result.stderr
+        assert "cannot begin with '-'" in result.stderr
+
+    def test_head_ref_option_injection_fails_fast_in_bash(self):
+        """Model: `test_nonexistent_pattern_config_fails_fast_in_bash` above."""
+        source = CHANGE_DETECTION_YML.read_text()
+        snippet = _extract(
+            source,
+            'if [[ "$BASE_REF" == -*',
+            "# Exported (after the defaulting above",
+        )
+
+        result = subprocess.run(
+            ["bash", "-c", snippet],
+            env={**os.environ, "BASE_REF": "HEAD~1", "HEAD_REF": self.MALICIOUS_REF},
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 1, result.stderr
+        assert "head-ref" in result.stderr
+        assert "cannot begin with '-'" in result.stderr
+
+    def test_packaged_base_ref_option_injection_raises_before_git(
+        self, tmp_path, monkeypatch
+    ):
+        """The packaged class matters independently of the bash step: its
+        `argparse` CLI (`python -m ... --base-ref ...`) takes refs straight
+        from the command line and never passes through action.yml's bash
+        guard.
+        """
+        from framework.actions import change_detection as cd_module
+
+        def _fail_if_called(*args: object, **kwargs: object) -> None:
+            raise AssertionError("git should not have been invoked")
+
+        monkeypatch.setattr(cd_module.subprocess, "run", _fail_if_called)
+        action = cd_module.ChangeDetectionAction(
+            project_dir=tmp_path, base_ref=self.MALICIOUS_REF, head_ref="HEAD"
+        )
+
+        with pytest.raises(ValueError, match="base_ref"):
+            action._get_changed_files()
+
+    def test_packaged_head_ref_option_injection_raises_before_git(
+        self, tmp_path, monkeypatch
+    ):
+        from framework.actions import change_detection as cd_module
+
+        def _fail_if_called(*args: object, **kwargs: object) -> None:
+            raise AssertionError("git should not have been invoked")
+
+        monkeypatch.setattr(cd_module.subprocess, "run", _fail_if_called)
+        action = cd_module.ChangeDetectionAction(
+            project_dir=tmp_path, base_ref="HEAD~1", head_ref=self.MALICIOUS_REF
+        )
+
+        with pytest.raises(ValueError, match="head_ref"):
+            action._get_changed_files()
+
+    @pytest.mark.parametrize(
+        "legit_ref",
+        [
+            "HEAD~1",
+            "HEAD",
+            "a" * 40,
+            "refs/heads/feature/x",
+            "origin/main",
+        ],
+    )
+    def test_legitimate_refs_are_not_rejected(self, tmp_path, monkeypatch, legit_ref):
+        """False-positive guard: a leading-dash-only check must never reject
+        a real ref. Git itself forbids refnames beginning with '-', so this
+        check cannot legitimately reject any of these.
+        """
+        from framework.actions import change_detection as cd_module
+
+        def _fake_run(*args: object, **kwargs: object) -> types.SimpleNamespace:
+            return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(cd_module.subprocess, "run", _fake_run)
+        action = cd_module.ChangeDetectionAction(
+            project_dir=tmp_path, base_ref=legit_ref, head_ref=legit_ref
+        )
+
+        assert action._get_changed_files() == []
+
+
 # ===== performance-benchmark: env-var injection regression (#292) =====
 
 
