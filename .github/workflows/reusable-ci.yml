@@ -21,7 +21,7 @@
 #        uses: Claire-s-Monster/ci-framework/.github/workflows/reusable-ci.yml@<sha>  # <version>
 #        with:
 #          pixi-environment: 'ci'
-#          python-versions: '["3.10", "3.11", "3.12"]'
+#          python-versions: '["3.11", "3.12"]'
 #          enable-postgres: true    # optional: adds PostgreSQL service container
 #        secrets: inherit
 #    ```
@@ -61,10 +61,15 @@ on:
         type: string
         default: 'v0.74.0'
       python-versions:
-        description: "JSON array of Python versions for the test matrix"
+        description: >-
+          JSON array of Python versions for the test matrix. 3.10 is not
+          supported: the framework's composite actions import tomllib bare
+          (stdlib only from 3.11) and raise ModuleNotFoundError on 3.10.
+          Consumers still needing 3.10 must pass an explicit python-versions
+          value, which will fail on those actions.
         required: false
         type: string
-        default: '["3.10", "3.11", "3.12"]'
+        default: '["3.11", "3.12"]'
       python-version-env-pattern:
         description: >-
           Naming pattern for per-Python-version pixi environments, used to make

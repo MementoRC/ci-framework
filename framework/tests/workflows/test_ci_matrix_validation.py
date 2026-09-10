@@ -66,7 +66,9 @@ class TestCIMatrixValidation:
 
         # Verify Python versions
         python_versions = matrix.get("python-version", [])
-        expected_python_versions = ["3.10", "3.11", "3.12"]
+        # 3.10 dropped (#286): composite actions import tomllib bare, which
+        # is stdlib only from Python 3.11 onward.
+        expected_python_versions = ["3.11", "3.12"]
         assert python_versions == expected_python_versions, (
             f"Expected {expected_python_versions}, got {python_versions}"
         )
@@ -83,10 +85,10 @@ class TestCIMatrixValidation:
             "fail-fast should be disabled for comprehensive matrix testing"
         )
 
-        # Calculate total combinations
+        # Calculate total combinations (2 Python versions x 2 OS, post #286)
         total_combinations = len(python_versions) * len(os_platforms)
-        assert total_combinations == 6, (
-            f"Expected 6 matrix combinations, got {total_combinations}"
+        assert total_combinations == 4, (
+            f"Expected 4 matrix combinations, got {total_combinations}"
         )
 
     def test_pixi_installation_cross_platform(self, ci_template_content):
@@ -168,7 +170,7 @@ class TestCIMatrixValidation:
                 f"{job_name} timeout should be {expected_timeout}, got {timeout}"
             )
 
-    @pytest.mark.parametrize("python_version", ["3.10", "3.11", "3.12"])
+    @pytest.mark.parametrize("python_version", ["3.11", "3.12"])  # 3.10 dropped (#286)
     @pytest.mark.parametrize("os_platform", ["ubuntu-latest", "macos-latest"])
     def test_matrix_combination_compatibility(self, python_version, os_platform):
         """Test compatibility of each matrix combination"""
@@ -279,8 +281,6 @@ class TestCIMatrixValidation:
 
         # Simulate performance data from different platforms
         mock_performance_data = {
-            ("3.10", "ubuntu-latest"): {"test_duration": 120.5, "memory_usage": 512.0},
-            ("3.10", "macos-latest"): {"test_duration": 125.2, "memory_usage": 520.0},
             ("3.11", "ubuntu-latest"): {"test_duration": 118.9, "memory_usage": 508.0},
             ("3.11", "macos-latest"): {"test_duration": 122.1, "memory_usage": 515.0},
             ("3.12", "ubuntu-latest"): {"test_duration": 119.8, "memory_usage": 510.0},
@@ -310,9 +310,9 @@ class TestCIMatrixValidation:
         # Mock compatibility data structure
         compatibility_report = {
             "matrix_combinations": [],
-            "python_versions": ["3.10", "3.11", "3.12"],
+            "python_versions": ["3.11", "3.12"],  # 3.10 dropped (#286)
             "platforms": ["ubuntu-latest", "macos-latest"],
-            "total_combinations": 6,
+            "total_combinations": 4,
             "successful_combinations": 0,
             "failed_combinations": 0,
             "performance_variance": {"duration": 0.0, "memory": 0.0},
@@ -332,8 +332,8 @@ class TestCIMatrixValidation:
                 compatibility_report["matrix_combinations"].append(combination)
 
         # Validate report structure
-        assert len(compatibility_report["matrix_combinations"]) == 6
-        assert compatibility_report["total_combinations"] == 6
+        assert len(compatibility_report["matrix_combinations"]) == 4
+        assert compatibility_report["total_combinations"] == 4
 
         # All combinations should be present
         combinations = {
@@ -342,8 +342,6 @@ class TestCIMatrixValidation:
         }
 
         expected_combinations = {
-            ("3.10", "ubuntu-latest"),
-            ("3.10", "macos-latest"),
             ("3.11", "ubuntu-latest"),
             ("3.11", "macos-latest"),
             ("3.12", "ubuntu-latest"),
@@ -440,8 +438,6 @@ lint = "echo 'lint check'"
         """Simulate the execution flow for each matrix combination"""
 
         matrix_combinations = [
-            ("3.10", "ubuntu-latest"),
-            ("3.10", "macos-latest"),
             ("3.11", "ubuntu-latest"),
             ("3.11", "macos-latest"),
             ("3.12", "ubuntu-latest"),
@@ -465,7 +461,7 @@ lint = "echo 'lint check'"
             execution_results.append(result)
 
         # Verify all combinations executed
-        assert len(execution_results) == 6
+        assert len(execution_results) == 4
 
         # Verify all combinations succeeded
         all_successful = all(

@@ -75,7 +75,7 @@ jobs:
         run: |
           # ── Edit these values to customize your CI pipeline ──
           {
-            echo 'python-versions=["3.10", "3.11", "3.12"]'
+            echo 'python-versions=["3.11", "3.12"]'
             echo 'os-matrix=["ubuntu-latest", "macos-latest"]'
             echo 'enable-performance=true'
             echo 'enable-hygiene=true'

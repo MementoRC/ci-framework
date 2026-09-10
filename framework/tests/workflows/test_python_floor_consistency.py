@@ -33,6 +33,17 @@ and `[tool.mypy] python_version` were both pinned to 3.10 regardless - one
 third of "the python floor" was covered while the test's name claimed
 authority over the whole thing. `test_tool_configs_track_the_declared_floor`
 below now compares all three declarations against each other.
+
+Issue #286 widened this file again: `discover_version_declarations` walks
+three corpora - every `*.toml` at the repo root and under `templates/`,
+every `.github/workflows/*.yml` and `*.yml.template`, and the literal
+`py3XX` / `>=3.Y` defaults `framework/migration/migrator.py` emits into
+migrated projects - and checks every Python-version declaration found there
+against the `[project] requires-python` floor. It deliberately EXCLUDES
+`docs/` and `README.md` (~70 sites still pinned to 3.10 at the time this
+was written): those are fixed in a separate PR (#286 PR-C), and including
+them here would fail this guard until that PR lands. Doc drift is
+therefore NOT currently guarded by this file.
 """
 
 from __future__ import annotations
@@ -457,3 +468,300 @@ def test_declared_floor_matches_tomllib_usage():
             "`tomli` is not a pixi dependency, so the fallback import fails "
             "at runtime (`tomli-w` is a writer and does not provide it)"
         )
+
+
+# ============================================================================
+# #286: version-declaration discovery across TOML / workflow / migrator
+# corpora. See the module docstring for the docs/ and README.md exclusion.
+# ============================================================================
+
+DeclarationRecord = tuple[Path, str, str, tuple[int, int] | None]
+
+TEMPLATES_DIR = REPO_ROOT / "templates"
+WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
+MIGRATOR_PATH = REPO_ROOT / "framework" / "migration" / "migrator.py"
+
+# Any "X.Y" pair, used to pull a floor out of loosely-formatted specs
+# (pixi's `python = ">=3.11"` / `"3.12.*"`, workflow matrix arrays) that
+# don't follow one single fixed grammar.
+VERSION_TOKEN_RE = re.compile(r"(\d+)\.(\d+)")
+JSON_ARRAY_RE = re.compile(r"\[[^\]]*\]")
+
+# Matches a `python-version`/`python-versions` key whether written as a YAML
+# `key: value` pair or a shell `key=value` assignment (the standalone-ci.yml
+# `echo 'python-versions=[...]'` idiom), with or without a leading `#`
+# (the reusable-ci.yml usage-example comment). Not anchored to line start so
+# it also matches inside a quoted shell string.
+VERSION_KEY_RE = re.compile(r"['\"]?(python-versions?)['\"]?\s*[:=]\s*(.*)$")
+
+# How far below a bare `python-versions:` key to look for its `default:`
+# entry in a `workflow_call` input block (key and value live on separate
+# lines when the key also carries a multi-line `description: >-`). Mirrors
+# the `YAML_FALLBACK_WINDOW` idiom above.
+WORKFLOW_LOOKAHEAD_WINDOW = 10
+DEFAULT_VALUE_RE = re.compile(r"default:\s*['\"]?(\[[^\]\n]*\])")
+
+# `framework/migration/migrator.py` literals: quote-agnostic so either
+# quote style is caught, using a backreference to match the same quote on
+# both sides.
+PY3_LITERAL_RE = re.compile(r"""(['"])(py3\d+)\1""")
+GTE_LITERAL_RE = re.compile(r"""(['"])(>=3\.\d+)\1""")
+
+
+def _parse_version_floor_loose(value: object) -> tuple[int, int] | None:
+    """Extract the lowest `(major, minor)` token from a loosely-formatted spec.
+
+    Handles forms `_parse_requires_python_floor`/`_parse_mypy_python_version`
+    don't: pixi's `">=3.11"` or `"3.12.*"`, and a Jinja-templated default
+    embedding a concrete fallback (`"{{ python_version | default('3.12.*')
+    }}"` - the template's own `[tool.pixi.dependencies]` value). Every `X.Y`
+    token in the string is a candidate; the minimum is treated as the floor,
+    matching the policy applied to workflow matrix arrays below. Returns
+    None when the value carries no version token at all, rather than
+    guessing.
+    """
+    if not isinstance(value, str):
+        return None
+    matches = [
+        (int(major), int(minor)) for major, minor in VERSION_TOKEN_RE.findall(value)
+    ]
+    return min(matches) if matches else None
+
+
+def _iter_toml_candidate_files() -> list[Path]:
+    """Every `*.toml` at the repo root (non-recursive) and under `templates/`."""
+    root_files = [path for path in REPO_ROOT.glob("*.toml") if path.is_file()]
+    template_files = (
+        list(TEMPLATES_DIR.rglob("*.toml")) if TEMPLATES_DIR.is_dir() else []
+    )
+    return root_files + template_files
+
+
+def discover_toml_version_declarations() -> list[DeclarationRecord]:
+    """`[tool.ruff] target-version`, `[tool.mypy] python_version`, and
+    `[tool.pixi.dependencies] python`, across every `*.toml` at the repo
+    root and under `templates/` (templates ship into consumer projects, so
+    their floor matters exactly as much as our own)."""
+    records: list[DeclarationRecord] = []
+    for path in _iter_toml_candidate_files():
+        try:
+            data = tomllib.loads(path.read_text(encoding="utf-8"))
+        except (tomllib.TOMLDecodeError, OSError, UnicodeDecodeError):
+            continue
+        tool = data.get("tool", {})
+        ruff_value = tool.get("ruff", {}).get("target-version")
+        if ruff_value is not None:
+            records.append(
+                (
+                    path,
+                    "toml-ruff-target-version",
+                    str(ruff_value),
+                    _parse_ruff_target_version(ruff_value),
+                )
+            )
+        mypy_value = tool.get("mypy", {}).get("python_version")
+        if mypy_value is not None:
+            records.append(
+                (
+                    path,
+                    "toml-mypy-python-version",
+                    str(mypy_value),
+                    _parse_mypy_python_version(mypy_value),
+                )
+            )
+        pixi_value = tool.get("pixi", {}).get("dependencies", {}).get("python")
+        if pixi_value is not None:
+            records.append(
+                (
+                    path,
+                    "toml-pixi-python",
+                    str(pixi_value),
+                    _parse_version_floor_loose(pixi_value),
+                )
+            )
+    return records
+
+
+def _extract_array_versions(fragment: str) -> list[tuple[int, int]] | None:
+    """Pull `[..., ...]` version tokens out of `fragment`, or None if no array is present.
+
+    None (not an empty list) distinguishes "this value isn't an array at
+    all" (a scalar default, or a `${{ expression }}` reference) from "an
+    array with nothing recognisable in it", so a caller can tell the two
+    apart.
+    """
+    array_match = JSON_ARRAY_RE.search(fragment)
+    if array_match is None:
+        return None
+    return [
+        (int(major), int(minor))
+        for major, minor in VERSION_TOKEN_RE.findall(array_match.group(0))
+    ]
+
+
+def _iter_workflow_candidate_files() -> list[Path]:
+    """Every `*.yml` and `*.yml.template` under `.github/workflows/`."""
+    if not WORKFLOWS_DIR.is_dir():
+        return []
+    return sorted(
+        set(WORKFLOWS_DIR.glob("*.yml")) | set(WORKFLOWS_DIR.glob("*.yml.template"))
+    )
+
+
+def discover_workflow_version_declarations() -> list[DeclarationRecord]:
+    """`python-version`/`python-versions` matrix values under `.github/workflows/`.
+
+    Only JSON-array-string or YAML-list values count: a scalar default like
+    `python-version: '3.12'` or a reference like `${{ matrix.python-version
+    }}` is not a floor declaration and is skipped. For a `workflow_call`
+    input whose key and `default:` live on separate lines, the default is
+    found by looking a few lines below the bare key.
+    """
+    records: list[DeclarationRecord] = []
+    for path in _iter_workflow_candidate_files():
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError):
+            continue
+        for index, line in enumerate(lines):
+            match = VERSION_KEY_RE.search(line)
+            if match is None:
+                continue
+            rest = match.group(2).strip()
+            if rest:
+                raw = rest
+                versions = _extract_array_versions(rest)
+            else:
+                window = "\n".join(
+                    lines[index + 1 : index + 1 + WORKFLOW_LOOKAHEAD_WINDOW]
+                )
+                default_match = DEFAULT_VALUE_RE.search(window)
+                raw = default_match.group(1) if default_match else ""
+                versions = _extract_array_versions(raw) if default_match else None
+            if not versions:
+                continue
+            records.append((path, "workflow-python-version-min", raw, min(versions)))
+    return records
+
+
+def discover_migrator_version_declarations() -> list[DeclarationRecord]:
+    """`py3\\d+` and `>=3\\.\\d+` string literals in `framework/migration/migrator.py`.
+
+    These are the Python-version defaults the migrator writes INTO
+    consumer projects' `pyproject.toml`/ruff config during a migration, so a
+    stale literal here ships a stale floor outward to every project this
+    tool touches.
+    """
+    records: list[DeclarationRecord] = []
+    try:
+        text = MIGRATOR_PATH.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return records
+    for match in PY3_LITERAL_RE.finditer(text):
+        value = match.group(2)
+        records.append(
+            (
+                MIGRATOR_PATH,
+                "migrator-py3-literal",
+                value,
+                _parse_ruff_target_version(value),
+            )
+        )
+    for match in GTE_LITERAL_RE.finditer(text):
+        value = match.group(2)
+        records.append(
+            (
+                MIGRATOR_PATH,
+                "migrator-gte-literal",
+                value,
+                _parse_requires_python_floor(value),
+            )
+        )
+    return records
+
+
+def discover_version_declarations() -> list[DeclarationRecord]:
+    """Every Python-version declaration across all three corpora.
+
+    See the module docstring: `docs/` and `README.md` are deliberately
+    excluded (PR-C's scope), so doc drift is not covered by this check.
+    """
+    return (
+        discover_toml_version_declarations()
+        + discover_workflow_version_declarations()
+        + discover_migrator_version_declarations()
+    )
+
+
+def test_version_declaration_discovery_is_not_vacuous():
+    """Per-corpus vacuity guard: an empty walk in any one corpus would make
+    `test_no_declaration_is_below_the_project_floor` pass for free for it."""
+    toml_records = discover_toml_version_declarations()
+    assert toml_records, (
+        "no [tool.ruff]/[tool.mypy]/[tool.pixi.dependencies] python "
+        "declarations found in any *.toml at the repo root or under "
+        "templates/ - the TOML walker is broken"
+    )
+
+    workflow_records = discover_workflow_version_declarations()
+    assert workflow_records, (
+        "no python-version(s) matrix declarations found under "
+        ".github/workflows/ (*.yml or *.yml.template) - the workflow "
+        "walker is broken"
+    )
+
+    migrator_records = discover_migrator_version_declarations()
+    assert migrator_records, (
+        "no py3XX / >=3.Y string literals found in "
+        "framework/migration/migrator.py - the migrator walker is broken"
+    )
+
+
+def test_no_declaration_is_below_the_project_floor():
+    """Every discovered declaration must admit nothing older than the
+    `[project] requires-python` floor (#286)."""
+    floor = requires_python_floor()
+    assert floor is not None, "could not parse [project] requires-python"
+    for path, kind, raw_value, parsed_floor in discover_version_declarations():
+        if parsed_floor is None:
+            # Nothing concrete to compare (no version token at all in the
+            # raw value); such a value isn't a floor declaration in its own
+            # right, so it can't violate one.
+            continue
+        assert parsed_floor >= floor, (
+            f"{path}: {kind} declares {raw_value!r} (parsed floor "
+            f"{parsed_floor}), below the project floor {floor} required by "
+            "[project] requires-python (#286)"
+        )
+
+
+def test_declaration_classifier_would_have_caught_py310():
+    """Classifier self-test: replay the exact #286 regression as synthetic
+    input and confirm every declaration shape is both detected and
+    classified as below the 3.11 floor. Without this, a classifier that
+    silently ignored everything would make the test above pass vacuously,
+    the same way an always-'bare' tomllib classifier would above."""
+    ruff_floor = _parse_ruff_target_version("py310")
+    assert ruff_floor is not None and ruff_floor < MINIMUM_FLOOR, (
+        f"ruff target-version classifier failed to catch 'py310' (got {ruff_floor})"
+    )
+
+    mypy_floor = _parse_mypy_python_version("3.10")
+    assert mypy_floor is not None and mypy_floor < MINIMUM_FLOOR, (
+        f"mypy python_version classifier failed to catch '3.10' (got {mypy_floor})"
+    )
+
+    pixi_floor = _parse_version_floor_loose(">=3.10")
+    assert pixi_floor is not None and pixi_floor < MINIMUM_FLOOR, (
+        f"pixi python classifier failed to catch '>=3.10' (got {pixi_floor})"
+    )
+
+    matrix_versions = _extract_array_versions('\'["3.10", "3.11"]\'')
+    assert matrix_versions is not None, (
+        'workflow matrix classifier failed to find an array in \'["3.10", "3.11"]\''
+    )
+    matrix_floor = min(matrix_versions)
+    assert matrix_floor < MINIMUM_FLOOR, (
+        f'workflow matrix classifier failed to catch \'["3.10", "3.11"]\' '
+        f"(got minimum {matrix_floor})"
+    )

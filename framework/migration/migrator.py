@@ -392,7 +392,7 @@ class ProjectMigrator:
         if "dependencies" not in pixi_config:
             pixi_config["dependencies"] = {}
 
-        pixi_config["dependencies"]["python"] = ">=3.10"
+        pixi_config["dependencies"]["python"] = ">=3.11"
 
         # Add environments
         if "environments" not in pixi_config:
@@ -461,7 +461,7 @@ class ProjectMigrator:
 
         # Configure ruff
         pyproject_data["tool"]["ruff"] = {
-            "target-version": "py310",
+            "target-version": "py311",
             "line-length": 88,
             "select": [
                 "F",  # Pyflakes
@@ -655,7 +655,7 @@ class ProjectMigrator:
         if not self.analysis.quality_tools.ruff_config:
             transformations["ruff_config"] = {
                 "add_ruff_config": True,
-                "target_version": "py310",
+                "target_version": "py311",
                 "line_length": 88,
                 "select_rules": ["F", "E", "W", "I", "N", "UP", "B", "C4", "PT"],
             }
