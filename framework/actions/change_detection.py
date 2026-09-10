@@ -1014,7 +1014,12 @@ class ChangeDetectionAction:
         project_dir: Path | None = None,
         reports_dir: Path | None = None,
         detection_level: str = "standard",
-        **kwargs,
+        base_ref: str = "HEAD~1",
+        head_ref: str = "HEAD",
+        enable_test_optimization: bool = True,
+        enable_job_skipping: bool = True,
+        monorepo_mode: bool = False,
+        pattern_config: str | None = None,
     ):
         """Initialize change detection action."""
         self.project_dir = project_dir or Path.cwd()
@@ -1022,12 +1027,12 @@ class ChangeDetectionAction:
         self.detection_level = detection_level
 
         # Configuration
-        self.base_ref = kwargs.get("base_ref", "HEAD~1")
-        self.head_ref = kwargs.get("head_ref", "HEAD")
-        self.enable_test_optimization = kwargs.get("enable_test_optimization", True)
-        self.enable_job_skipping = kwargs.get("enable_job_skipping", True)
-        self.monorepo_mode = kwargs.get("monorepo_mode", False)
-        self.pattern_config = kwargs.get("pattern_config")
+        self.base_ref = base_ref
+        self.head_ref = head_ref
+        self.enable_test_optimization = enable_test_optimization
+        self.enable_job_skipping = enable_job_skipping
+        self.monorepo_mode = monorepo_mode
+        self.pattern_config = pattern_config
 
         # Initialize components
         self.pattern_matcher = FilePatternMatcher(self._load_custom_patterns())
@@ -1157,6 +1162,18 @@ class ChangeDetectionAction:
 
     def _get_changed_files(self) -> list[str]:
         """Get list of changed files between base and head refs."""
+        # A ref beginning with '-' would be parsed by git as an option
+        # (e.g. --output=...), not a revision - reject it before it ever
+        # reaches subprocess (#291 follow-up security fix). Kept outside the
+        # try/except below so it is not silently swallowed.
+        for ref_name, ref_value in (
+            ("base_ref", self.base_ref),
+            ("head_ref", self.head_ref),
+        ):
+            if ref_value.startswith("-"):
+                raise ValueError(
+                    f"{ref_name} {ref_value!r} cannot start with '-': git would parse it as an option"
+                )
         try:
             cmd = ["git", "diff", "--name-only", f"{self.base_ref}...{self.head_ref}"]
             result = subprocess.run(

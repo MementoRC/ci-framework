@@ -215,6 +215,22 @@ runs:
           HEAD_REF="${{ github.sha }}"
         fi
 
+        # A leading '-' in a resolved ref would be parsed by `git diff` as an
+        # option rather than a revision - e.g. base-ref="--output=/tmp/pwned"
+        # produces the single argument "--output=/tmp/pwned...HEAD", which
+        # git honours as an output-file option, giving arbitrary file write
+        # with diff content. Git itself refuses to create a ref beginning
+        # with '-', so rejecting it here cannot reject any real ref (#291
+        # follow-up security fix).
+        if [[ "$BASE_REF" == -* ]]; then
+          echo "❌ base-ref cannot begin with '-' (would be parsed by git as an option): $BASE_REF" >&2
+          exit 1
+        fi
+        if [[ "$HEAD_REF" == -* ]]; then
+          echo "❌ head-ref cannot begin with '-' (would be parsed by git as an option): $HEAD_REF" >&2
+          exit 1
+        fi
+
         # Exported (after the defaulting above, so the FINAL values are what
         # the python3 heredoc below sees) rather than interpolated into the
         # python source as "$VAR" - the heredoc delimiter is quoted ('EOF'),
@@ -283,15 +299,37 @@ runs:
 
           # Standalone implementation for initial version
           class ChangeDetectionAction:
-            def __init__(self, pattern_config=None):
-              self.project_dir = Path(PROJECT_DIR)
-              self.reports_dir = Path(REPORTS_DIR)
-              self.detection_level = DETECTION_LEVEL
-              self.base_ref = BASE_REF
-              self.head_ref = HEAD_REF
-              self.enable_test_opt = ENABLE_TEST_OPT
-              self.enable_job_skip = ENABLE_JOB_SKIP
-              self.monorepo_mode = MONOREPO_MODE
+            def __init__(
+              self,
+              project_dir=None,
+              reports_dir=None,
+              detection_level=None,
+              base_ref=None,
+              head_ref=None,
+              enable_test_optimization=None,
+              enable_job_skipping=None,
+              monorepo_mode=None,
+              pattern_config=None,
+            ):
+              # Signature mirrors actions.change_detection.ChangeDetectionAction
+              # so both the import path and this fallback accept the same
+              # nine constructor keywords (#291) - falling back to the
+              # module globals only when a value is not passed explicitly.
+              self.project_dir = Path(project_dir or PROJECT_DIR)
+              self.reports_dir = Path(reports_dir or REPORTS_DIR)
+              self.detection_level = detection_level or DETECTION_LEVEL
+              self.base_ref = base_ref or BASE_REF
+              self.head_ref = head_ref or HEAD_REF
+              # Booleans must not use `or`: an explicitly passed False would be
+              # replaced by the module global, silently re-enabling a disabled
+              # feature - the same bug shape fixed in #290.
+              self.enable_test_optimization = (
+                ENABLE_TEST_OPT if enable_test_optimization is None else enable_test_optimization
+              )
+              self.enable_job_skipping = (
+                ENABLE_JOB_SKIP if enable_job_skipping is None else enable_job_skipping
+              )
+              self.monorepo_mode = MONOREPO_MODE if monorepo_mode is None else monorepo_mode
               self.pattern_config = pattern_config
 
               # Default file patterns for change classification
@@ -321,6 +359,15 @@ runs:
 
             def get_changed_files(self) -> List[str]:
               """Get list of changed files between base and head refs."""
+              # A ref beginning with '-' would be parsed by git as an option
+              # (e.g. --output=...), not a revision - reject it before it
+              # ever reaches subprocess (#291 follow-up security fix). Kept
+              # outside the try/except below so it is not silently swallowed.
+              for ref_name, ref_value in (("base_ref", self.base_ref), ("head_ref", self.head_ref)):
+                if ref_value.startswith("-"):
+                  raise ValueError(
+                    f"{ref_name} {ref_value!r} cannot start with '-': git would parse it as an option"
+                  )
               try:
                 # Get changed files using git diff
                 cmd = ["git", "diff", "--name-only", f"{self.base_ref}...{self.head_ref}"]
@@ -366,7 +413,7 @@ runs:
 
             def analyze_test_impact(self, source_files: List[str]) -> Dict[str, Any]:
               """Analyze which tests might be affected by source changes."""
-              if not self.enable_test_opt or not source_files:
+              if not self.enable_test_optimization or not source_files:
                 return {"affected_tests": [], "can_skip": False}
 
               # Simple heuristic: find test files that might test the changed source files
@@ -597,7 +644,22 @@ runs:
 
         # Execute change detection
         pattern_config = PATTERN_CONFIG or None
-        detector = ChangeDetectionAction(pattern_config=pattern_config)
+        # #291: every declared input must reach the constructor on BOTH the
+        # packaged-class import path and the standalone fallback below - a
+        # bare `pattern_config=pattern_config` call silently dropped the
+        # other eight on the import path even though the fallback path
+        # worked (it read the module globals directly).
+        detector = ChangeDetectionAction(
+          project_dir=Path(PROJECT_DIR),
+          reports_dir=Path(REPORTS_DIR),
+          detection_level=DETECTION_LEVEL,
+          base_ref=BASE_REF,
+          head_ref=HEAD_REF,
+          enable_test_optimization=ENABLE_TEST_OPT,
+          enable_job_skipping=ENABLE_JOB_SKIP,
+          monorepo_mode=MONOREPO_MODE,
+          pattern_config=pattern_config,
+        )
         result = detector.execute()
 
         # Set outputs
