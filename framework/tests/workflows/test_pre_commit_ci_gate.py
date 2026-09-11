@@ -112,6 +112,77 @@ class TestPreCommitTasksReachAnEnvWithThePackage:
         )
 
 
+class TestRuffHasNoSecondVersionPin:
+    """Guards against the #250-shaped manual-sync failure coming back.
+
+    `.pre-commit-config.yaml` used to pin `astral-sh/ruff-pre-commit` to a
+    `rev:` that had to be hand-bumped every time the `quality` env's
+    resolved ruff version changed (pixi.lock moves automatically, the
+    `rev:` only moves when a human notices) — the same shape as #250's
+    pixi-version vs. setup-pixi action tag. When the two drifted, this
+    hook's `ruff-format` and `pixi run -e quality format-check` fought each
+    other and undid each other's fixes. The fix replaced that repo with a
+    `repo: local` hook that invokes the pixi-resolved `ruff` binary
+    directly, so there is only one version to ever disagree with itself.
+
+    These tests assert the drift cannot silently reappear.
+    """
+
+    def test_no_repo_pins_an_external_ruff_version(self):
+        """No `repos` entry may point at an external ruff repo — that would
+        reintroduce a second ruff version requiring hand-sync with pixi.
+        """
+        doc = yaml.safe_load(PRE_COMMIT_CONFIG.read_text())
+        repos = doc.get("repos", []) if isinstance(doc, dict) else []
+        ruff_repo_urls = [
+            repo.get("repo", "")
+            for repo in repos
+            if isinstance(repo, dict) and "ruff" in str(repo.get("repo", "")).lower()
+        ]
+        assert not ruff_repo_urls, (
+            "found an external ruff repo pin in .pre-commit-config.yaml "
+            f"({ruff_repo_urls!r}) — this reintroduces a second ruff "
+            "version that must be hand-synced with the `quality` env, the "
+            "#250-shaped drift the local hook was meant to remove"
+        )
+
+    def test_ruff_hooks_still_exist(self):
+        """Anti-vacuity: the assertion above would pass for free if the
+        `ruff`/`ruff-format` hooks were simply deleted rather than
+        converted to the local hook — an existing test loads hook ids by
+        name, so they must keep exactly these ids.
+        """
+        hook_ids = load_pre_commit_hook_ids()
+        assert "ruff" in hook_ids, "'ruff' hook id missing from .pre-commit-config.yaml"
+        assert "ruff-format" in hook_ids, (
+            "'ruff-format' hook id missing from .pre-commit-config.yaml"
+        )
+
+    def test_ruff_hooks_invoke_the_pixi_quality_env(self):
+        """The `ruff`/`ruff-format` hook `entry:` must actually run through
+        `pixi run -e quality ...` so it uses the pixi-resolved ruff binary
+        instead of whatever `ruff` happens to be on PATH.
+        """
+        doc = yaml.safe_load(PRE_COMMIT_CONFIG.read_text())
+        repos = doc.get("repos", []) if isinstance(doc, dict) else []
+        entries_by_id: dict[str, str] = {}
+        for repo in repos:
+            if not isinstance(repo, dict):
+                continue
+            for hook in repo.get("hooks", []) or []:
+                if isinstance(hook, dict) and "id" in hook:
+                    entries_by_id[hook["id"]] = hook.get("entry", "")
+
+        for hook_id in ("ruff", "ruff-format"):
+            entry = entries_by_id.get(hook_id, "")
+            assert "pixi run" in entry, (
+                f"'{hook_id}' hook entry {entry!r} does not invoke `pixi run`"
+            )
+            assert "quality" in entry, (
+                f"'{hook_id}' hook entry {entry!r} does not name the `quality` env"
+            )
+
+
 class TestCiActuallyRunsPreCommit:
     """The other half of #277: the hooks existed, but nothing in CI ran them."""
 

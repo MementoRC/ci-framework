@@ -19,15 +19,31 @@ repos:
       - id: mixed-line-ending
         args: ['--fix=lf']
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Pinned to match the `ruff` version pixi resolves in the `quality` env
-    # (pixi.lock: ruff-0.12.5). v0.1.6 (Nov 2023) and 0.12.5 disagree on
-    # formatter output for several files, so this hook's ruff-format and
-    # `pixi run -e quality format-check` fought each other — whichever ran
-    # last would undo the other's fixes. Bump this rev whenever the `quality`
-    # env's resolved ruff version changes, or the two gates will drift again.
-    rev: v0.12.5
+  # This repo previously pinned the astral-sh/ruff-pre-commit `rev:` by hand
+  # to match whatever ruff pixi resolves in the `quality` env, with a comment
+  # instructing a human to bump it whenever that changed. That's the same
+  # manual-sync shape as #250's pixi-version vs. the setup-pixi action tag —
+  # one side moves automatically (pixi.lock), the other only when somebody
+  # notices (this rev:). When they diverged, this hook's ruff-format and
+  # `pixi run -e quality format-check` undid each other's fixes. A `repo:
+  # local` hook invoking the pixi-installed ruff removes the second pin
+  # entirely: there is one ruff binary, so the two gates cannot disagree.
+  #
+  # The consumer-facing template (templates/pre-commit-config.yaml)
+  # deliberately keep the pinned external repo instead of this local hook —
+  # pre-commit.ci has no pixi on PATH, so a repo:local hook would break
+  # hosted runs for generated projects. That divergence is intentional.
+  - repo: local
     hooks:
       - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
+        name: ruff lint (pixi quality env)
+        entry: pixi run -e quality ruff check --fix --exit-non-zero-on-fix
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
       - id: ruff-format
+        name: ruff format (pixi quality env)
+        entry: pixi run -e quality ruff format
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
