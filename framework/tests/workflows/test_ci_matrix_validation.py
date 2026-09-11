@@ -2,7 +2,7 @@
 CI Matrix Validation Tests
 
 Tests the comprehensive CI workflow template across all matrix combinations
-as specified in subtask 2.7: Python [3.10, 3.11, 3.12] × OS [ubuntu-latest, macos-latest]
+as specified in subtask 2.7: Python [3.11, 3.12] × OS [ubuntu-latest, macos-latest]
 """
 
 import json
@@ -21,7 +21,7 @@ class TestCIMatrixValidation:
     Test CI workflow template matrix combinations
 
     Requirements from Task 2.7:
-    - Test matrix: Python [3.10, 3.11, 3.12] × OS [ubuntu-latest, macos-latest]
+    - Test matrix: Python [3.11, 3.12] × OS [ubuntu-latest, macos-latest]
     - Verify pixi installation on all platforms
     - Test Python-specific features per version
     - Validate OS-specific behaviors
@@ -396,7 +396,7 @@ channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64", "osx-64"]
 
 [tool.pixi.dependencies]
-python = ">=3.10,<3.13"
+python = ">=3.10,<3.13"  # python-floor-exempt: consumer-project fixture, not a support claim
 pytest = "*"
 
 [tool.pixi.tasks]
@@ -406,33 +406,29 @@ lint = "echo 'lint check'"
             (project_dir / "pyproject.toml").write_text(pyproject_content)
 
             # Test basic pixi functionality
-            try:
-                # This would normally test pixi installation and basic commands
-                # For now, just verify the configuration is valid
-                import tomllib
+            # This would normally test pixi installation and basic commands
+            # For now, just verify the configuration is valid
+            import tomllib
 
-                with open(project_dir / "pyproject.toml", "rb") as f:
-                    config = tomllib.load(f)
+            with open(project_dir / "pyproject.toml", "rb") as f:
+                config = tomllib.load(f)
 
-                assert "tool" in config
-                assert "pixi" in config["tool"]
+            assert "tool" in config
+            assert "pixi" in config["tool"]
 
-                pixi_config = config["tool"]["pixi"]
-                assert "project" in pixi_config
-                assert "dependencies" in pixi_config
-                assert "tasks" in pixi_config
+            pixi_config = config["tool"]["pixi"]
+            assert "project" in pixi_config
+            assert "dependencies" in pixi_config
+            assert "tasks" in pixi_config
 
-                # Verify Python version compatibility
-                python_req = pixi_config["dependencies"]["python"]
-                assert "3.10" in python_req
-
-            except ImportError:
-                # tomllib not available in Python < 3.11, use alternative
-                import configparser
-
-                # Basic validation that file exists and has content
-                assert (project_dir / "pyproject.toml").exists()
-                assert (project_dir / "pyproject.toml").stat().st_size > 0
+            # Round-trips the fixture exactly. The old `assert "3.10" in
+            # python_req` was a substring check against a literal written
+            # three lines above it, so it asserted nothing the fixture
+            # could fail. The fixture models a CONSUMER project, so
+            # ">=3.10,<3.13" is legitimate input here.  # python-floor-exempt: doc comment, not a support claim
+            python_req = pixi_config["dependencies"]["python"]
+            # python-floor-exempt: consumer-project fixture round-trip
+            assert python_req == ">=3.10,<3.13"
 
     def test_matrix_execution_simulation(self):
         """Simulate the execution flow for each matrix combination"""

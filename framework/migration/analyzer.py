@@ -414,8 +414,9 @@ class ProjectAnalyzer:
                 versions.extend(version_matches)
 
         # Default supported versions if none found
+        # 3.10 dropped (#286): composite actions import tomllib bare.
         if not versions:
-            versions = ["3.10", "3.11", "3.12"]
+            versions = ["3.11", "3.12"]
 
         return sorted(set(versions))
 

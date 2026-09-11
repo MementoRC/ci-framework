@@ -2,6 +2,10 @@
 Comprehensive tests for CI framework migration tools.
 """
 
+# python-floor-exempt-module: this file feeds sub-floor specs (">=3.10") to
+# the migrator specifically to assert it REWRITES them - the whole file is
+# migrator input fixtures, not framework support claims.
+
 import json
 import tempfile
 from pathlib import Path
