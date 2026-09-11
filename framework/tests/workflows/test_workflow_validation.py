@@ -131,7 +131,9 @@ class TestMatrixStrategy:
 
         # Test Python versions
         assert "python-version" in matrix
-        expected_python = ["3.10", "3.11", "3.12"]
+        # 3.10 dropped (#286): composite actions import tomllib bare, which
+        # is stdlib only from Python 3.11 onward.
+        expected_python = ["3.11", "3.12"]
         assert sorted(matrix["python-version"]) == sorted(expected_python)
 
         # Test operating systems

@@ -14,6 +14,7 @@ from framework.migration.analyzer import ProjectAnalyzer
 from framework.migration.migrator import ProjectMigrator
 from framework.migration.models import (
     AnalysisResult,
+    MigrationResult,
     MigrationStatus,
     PackageManager,
     ProjectComplexity,
@@ -402,6 +403,123 @@ class TestProjectMigrator:
         assert result.status == MigrationStatus.FAILED
         assert len(result.errors) > 0
         assert result.rollback_available
+
+
+class TestPythonFloorEnforcement:
+    """Test suite for #286 python floor handling in `_migrate_to_pixi`.
+
+    The framework's composite actions import tomllib bare, which is stdlib
+    only from Python 3.11+, so the migrator must always ensure a floor of
+    at least 3.11 -- raising a lower floor, but never lowering an already
+    sufficient one, and warning only when the value actually changes.
+    """
+
+    @staticmethod
+    def _pixi_pyproject(python_value: str) -> str:
+        return f"""
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "test-project"
+version = "0.1.0"
+
+[tool.pixi]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.dependencies]
+python = "{python_value}"
+requests = "*"
+"""
+
+    def test_existing_floor_below_3_11_is_raised_with_warning(self, temp_project):
+        """An existing '>=3.10' floor is rewritten to '>=3.11' and warned."""
+        (temp_project / "pyproject.toml").write_text(self._pixi_pyproject(">=3.10"))
+        migrator = ProjectMigrator.from_project_path(temp_project)
+        plan = migrator.create_migration_plan()
+        result = MigrationResult(
+            migration_plan=plan, status=MigrationStatus.IN_PROGRESS
+        )
+
+        migrator._migrate_to_pixi(result)
+
+        updated = (temp_project / "pyproject.toml").read_text()
+        assert 'python = ">=3.11"' in updated
+        assert any(
+            ">=3.10" in warning and ">=3.11" in warning for warning in result.warnings
+        )
+
+    def test_existing_floor_above_3_11_is_never_downgraded(self, temp_project):
+        """An existing '>=3.12' floor must be left untouched, with no warning.
+
+        This is the downgrade-prevention case: rewriting a consumer's
+        stricter floor down to 3.11 would silently weaken it for no reason.
+        """
+        (temp_project / "pyproject.toml").write_text(self._pixi_pyproject(">=3.12"))
+        migrator = ProjectMigrator.from_project_path(temp_project)
+        plan = migrator.create_migration_plan()
+        result = MigrationResult(
+            migration_plan=plan, status=MigrationStatus.IN_PROGRESS
+        )
+
+        migrator._migrate_to_pixi(result)
+
+        updated = (temp_project / "pyproject.toml").read_text()
+        assert 'python = ">=3.12"' in updated
+        assert result.warnings == []
+
+    def test_no_existing_python_key_is_set_to_3_11(
+        self, temp_project, simple_pyproject_toml
+    ):
+        """No pre-existing python key is set to the framework floor."""
+        (temp_project / "pyproject.toml").write_text(simple_pyproject_toml)
+        migrator = ProjectMigrator.from_project_path(temp_project)
+        plan = migrator.create_migration_plan()
+        result = MigrationResult(
+            migration_plan=plan, status=MigrationStatus.IN_PROGRESS
+        )
+
+        migrator._migrate_to_pixi(result)
+
+        updated = (temp_project / "pyproject.toml").read_text()
+        assert 'python = ">=3.11"' in updated
+
+    def test_existing_floor_already_3_11_is_unchanged_no_warning(self, temp_project):
+        """An existing '>=3.11' floor is left exactly as-is, with no warning."""
+        (temp_project / "pyproject.toml").write_text(self._pixi_pyproject(">=3.11"))
+        migrator = ProjectMigrator.from_project_path(temp_project)
+        plan = migrator.create_migration_plan()
+        result = MigrationResult(
+            migration_plan=plan, status=MigrationStatus.IN_PROGRESS
+        )
+
+        migrator._migrate_to_pixi(result)
+
+        updated = (temp_project / "pyproject.toml").read_text()
+        assert 'python = ">=3.11"' in updated
+        assert result.warnings == []
+
+    def test_unparseable_existing_floor_is_overwritten_with_warning(self, temp_project):
+        """An unparseable constraint (e.g. '*') cannot be verified as already
+        meeting the 3.11 floor, so it is explicitly replaced with the
+        framework floor and warned about -- rather than being silently
+        trusted (which could leave a consumer under 3.11) or silently left
+        untouched (which would hide the change from the consumer).
+        """
+        (temp_project / "pyproject.toml").write_text(self._pixi_pyproject("*"))
+        migrator = ProjectMigrator.from_project_path(temp_project)
+        plan = migrator.create_migration_plan()
+        result = MigrationResult(
+            migration_plan=plan, status=MigrationStatus.IN_PROGRESS
+        )
+
+        migrator._migrate_to_pixi(result)
+
+        updated = (temp_project / "pyproject.toml").read_text()
+        assert 'python = ">=3.11"' in updated
+        assert any("could not be parsed" in warning for warning in result.warnings)
 
 
 class TestMigrationCLI:

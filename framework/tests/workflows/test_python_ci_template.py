@@ -7,6 +7,7 @@ Target: 95%+ coverage for workflow logic
 Framework: pytest with pytest-workflow for GitHub Actions testing
 """
 
+import itertools
 import os
 from pathlib import Path
 from typing import Any
@@ -189,7 +190,7 @@ class TestMatrixConfiguration:
     """Test matrix strategy for Python versions and OS"""
 
     def test_matrix_includes_all_python_versions(self):
-        """Test that matrix includes Python 3.10, 3.11, 3.12"""
+        """Test that matrix includes Python 3.11, 3.12"""
         workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
@@ -198,7 +199,9 @@ class TestMatrixConfiguration:
         matrix_job = workflow["jobs"]["comprehensive-tests"]
         matrix = matrix_job["strategy"]["matrix"]
 
-        expected_python_versions = ["3.10", "3.11", "3.12"]
+        # 3.10 dropped (#286): composite actions import tomllib bare, which
+        # is stdlib only from Python 3.11 onward.
+        expected_python_versions = ["3.11", "3.12"]
         assert "python-version" in matrix
         assert set(matrix["python-version"]) == set(expected_python_versions)
 
@@ -216,9 +219,14 @@ class TestMatrixConfiguration:
         assert "os" in matrix
         assert set(matrix["os"]) == set(expected_os)
 
-    def test_matrix_combinations_total_six(self):
-        """Test that matrix expands to exactly 6 combinations"""
-        # 3 Python versions × 2 OS = 6 combinations
+    def test_matrix_combinations_cover_the_declared_product(self):
+        """Test that matrix expands to the full cartesian product of its declared lists.
+
+        The expected count is derived from the workflow's own declared
+        python-version/os lists rather than hardcoded, because a literal
+        count (e.g. "six") goes stale every time the matrix changes -
+        which is exactly why this test broke when #286 dropped Python 3.10.
+        """
         workflow_path = Path(".github/workflows/python-ci-template.yml.template")
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
@@ -227,12 +235,35 @@ class TestMatrixConfiguration:
         matrix_job = workflow["jobs"]["comprehensive-tests"]
         matrix = matrix_job["strategy"]["matrix"]
 
-        python_count = len(matrix["python-version"])
-        os_count = len(matrix["os"])
-        total_combinations = python_count * os_count
+        python_versions = matrix["python-version"]
+        os_versions = matrix["os"]
 
-        assert total_combinations == 6, (
-            f"Expected 6 matrix combinations, got {total_combinations}"
+        # Expected: the unrestricted cartesian product of the two declared
+        # lists - this is what the matrix promises to cover.
+        expected_total = len(python_versions) * len(os_versions)
+        expected_combinations = set(itertools.product(python_versions, os_versions))
+
+        # Actual: simulate GitHub Actions' own expansion (cross product,
+        # then exclude/include applied) so a matrix with the right
+        # combination COUNT but the wrong PAIRS (e.g. an exclude offset by
+        # an unrelated include) still fails this test.
+        actual_combinations = set(expected_combinations)
+        for excluded in matrix.get("exclude", []):
+            actual_combinations.discard(
+                (excluded.get("python-version"), excluded.get("os"))
+            )
+        for included in matrix.get("include", []):
+            python_version = included.get("python-version")
+            os_version = included.get("os")
+            if python_version is not None and os_version is not None:
+                actual_combinations.add((python_version, os_version))
+
+        assert len(actual_combinations) == expected_total, (
+            f"Expected {expected_total} matrix combinations, "
+            f"got {len(actual_combinations)}"
+        )
+        assert actual_combinations == expected_combinations, (
+            "Matrix combinations do not cover the declared cartesian product"
         )
 
 

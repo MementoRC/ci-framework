@@ -2,6 +2,7 @@
 Core migration engine for automated CI framework transitions.
 """
 
+import re
 import shutil
 import subprocess
 import tomllib
@@ -20,6 +21,23 @@ from .models import (
     ProjectComplexity,
     ValidationResult,
 )
+
+# CI framework composite actions import tomllib bare (stdlib only from
+# Python 3.11+), so this is a hard framework requirement. See #286.
+_MIN_PYTHON_FLOOR = (3, 11)
+_MIN_PYTHON_CONSTRAINT = ">=3.11"
+
+
+def _parse_python_floor(constraint: str) -> tuple[int, int] | None:
+    """Parse the '>=X.Y' floor from a python version constraint string.
+
+    Returns None if the constraint doesn't start with a simple '>=X.Y'
+    floor (e.g. '*', 'foo', or other unrecognized specifiers).
+    """
+    match = re.match(r"^>=\s*(\d+)\.(\d+)", constraint.strip())
+    if not match:
+        return None
+    return (int(match.group(1)), int(match.group(2)))
 
 
 class ProjectMigrator:
@@ -334,7 +352,7 @@ class ProjectMigrator:
             return
 
         elif "migrate from" in step.lower() and "to pixi" in step.lower():
-            self._migrate_to_pixi()
+            self._migrate_to_pixi(result)
 
         elif "update pyproject.toml" in step.lower():
             self._update_pyproject_toml()
@@ -364,7 +382,7 @@ class ProjectMigrator:
             # Generic step logging
             self._log(f"Executed: {step}")
 
-    def _migrate_to_pixi(self) -> None:
+    def _migrate_to_pixi(self, result: MigrationResult) -> None:
         """Migrate project to use pixi package manager."""
         pyproject_path = self.project_path / "pyproject.toml"
 
@@ -392,7 +410,32 @@ class ProjectMigrator:
         if "dependencies" not in pixi_config:
             pixi_config["dependencies"] = {}
 
-        pixi_config["dependencies"]["python"] = ">=3.10"
+        existing_python = pixi_config["dependencies"].get("python")
+
+        if existing_python is None:
+            pixi_config["dependencies"]["python"] = _MIN_PYTHON_CONSTRAINT
+        else:
+            existing_floor = _parse_python_floor(existing_python)
+            if existing_floor is None:
+                # Can't verify the existing constraint satisfies the
+                # framework's hard minimum, so enforce it explicitly.
+                pixi_config["dependencies"]["python"] = _MIN_PYTHON_CONSTRAINT
+                result.warnings.append(
+                    f"Python constraint '{existing_python}' could not be "
+                    f"parsed; replaced with '{_MIN_PYTHON_CONSTRAINT}' because "
+                    "CI framework composite actions import tomllib bare, "
+                    "which is stdlib only from Python 3.11+ (see #286)."
+                )
+            elif existing_floor < _MIN_PYTHON_FLOOR:
+                pixi_config["dependencies"]["python"] = _MIN_PYTHON_CONSTRAINT
+                result.warnings.append(
+                    f"Raised python floor from '{existing_python}' to "
+                    f"'{_MIN_PYTHON_CONSTRAINT}' because CI framework composite "
+                    "actions import tomllib bare, which is stdlib only from "
+                    "Python 3.11+ (see #286)."
+                )
+            # else: existing floor already meets or exceeds 3.11 — leave
+            # the consumer's value untouched (never lower their floor).
 
         # Add environments
         if "environments" not in pixi_config:
@@ -461,7 +504,7 @@ class ProjectMigrator:
 
         # Configure ruff
         pyproject_data["tool"]["ruff"] = {
-            "target-version": "py310",
+            "target-version": "py311",
             "line-length": 88,
             "select": [
                 "F",  # Pyflakes
@@ -655,7 +698,7 @@ class ProjectMigrator:
         if not self.analysis.quality_tools.ruff_config:
             transformations["ruff_config"] = {
                 "add_ruff_config": True,
-                "target_version": "py310",
+                "target_version": "py311",
                 "line_length": 88,
                 "select_rules": ["F", "E", "W", "I", "N", "UP", "B", "C4", "PT"],
             }
