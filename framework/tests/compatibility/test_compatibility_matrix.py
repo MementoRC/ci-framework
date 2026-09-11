@@ -37,6 +37,13 @@ def _declared_floor() -> tuple[int, int]:
     return (int(match.group(1)), int(match.group(2)))
 
 
+# The highest interpreter this suite claims to have exercised, exclusive.
+# Declared once and used by BOTH the runtime assertion and the
+# compatibility-table completeness check below, so the two cannot drift
+# apart the way the floor declarations in #286 did.
+TESTED_CEILING = (3, 13)
+
+
 class TestPythonVersionCompatibility:
     """
     Test compatibility across Python versions
@@ -94,10 +101,10 @@ quality = { depends-on = ["test", "lint", "typecheck"] }
             f"Running on Python {current_version}, below the declared floor "
             f"{floor[0]}.{floor[1]} in [project] requires-python"
         )
-        assert current_version < (
-            3,
-            13,
-        ), f"Running on Python {current_version}, tested up to 3.12"
+        assert current_version < TESTED_CEILING, (
+            f"Running on Python {current_version}, above the tested ceiling "
+            f"{TESTED_CEILING[0]}.{TESTED_CEILING[1]} (exclusive)"
+        )
 
         # Test basic functionality works
         manager = quality_gates_action.detect_package_manager(test_project)
@@ -595,6 +602,28 @@ class TestDependencyCompatibility:
                     f"but {version} is at or above the declared floor "
                     f"{floor[0]}.{floor[1]}"
                 )
+
+        # A MISSING row is as wrong as a mis-marked one, and the loop above
+        # cannot see one - it only visits keys that are present. Deleting
+        # the "3.12" row would otherwise sail straight through. A bare count
+        # assertion was what used to notice that, badly: a count also passes
+        # on the wrong SET. Derive the required rows from the floor, so this
+        # needs no editing when the floor moves.
+        assert floor[0] == TESTED_CEILING[0], (
+            f"floor {floor} and ceiling {TESTED_CEILING} straddle a major "
+            "version; this check only reasons about 3.x minors"
+        )
+        required = {
+            f"{floor[0]}.{minor}" for minor in range(floor[1], TESTED_CEILING[1])
+        }
+        missing = required - set(compatibility_matrix["python_versions"])
+        assert not missing, (
+            f"compatibility matrix has no row for {sorted(missing)}, which "
+            f"sit at or above the declared floor {floor[0]}.{floor[1]} and "
+            f"below the tested ceiling {TESTED_CEILING[0]}.{TESTED_CEILING[1]} "
+            "- a supported version can otherwise be dropped from the table "
+            "silently (#286)"
+        )
 
         python_supported = sum(
             1
