@@ -737,20 +737,33 @@ def test_version_declaration_discovery_is_not_vacuous():
 
 def test_no_declaration_is_below_the_project_floor():
     """Every discovered declaration must admit nothing older than the
-    `[project] requires-python` floor (#286)."""
+    `[project] requires-python` floor (#286).
+
+    Collects every violation and asserts once, rather than asserting inside
+    the loop. `discover_version_declarations()` concatenates four corpora,
+    so a bare in-loop assert aborts on the first violation found and the
+    earliest corpus masks every later one - a mutation test that moved the
+    floor forward reported a single `toml-ruff-target-version` failure while
+    eleven `framework-*` declarations were violating it in the same run. One
+    failure should name all of them, not send the reader round the loop once
+    per site.
+    """
     floor = requires_python_floor()
     assert floor is not None, "could not parse [project] requires-python"
-    for path, kind, raw_value, parsed_floor in discover_version_declarations():
-        if parsed_floor is None:
-            # Nothing concrete to compare (no version token at all in the
-            # raw value); such a value isn't a floor declaration in its own
-            # right, so it can't violate one.
-            continue
-        assert parsed_floor >= floor, (
-            f"{path}: {kind} declares {raw_value!r} (parsed floor "
-            f"{parsed_floor}), below the project floor {floor} required by "
-            "[project] requires-python (#286)"
-        )
+
+    violations = [
+        f"{path}: {kind} declares {raw_value!r} (parsed floor {parsed_floor})"
+        for path, kind, raw_value, parsed_floor in discover_version_declarations()
+        # `parsed_floor is None` means no version token at all in the raw
+        # value; such a value isn't a floor declaration in its own right, so
+        # it can't violate one.
+        if parsed_floor is not None and parsed_floor < floor
+    ]
+    assert not violations, (
+        f"{len(violations)} Python-version declaration(s) sit below the "
+        f"project floor {floor} required by [project] requires-python "
+        "(#286):\n  " + "\n  ".join(sorted(violations))
+    )
 
 
 def test_declaration_classifier_would_have_caught_py310():
