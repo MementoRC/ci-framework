@@ -6,8 +6,10 @@ to ensure broad compatibility as specified in the methodology requirements.
 """
 
 import platform
+import re
 import sys
 import tempfile
+import tomllib
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -16,11 +18,31 @@ import pytest
 from framework.actions.quality_gates import QualityGatesAction
 
 
+def _declared_floor() -> tuple[int, int]:
+    """The `[project] requires-python` floor of THIS repo, as (major, minor).
+
+    Read from pyproject.toml rather than hardcoded. #286 was opened because
+    Python-floor declarations scattered through the tree drifted from the
+    one authoritative declaration; a test that hardcodes the floor is another
+    such declaration waiting to drift.
+    """
+    pyproject = Path(__file__).resolve().parents[3] / "pyproject.toml"
+    spec = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"][
+        "requires-python"
+    ]
+    match = re.match(r"^>=\s*(\d+)\.(\d+)", spec.strip())
+    assert match is not None, (
+        f"could not parse a `>=X.Y` floor out of requires-python={spec!r}"
+    )
+    return (int(match.group(1)), int(match.group(2)))
+
+
 class TestPythonVersionCompatibility:
     """
     Test compatibility across Python versions
 
-    Requirements: Python 3.10-3.12 support as per methodology
+    Requirements: Python 3.11-3.12 support. The floor is 3.11 because this
+    framework imports `tomllib` bare (#281); 3.10 was dropped in #286.
     """
 
     @pytest.fixture
@@ -44,7 +66,7 @@ channels = ["conda-forge"]
 platforms = ["linux-64"]
 
 [tool.pixi.dependencies]
-python = ">=3.10"
+python = ">=3.10"  # python-floor-exempt: consumer-project fixture, not a support claim
 
 [tool.pixi.environments]
 quality = {features = ["quality"]}
@@ -64,11 +86,14 @@ quality = { depends-on = ["test", "lint", "typecheck"] }
 
         current_version = sys.version_info
 
-        # Verify we're running on a supported Python version
-        assert current_version >= (
-            3,
-            10,
-        ), f"Running on Python {current_version}, need >=3.10"
+        # Derived from `[project] requires-python`, not hardcoded: #286 exists
+        # because hardcoded floor declarations drifted from the real one. If
+        # the floor moves again, this assertion moves with it.
+        floor = _declared_floor()
+        assert current_version[:2] >= floor, (
+            f"Running on Python {current_version}, below the declared floor "
+            f"{floor[0]}.{floor[1]} in [project] requires-python"
+        )
         assert current_version < (
             3,
             13,
@@ -98,18 +123,25 @@ quality = { depends-on = ["test", "lint", "typecheck"] }
         assert "tool" in config
         assert "pixi" in config["tool"]
 
-        if "dependencies" in config["tool"]["pixi"]:
-            deps = config["tool"]["pixi"]["dependencies"]
-            if "python" in deps:
-                python_req = deps["python"]
-                # Should handle various Python requirement formats
-                assert isinstance(python_req, str)
-                assert (
-                    "3.10" in python_req or "3.11" in python_req or "3.12" in python_req
-                )
+        deps = config["tool"]["pixi"]["dependencies"]
+        python_req = deps["python"]
+        # The old assertion here was `"3.10" in req or "3.11" in req or
+        # "3.12" in req`, which passed on ANY of three substrings and so kept
+        # passing when the floor moved - it would have passed on ">=3.9,<3.10"  # python-floor-exempt: doc comment, not a support claim
+        # too. This asserts the detected value round-trips the fixture exactly,
+        # which cannot pass by coincidence. Note this is a DETECTION test: the
+        # fixture models a consumer project, so its ">=3.10" is legitimate  # python-floor-exempt: doc comment, not a support claim
+        # input, not a claim that this framework supports 3.10.
+        # python-floor-exempt: consumer-project fixture round-trip
+        assert python_req == ">=3.10"
 
+    # These specs are CONSUMER-project inputs this framework must parse, not
+    # declarations of what it supports - a real consumer may well still
+    # declare ">=3.10". Deliberately left spanning 3.10 (#286).  # python-floor-exempt: doc comment, not a support claim
     @pytest.mark.parametrize(
-        "python_version_spec", ["3.10.*", "3.11.*", "3.12.*", ">=3.10", ">=3.10,<3.13"]
+        "python_version_spec",
+        # python-floor-exempt: consumer-project specs, not a support claim
+        ["3.10.*", "3.11.*", "3.12.*", ">=3.10", ">=3.10,<3.13"],
     )
     def test_python_version_requirement_parsing(
         self, quality_gates_action, python_version_spec
@@ -433,7 +465,7 @@ check-all = { depends-on = ["quality", "security-scan"] }
 
 [tool.ruff]
 line-length = 88
-target-version = "py310"
+target-version = "py310"  # python-floor-exempt: consumer-project fixture, not a support claim
 
 [tool.mypy]
 python_version = "3.10"
@@ -502,11 +534,15 @@ class TestDependencyCompatibility:
         """Generate a compatibility matrix summary for documentation"""
 
         compatibility_matrix = {
+            # 3.10 moved to ❌ in #286: composite actions import `tomllib`
+            # bare, which raises ModuleNotFoundError there. 3.13 stays
+            # "not tested" - declaring support for an unverified version is
+            # the same defect pointed the other way.
             "python_versions": {
-                "3.10": "✅ Supported",
                 "3.11": "✅ Supported",
                 "3.12": "✅ Supported",
                 "3.13": "🟡 Not tested",
+                "3.10": "❌ Not supported",
                 "3.9": "❌ Not supported",
             },
             "platforms": {
@@ -539,7 +575,27 @@ class TestDependencyCompatibility:
             for item, status in items.items():
                 print(f"  {item}: {status}")
 
-        # Verify we have good coverage
+        # This table is hand-written, so check it against the declared floor
+        # rather than against itself. A count assertion ("at least N
+        # supported") passes no matter WHICH versions are listed - that is
+        # precisely how `"3.10": "✅ Supported"` survived here until #286.
+        floor = _declared_floor()
+        for version, status in compatibility_matrix["python_versions"].items():
+            major, minor = version.split(".")
+            parsed = (int(major), int(minor))
+            if parsed < floor:
+                assert status.startswith("❌"), (
+                    f"compatibility matrix marks Python {version} as {status!r}, "
+                    f"but {version} is below the declared floor "
+                    f"{floor[0]}.{floor[1]} in [project] requires-python (#286)"
+                )
+            else:
+                assert not status.startswith("❌"), (
+                    f"compatibility matrix marks Python {version} as {status!r}, "
+                    f"but {version} is at or above the declared floor "
+                    f"{floor[0]}.{floor[1]}"
+                )
+
         python_supported = sum(
             1
             for status in compatibility_matrix["python_versions"].values()
@@ -556,7 +612,7 @@ class TestDependencyCompatibility:
             if status.startswith("✅")
         )
 
-        assert python_supported >= 3, "Should support at least 3 Python versions"
+        assert python_supported >= 1, "Should support at least one Python version"
         assert platform_supported >= 3, "Should support at least 3 platforms"
         assert manager_supported >= 3, "Should support at least 3 package managers"
 

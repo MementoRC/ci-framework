@@ -239,7 +239,7 @@ name = "test-project"
 version = "0.1.0"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.10"  # python-floor-exempt: poetry-style consumer fixture
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
