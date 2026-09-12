@@ -310,11 +310,17 @@ jobs:
       # caller's GITHUB_TOKEN still does NOT need security-events: write — keeping
       # OpenSSF Scorecard Token-Permissions clean.
       - uses: github/codeql-action/analyze@v4
-        continue-on-error: true
         with:
-          upload: true
+          upload: false
+          output: codeql-results
+          category: codeql-${{ matrix.language }}
+      - name: Upload CodeQL SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: codeql-results/${{ matrix.language }}.sarif
           category: codeql-${{ matrix.language }}
           token: ${{ secrets.CI_BOT_TOKEN || github.token }}
+        continue-on-error: true
 
   secret-scan:
     name: "🔑 Secret Scanning"

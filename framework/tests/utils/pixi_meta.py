@@ -111,3 +111,29 @@ def ci_invokes_task(task_name: str, workflow: Path = CI_WORKFLOW) -> bool:
             if match is not None and match.group(1) == task_name:
                 return True
     return False
+
+
+def shipped_workflow_files(directory: Path = WORKFLOWS_DIR) -> list[Path]:
+    """Every workflow file GitHub would actually run from `directory`.
+
+    `*.yml` and `*.yaml`, read off the filesystem rather than hand-listed.
+    `python-ci-template.yml.template` is deliberately out of scope: it is
+    scaffolding copied into consumer projects, not a workflow this repo runs,
+    and it is not a standalone parseable workflow.
+
+    The scan is deliberately flat rather than recursive. GitHub's workflow
+    loader reads only files sitting directly in `.github/workflows/` and
+    ignores subdirectories, so an `rglob` here would assert coverage of files
+    that never run - and would then disagree with
+    `framework.workflow_lint.discover_workflow_files`, which is flat for the
+    same reason.
+
+    Promoted here from `test_workflow_lint_scope.py` (#304): the security-step
+    guard needs the same walk, and a second copy would have let the two drift
+    over which files count as shipped.
+    """
+    return sorted(
+        path
+        for path in directory.iterdir()
+        if path.is_file() and path.suffix in (".yml", ".yaml")
+    )

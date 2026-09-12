@@ -280,12 +280,10 @@ jobs:
         working-directory: ${{ env.PACKAGE_PATH }}
         run: |
           pixi run -e quality-extended security-scan
-        continue-on-error: true
       - name: "Run pip-audit (dependency vulnerabilities)"
         working-directory: ${{ env.PACKAGE_PATH }}
         run: |
           pixi run -e quality-extended safety-check
-        continue-on-error: true
       - name: "Automated License Compliance Scanning"
         if: github.event_name == 'pull_request'
         uses: actions/dependency-review-action@v5
