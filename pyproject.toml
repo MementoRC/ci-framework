@@ -250,8 +250,21 @@ security-audit = "pixi run -e quality-extended security-audit-impl"
 security-audit-impl = "pip-audit --verbose"
 bandit-scan = "pixi run -e quality-extended bandit-scan-impl"
 bandit-scan-impl = "bandit -r framework/ -x framework/tests/ -s B101"
+# detect-secrets-impl uses `detect-secrets-hook`, not `detect-secrets scan`:
+# `scan` is a baseline-generation/reporter command that always exits 0
+# regardless of findings (verified empirically for #288 - it exits 0 even
+# when handed a file containing an unbaselined, obviously-real secret). Only
+# `detect-secrets-hook` compares the current tree against the baseline and
+# exits 1 when it finds a secret that isn't already accounted for there,
+# which is what makes this a gate instead of a report. `$(git ls-files)`
+# supplies the file list because detect-secrets-hook takes explicit filenames
+# (no directory-recursion), unlike `scan`, and pixi's task shell does expand
+# `$(...)` (verified empirically). The five `--exclude-files` patterns are
+# real Python regexes, not the shell globs the previous version shipped:
+# those globs made `re.compile` raise `re.error: nothing to repeat` on every
+# invocation, so this task has never actually run to completion before #288.
 detect-secrets = "pixi run -e dev detect-secrets-impl"
-detect-secrets-impl = "detect-secrets scan --exclude-files '__pycache__' --exclude-files '*.pyc' --exclude-files '*.egg-info' --exclude-files '.git' --exclude-files 'pixi.lock'"
+detect-secrets-impl = "detect-secrets-hook --baseline .secrets.baseline --exclude-files '__pycache__' --exclude-files '\\.pyc$' --exclude-files '\\.egg-info' --exclude-files '^\\.git/' --exclude-files '^pixi\\.lock$' $(git ls-files)"
 unit-test = "pytest framework/tests/"
 
 # Performance & Benchmarking
