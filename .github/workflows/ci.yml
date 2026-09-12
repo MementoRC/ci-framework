@@ -134,7 +134,6 @@ jobs:
       - name: "Run detect-secrets"
         run: |
           pixi run -e dev detect-secrets
-        continue-on-error: true
       - name: "Initialize CodeQL"
         uses: github/codeql-action/init@v4
         with:

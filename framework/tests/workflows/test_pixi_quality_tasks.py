@@ -642,6 +642,7 @@ BINARY_TO_PACKAGE = {
     "pip-audit": "pip-audit",
     "pre-commit": "pre-commit",
     "detect-secrets": "bc-detect-secrets",
+    "detect-secrets-hook": "bc-detect-secrets",
     "cyclonedx-py": "cyclonedx-bom",
     "yamllint": "yamllint",
     "actionlint": "actionlint",
