@@ -19,7 +19,6 @@ The pixi-manifest and ci.yml parsing primitives these tests need live in
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import yaml
 
@@ -31,6 +30,7 @@ from framework.tests.utils.pixi_meta import (
     load_tasks,
     logical_run_lines,
     resolve_task_commands,
+    shipped_workflow_files,
 )
 from framework.workflow_lint import discover_workflow_files
 
@@ -39,27 +39,6 @@ from framework.workflow_lint import discover_workflow_files
 WORKFLOW_LINT_MODULE_RE = re.compile(
     r"python\s+-m\s+framework\.workflow_lint(?P<args>[^\n]*)"
 )
-
-
-def shipped_workflow_files() -> list[Path]:
-    """Every workflow file GitHub would actually run from this repo.
-
-    `.github/workflows/*.yml` and `*.yaml`, read off the filesystem rather
-    than hand-listed. `python-ci-template.yml.template` is deliberately out of
-    scope: it is scaffolding copied into consumer projects, not a workflow
-    this repo runs, and it is not a standalone parseable workflow.
-
-    The scan is deliberately flat rather than recursive. GitHub's workflow
-    loader reads only files sitting directly in `.github/workflows/` and
-    ignores subdirectories, so an `rglob` here would assert coverage of files
-    that never run - and would then disagree with `discover_workflow_files`,
-    which is flat for the same reason.
-    """
-    return sorted(
-        path
-        for path in WORKFLOWS_DIR.iterdir()
-        if path.is_file() and path.suffix in (".yml", ".yaml")
-    )
 
 
 def test_discovery_is_not_empty():
