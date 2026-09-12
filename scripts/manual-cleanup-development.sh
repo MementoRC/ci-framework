@@ -93,7 +93,7 @@ if [ ${#removed_files[@]} -gt 0 ]; then
     echo "🗑️  Removed files/directories:"
     printf '  - %s\n' "${removed_files[@]}"
     echo ""
-    
+
     # Commit the changes
     git add -A
     git commit -m "chore: manual cleanup of development artifacts from development branch
@@ -111,7 +111,7 @@ Manual cleanup script: scripts/manual-cleanup-development.sh"
     echo ""
     echo "To push the changes, run:"
     echo "  git push origin development"
-    
+
 else
     echo "✅ No dev files found to remove - development branch is already clean!"
 fi

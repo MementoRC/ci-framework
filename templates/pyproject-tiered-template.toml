@@ -93,10 +93,6 @@ dev = {features = ["quality", "quality-extended", "quality-ci", "dev-specialized
 # CI environment (quality + CI reporting)
 ci = {features = ["quality", "quality-ci"], solve-group = "default"}
 
-# Ensure proper environment isolation
-[tool.pixi.activation]
-env = { PYTHONNOUSERSITE = "1" }
-
 [tool.pixi.tasks]
 # ===== TIER 1: CORE DEVELOPMENT TASKS (ESSENTIAL) =====
 # Installation & Setup
@@ -106,33 +102,47 @@ dev = "echo 'Development environment ready'"
 # Testing (ZERO-TOLERANCE QUALITY GATES)
 test = "pixi run -e quality test-impl"
 test-impl = "pytest {{ test_path }} -v"
-test-cov = "pytest {{ test_path }} --cov={{ package_name }} --cov-report=term-missing --cov-report=xml"
-test-unit = "pytest {{ test_path }}unit/ -v"
-test-integration = "pytest {{ test_path }}integration/ -v"
+test-cov = "pixi run -e quality test-cov-impl"
+test-cov-impl = "pytest {{ test_path }} --cov={{ package_name }} --cov-report=term-missing --cov-report=xml"
+test-unit = "pixi run -e quality test-unit-impl"
+test-unit-impl = "pytest {{ test_path }}unit/ -v"
+test-integration = "pixi run -e quality test-integration-impl"
+test-integration-impl = "pytest {{ test_path }}integration/ -v"
 
 # Quality Gates (CRITICAL - MUST PASS)
 lint = "pixi run -e quality lint-impl"
 lint-impl = "ruff check {{ source_path }} --select=F,E9"
 lint-full = "pixi run -e quality lint-full-impl"
 lint-full-impl = "ruff check {{ source_path }}"
-lint-fix = "ruff check --fix {{ source_path }}"
-format = "ruff format {{ source_path }}"
-format-check = "ruff format --check {{ source_path }}"
+lint-fix = "pixi run -e quality lint-fix-impl"
+lint-fix-impl = "ruff check --fix {{ source_path }}"
+format = "pixi run -e quality format-impl"
+format-impl = "ruff format {{ source_path }}"
+format-check = "pixi run -e quality format-check-impl"
+format-check-impl = "ruff format --check {{ source_path }}"
 typecheck = "pixi run -e quality typecheck-impl"
 typecheck-impl = "mypy {{ source_path }}"
 
 # Combined Quality Check - 🚨 MANDATORY BEFORE COMMIT
-quality = { depends-on = ["test", "lint", "typecheck"] }
+# Depends on `lint-full`, not `lint`: every project scaffolded from this
+# template inherits this gate, and `lint` (`--select=F,E9`) is strictly weaker
+# than the full configured ruff ruleset their CI runs (#271). `lint` stays
+# defined as the fast inner-loop check.
+quality = { depends-on = ["test", "lint-full", "format-check", "typecheck"] }
 
 # Emergency Quality Fix - USE FOR "Found X errors" CI FAILURES
 emergency-fix = "pixi run lint-fix && pixi run format && pixi run test"
 
 # ===== TIER 2: SECURITY & COMPLIANCE TASKS =====
 # Security Scanning
-security-scan = "bandit -r {{ source_path }} --severity-level high -x {{ test_path }}"
-safety-check = "pip-audit --verbose"
-complexity-check = "radon cc {{ source_path }} --min B"
-dead-code-check = "vulture {{ source_path }} --min-confidence 80"
+security-scan = "pixi run -e quality-extended security-scan-impl"
+security-scan-impl = "bandit -r {{ source_path }} --severity-level high -x {{ test_path }}"
+safety-check = "pixi run -e quality-extended safety-check-impl"
+safety-check-impl = "pip-audit --verbose"
+complexity-check = "pixi run -e quality-extended complexity-check-impl"
+complexity-check-impl = "radon cc {{ source_path }} --min B"
+dead-code-check = "pixi run -e quality-extended dead-code-check-impl"
+dead-code-check-impl = "vulture {{ source_path }} --min-confidence 80"
 
 # Static Analysis Suite
 static-analysis = { depends-on = ["security-scan", "safety-check", "complexity-check", "dead-code-check"] }
@@ -142,22 +152,38 @@ check-all = { depends-on = ["quality", "static-analysis"] }
 
 # ===== TIER 3: CI/CD & DEPLOYMENT TASKS =====
 # CI-specific variants
-ci-test = { cmd = "pytest {{ test_path }} --cov={{ package_name }} --cov-report=xml", env = { ENVIRONMENT = "ci" } }
-ci-lint = "ruff check {{ source_path }} --output-format=github"
-ci-format-check = "ruff format --check {{ source_path }}"
+ci-test = { cmd = "pixi run -e quality ci-test-impl", env = { ENVIRONMENT = "ci" } }
+ci-test-impl = "pytest {{ test_path }} --cov={{ package_name }} --cov-report=xml"
+ci-lint = "pixi run -e quality ci-lint-impl"
+ci-lint-impl = "ruff check {{ source_path }} --output-format=github"
+ci-format-check = "pixi run -e quality format-check-impl"
 
 # Build & Deploy
-build = "python -m build"
+# NOTE: build-impl invokes `python -m build` (module-style invocation of the
+# `python-build` package). The generalized delegation guard
+# (test_template_task_tool_delegation_convention) tracks direct tool
+# invocations by matching tracked feature-dependency names as the literal
+# command token; it does not detect module-style `python -m <pkg>`
+# invocations, since the executed binary is `python` (a core dependency, not
+# a feature-scoped tool) and the literal string `python-build` never appears
+# in the command. This delegation is applied manually as a known limitation
+# of the guard, not because the guard flagged it.
+build = "pixi run -e ci build-impl"
+build-impl = "python -m build"
 clean = "rm -rf __pycache__ .pytest_cache .coverage htmlcov .ruff_cache dist build"
 
 # Pre-commit Integration - PREVENT CI FAILURES
-pre-commit = "pre-commit run --all-files"
-install-pre-commit = "pre-commit install --install-hooks"
+pre-commit = "pixi run -e quality-extended pre-commit-impl"
+pre-commit-impl = "pre-commit run --all-files"
+install-pre-commit = "pixi run -e quality-extended install-pre-commit-impl"
+install-pre-commit-impl = "pre-commit install --install-hooks"
 
 # ===== TOOL CONFIGURATIONS =====
 
 [tool.ruff]
-target-version = "py310"
+# Must track the framework floor (#286): generated projects inherit
+# framework code that imports tomllib bare, which requires 3.11+.
+target-version = "py311"
 line-length = 88
 
 [tool.ruff.lint]
@@ -179,7 +205,9 @@ ignore = [
 "{{ test_path }}**/*" = ["F401", "F811", "F403"]
 
 [tool.mypy]
-python_version = "3.10"
+# Must track the framework floor (#286): generated projects inherit
+# framework code that imports tomllib bare, which requires 3.11+.
+python_version = "3.11"
 check_untyped_defs = false
 disallow_any_generics = false
 disallow_incomplete_defs = false

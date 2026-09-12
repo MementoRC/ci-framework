@@ -1,3 +1,4 @@
+---
 name: 'Change Detection and CI Optimization'
 description: 'Intelligent CI optimization through file-based change detection and dependency impact analysis'
 author: 'CI Framework'
@@ -66,6 +67,11 @@ inputs:
     description: 'Fail immediately on analysis errors'
     required: false
     default: 'false'
+
+  pixi-version:
+    description: 'Pixi CLI version for setup-pixi (binary version, not the action tag). Must support the consumer lockfile schema: pixi >= v0.68.0 is required for pixi.lock schema v7.'
+    required: false
+    default: 'v0.74.0'
 
 outputs:
   success:
@@ -143,7 +149,7 @@ runs:
     - name: Install pixi
       uses: prefix-dev/setup-pixi@v0.8.13
       with:
-        pixi-version: v0.74.0
+        pixi-version: ${{ inputs.pixi-version }}
         cache: false
 
     - name: Cache Change Detection Dependencies
@@ -186,6 +192,13 @@ runs:
         echo "⏭️  Job Skipping: $ENABLE_JOB_SKIP"
         echo "📦 Monorepo Mode: $MONOREPO_MODE"
 
+        # pattern-config must point at a real file when given - silently
+        # ignoring a typo'd path is the exact defect being fixed here (#273).
+        if [[ -n "$PATTERN_CONFIG" && ! -f "$PATTERN_CONFIG" ]]; then
+          echo "❌ pattern-config not found: $PATTERN_CONFIG" >&2
+          exit 1
+        fi
+
         # Create reports directory
         mkdir -p "$REPORTS_DIR"
 
@@ -202,6 +215,32 @@ runs:
           HEAD_REF="${{ github.sha }}"
         fi
 
+        # A leading '-' in a resolved ref would be parsed by `git diff` as an
+        # option rather than a revision - e.g. base-ref="--output=/tmp/pwned"
+        # produces the single argument "--output=/tmp/pwned...HEAD", which
+        # git honours as an output-file option, giving arbitrary file write
+        # with diff content. Git itself refuses to create a ref beginning
+        # with '-', so rejecting it here cannot reject any real ref (#291
+        # follow-up security fix).
+        if [[ "$BASE_REF" == -* ]]; then
+          echo "❌ base-ref cannot begin with '-' (would be parsed by git as an option): $BASE_REF" >&2
+          exit 1
+        fi
+        if [[ "$HEAD_REF" == -* ]]; then
+          echo "❌ head-ref cannot begin with '-' (would be parsed by git as an option): $HEAD_REF" >&2
+          exit 1
+        fi
+
+        # Exported (after the defaulting above, so the FINAL values are what
+        # the python3 heredoc below sees) rather than interpolated into the
+        # python source as "$VAR" - the heredoc delimiter is quoted ('EOF'),
+        # so bash performs no substitution inside it; values are read back
+        # via os.environ.get(...) instead. This closes an arbitrary code
+        # injection path where a value containing a quote and newline could
+        # break out of a Python string literal (#273 follow-up security fix).
+        export PROJECT_DIR REPORTS_DIR DETECTION_LEVEL BASE_REF HEAD_REF \
+          ENABLE_TEST_OPT ENABLE_JOB_SKIP MONOREPO_MODE PATTERN_CONFIG FAIL_FAST
+
         echo "🔍 Comparing $BASE_REF...$HEAD_REF"
 
         # Install change detection framework using PIXI
@@ -209,7 +248,7 @@ runs:
         pixi install -e "$PIXI_ENVIRONMENT"
 
         # Execute change detection using Python
-        python3 << EOF
+        python3 << 'EOF'
         import sys
         import json
         import time
@@ -218,29 +257,81 @@ runs:
         from pathlib import Path
         from typing import Dict, List, Set, Tuple, Any, Optional
 
+        # Read via the environment rather than shell interpolation - see the
+        # `export` comment above the bash assignment for why (#273).
+        #
+        # `os.environ.get(key, default)` only falls back to `default` when
+        # the key is *absent*. A composite action always exports every
+        # input, so an empty-but-explicitly-set input (e.g.
+        # `detection-level: ''`) yields "" here, not the declared default -
+        # silently changing behavior (a `true`-by-default flag flips to
+        # False, the same silent-disable failure mode as #290). `os.environ
+        # .get(key) or default` treats "" the same as unset for every input
+        # below whose default is non-empty. BASE_REF/HEAD_REF are left as
+        # plain two-arg `.get()` because the bash step above already
+        # resolves them to a concrete, non-empty ref before exporting (see
+        # the base-ref emptiness check earlier in this same bash step), so
+        # "" is unreachable here in practice. PATTERN_CONFIG is left as
+        # two-arg because an empty value
+        # legitimately means "no custom pattern file", matching the ""
+        # default exactly.
+        PROJECT_DIR = os.environ.get("PROJECT_DIR") or "."
+        REPORTS_DIR = os.environ.get("REPORTS_DIR") or "change-reports"
+        DETECTION_LEVEL = os.environ.get("DETECTION_LEVEL") or "standard"
+        BASE_REF = os.environ.get("BASE_REF", "")
+        HEAD_REF = os.environ.get("HEAD_REF", "")
+        ENABLE_TEST_OPT = (os.environ.get("ENABLE_TEST_OPT") or "true").strip().lower() == "true"
+        ENABLE_JOB_SKIP = (os.environ.get("ENABLE_JOB_SKIP") or "true").strip().lower() == "true"
+        MONOREPO_MODE = (os.environ.get("MONOREPO_MODE") or "false").strip().lower() == "true"
+        PATTERN_CONFIG = os.environ.get("PATTERN_CONFIG", "")
+        FAIL_FAST = (os.environ.get("FAIL_FAST") or "false").strip().lower() == "true"
+
         # Add framework to path
         framework_path = Path("${{ github.action_path }}/../../framework")
         if framework_path.exists():
           sys.path.insert(0, str(framework_path))
-        
+
         # Import framework components
         try:
           from actions.change_detection import ChangeDetectionAction
         except ImportError:
           print("⚠️ Change detection framework not found, using standalone implementation")
-          
+
           # Standalone implementation for initial version
           class ChangeDetectionAction:
-            def __init__(self):
-              self.project_dir = Path("$PROJECT_DIR")
-              self.reports_dir = Path("$REPORTS_DIR")
-              self.detection_level = "$DETECTION_LEVEL"
-              self.base_ref = "$BASE_REF"
-              self.head_ref = "$HEAD_REF"
-              self.enable_test_opt = "$ENABLE_TEST_OPT".lower() == "true"
-              self.enable_job_skip = "$ENABLE_JOB_SKIP".lower() == "true"
-              self.monorepo_mode = "$MONOREPO_MODE".lower() == "true"
-              
+            def __init__(
+              self,
+              project_dir=None,
+              reports_dir=None,
+              detection_level=None,
+              base_ref=None,
+              head_ref=None,
+              enable_test_optimization=None,
+              enable_job_skipping=None,
+              monorepo_mode=None,
+              pattern_config=None,
+            ):
+              # Signature mirrors actions.change_detection.ChangeDetectionAction
+              # so both the import path and this fallback accept the same
+              # nine constructor keywords (#291) - falling back to the
+              # module globals only when a value is not passed explicitly.
+              self.project_dir = Path(project_dir or PROJECT_DIR)
+              self.reports_dir = Path(reports_dir or REPORTS_DIR)
+              self.detection_level = detection_level or DETECTION_LEVEL
+              self.base_ref = base_ref or BASE_REF
+              self.head_ref = head_ref or HEAD_REF
+              # Booleans must not use `or`: an explicitly passed False would be
+              # replaced by the module global, silently re-enabling a disabled
+              # feature - the same bug shape fixed in #290.
+              self.enable_test_optimization = (
+                ENABLE_TEST_OPT if enable_test_optimization is None else enable_test_optimization
+              )
+              self.enable_job_skipping = (
+                ENABLE_JOB_SKIP if enable_job_skipping is None else enable_job_skipping
+              )
+              self.monorepo_mode = MONOREPO_MODE if monorepo_mode is None else monorepo_mode
+              self.pattern_config = pattern_config
+
               # Default file patterns for change classification
               self.patterns = {
                 "docs": ["docs/**", "*.md", "*.rst", "*.txt", "README*"],
@@ -251,33 +342,56 @@ runs:
                 "ci": [".github/workflows/**", ".github/actions/**", "*.yml", "*.yaml"],
                 "build": ["Dockerfile*", "docker-compose*.yml", "Makefile", "setup.py", "setup.cfg"]
               }
-            
+
+              # A pattern-config file overrides only the categories it defines;
+              # any category it does not mention keeps its default (#273).
+              if self.pattern_config:
+                custom_patterns = self._load_custom_patterns(self.pattern_config)
+                if custom_patterns:
+                  self.patterns.update(custom_patterns)
+
+            def _load_custom_patterns(self, config_path):
+              """Load the [patterns] table from a TOML pattern-config file."""
+              import tomllib
+              with open(config_path, "rb") as f:
+                data = tomllib.load(f)
+              return data.get("patterns", {})
+
             def get_changed_files(self) -> List[str]:
               """Get list of changed files between base and head refs."""
+              # A ref beginning with '-' would be parsed by git as an option
+              # (e.g. --output=...), not a revision - reject it before it
+              # ever reaches subprocess (#291 follow-up security fix). Kept
+              # outside the try/except below so it is not silently swallowed.
+              for ref_name, ref_value in (("base_ref", self.base_ref), ("head_ref", self.head_ref)):
+                if ref_value.startswith("-"):
+                  raise ValueError(
+                    f"{ref_name} {ref_value!r} cannot start with '-': git would parse it as an option"
+                  )
               try:
                 # Get changed files using git diff
                 cmd = ["git", "diff", "--name-only", f"{self.base_ref}...{self.head_ref}"]
                 result = subprocess.run(cmd, capture_output=True, text=True, cwd=self.project_dir)
-                
+
                 if result.returncode != 0:
                   print(f"⚠️ Git diff failed: {result.stderr}")
                   return []
-                
+
                 files = [f.strip() for f in result.stdout.split('\n') if f.strip()]
                 print(f"📝 Found {len(files)} changed files")
-                
+
                 return files
               except Exception as e:
                 print(f"❌ Error getting changed files: {e}")
                 return []
-            
+
             def classify_files(self, files: List[str]) -> Dict[str, List[str]]:
               """Classify files into categories based on patterns."""
               import fnmatch
-              
+
               classifications = {category: [] for category in self.patterns.keys()}
               unclassified = []
-              
+
               for file in files:
                 matched = False
                 for category, patterns in self.patterns.items():
@@ -288,23 +402,23 @@ runs:
                       break
                   if matched:
                     break
-                
+
                 if not matched:
                   unclassified.append(file)
-              
+
               if unclassified:
                 print(f"⚠️ Unclassified files: {unclassified}")
-              
+
               return classifications
-            
+
             def analyze_test_impact(self, source_files: List[str]) -> Dict[str, Any]:
               """Analyze which tests might be affected by source changes."""
-              if not self.enable_test_opt or not source_files:
+              if not self.enable_test_optimization or not source_files:
                 return {"affected_tests": [], "can_skip": False}
-              
+
               # Simple heuristic: find test files that might test the changed source files
               affected_tests = []
-              
+
               for source_file in source_files:
                 if source_file.endswith('.py'):
                   # Convert source file to potential test file names
@@ -315,19 +429,19 @@ runs:
                     f"test_{base_name}.py",
                     f"{base_name}_test.py"
                   ]
-                  
+
                   for test_file in potential_tests:
                     if (self.project_dir / test_file).exists():
                       affected_tests.append(test_file)
-              
+
               # Remove duplicates
               affected_tests = list(set(affected_tests))
-              
+
               return {
                 "affected_tests": affected_tests,
                 "can_skip": len(affected_tests) == 0 and len(source_files) > 0
               }
-            
+
             def calculate_optimization_score(self, classifications: Dict[str, List[str]]) -> Dict[str, Any]:
               """Calculate CI optimization opportunities."""
               total_files = sum(len(files) for files in classifications.values())
@@ -340,33 +454,33 @@ runs:
                   "skip_lint": False,
                   "time_savings": 0
                 }
-              
+
               # Optimization logic based on change types
               docs_only = len(classifications["docs"]) > 0 and all(
                 len(classifications[cat]) == 0 for cat in ["source", "tests", "dependencies"]
               )
-              
+
               config_only = len(classifications["config"]) > 0 and all(
                 len(classifications[cat]) == 0 for cat in ["source", "tests", "dependencies"]
               )
-              
+
               tests_only = len(classifications["tests"]) > 0 and all(
                 len(classifications[cat]) == 0 for cat in ["source", "dependencies"]
               )
-              
+
               has_source_changes = len(classifications["source"]) > 0
               has_dependency_changes = len(classifications["dependencies"]) > 0
-              
+
               # Conservative optimization recommendations
               skip_tests = not has_source_changes and not has_dependency_changes and not tests_only
               skip_security = docs_only and not has_dependency_changes
               skip_docs = not docs_only and len(classifications["docs"]) == 0
               skip_lint = docs_only
-              
+
               # Calculate optimization score (percentage of CI that can be skipped)
               skip_count = sum([skip_tests, skip_security, skip_docs, skip_lint])
               optimization_score = (skip_count / 4) * 100  # 4 main CI categories
-              
+
               # Estimate time savings (rough estimates)
               time_savings = 0
               if skip_tests:
@@ -377,7 +491,7 @@ runs:
                 time_savings += 60   # ~1 minute for doc builds
               if skip_lint:
                 time_savings += 30   # ~30 seconds for linting
-              
+
               return {
                 "optimization_score": int(optimization_score),
                 "skip_tests": skip_tests,
@@ -393,12 +507,12 @@ runs:
                   "has_dependency_changes": has_dependency_changes
                 }
               }
-            
+
             def detect_monorepo_packages(self, files: List[str]) -> List[str]:
               """Detect affected packages in monorepo mode."""
               if not self.monorepo_mode:
                 return []
-              
+
               # Simple monorepo detection - group by top-level directories
               packages = set()
               for file in files:
@@ -406,13 +520,13 @@ runs:
                 if len(parts) > 1:
                   # Consider first directory as package name
                   packages.add(parts[0])
-              
+
               return list(packages)
-            
+
             def generate_report(self, results: Dict[str, Any]) -> str:
               """Generate comprehensive change detection report."""
               report_file = self.reports_dir / "change-detection-report.json"
-              
+
               # Create detailed report
               report = {
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -429,11 +543,11 @@ runs:
                   "estimated_time_savings": f"{results.get('time_savings', 0)}s"
                 }
               }
-              
+
               # Write JSON report
               with open(report_file, 'w') as f:
                 json.dump(report, f, indent=2)
-              
+
               # Generate markdown summary
               md_file = self.reports_dir / "change-detection-summary.md"
               with open(md_file, 'w') as f:
@@ -442,12 +556,12 @@ runs:
                 f.write(f"**Files Changed:** {len(results.get('changed_files', []))}\n")
                 f.write(f"**Optimization Score:** {results.get('optimization_score', 0)}%\n")
                 f.write(f"**Estimated Time Savings:** {results.get('time_savings', 0)}s\n\n")
-                
+
                 f.write("## Change Categories\n\n")
                 for category, files in results.get('classifications', {}).items():
                   if files:
                     f.write(f"- **{category.title()}:** {len(files)} files\n")
-                
+
                 f.write("\n## Optimization Recommendations\n\n")
                 if results.get('skip_tests'):
                   f.write("- ✅ **Skip Tests:** No source or dependency changes detected\n")
@@ -457,21 +571,21 @@ runs:
                   f.write("- ✅ **Skip Docs:** No documentation changes detected\n")
                 if results.get('skip_lint'):
                   f.write("- ✅ **Skip Lint:** Only documentation changes detected\n")
-                
-                if not any([results.get('skip_tests'), results.get('skip_security'), 
+
+                if not any([results.get('skip_tests'), results.get('skip_security'),
                            results.get('skip_docs'), results.get('skip_lint')]):
                   f.write("- ⚠️ **Full CI Required:** Source or dependency changes require all checks\n")
-              
+
               return str(report_file)
-            
+
             def execute(self) -> Dict[str, Any]:
               """Execute change detection analysis."""
               start_time = time.time()
-              
+
               try:
                 # Get changed files
                 changed_files = self.get_changed_files()
-                
+
                 if not changed_files:
                   print("ℹ️ No changes detected")
                   return {
@@ -489,19 +603,19 @@ runs:
                     "dependency_impact": 0,
                     "execution_time": time.time() - start_time
                   }
-                
+
                 # Classify files by type
                 classifications = self.classify_files(changed_files)
-                
+
                 # Analyze test impact
                 test_analysis = self.analyze_test_impact(classifications.get("source", []))
-                
+
                 # Calculate optimization opportunities
                 optimization = self.calculate_optimization_score(classifications)
-                
+
                 # Detect monorepo packages
                 affected_packages = self.detect_monorepo_packages(changed_files)
-                
+
                 # Combine results
                 results = {
                   "success": True,
@@ -514,13 +628,13 @@ runs:
                   "execution_time": time.time() - start_time,
                   **optimization
                 }
-                
+
                 # Generate report
                 report_path = self.generate_report(results)
                 results["reports_path"] = str(self.reports_dir)
-                
+
                 return results
-                
+
               except Exception as e:
                 return {
                   "success": False,
@@ -529,12 +643,28 @@ runs:
                 }
 
         # Execute change detection
-        detector = ChangeDetectionAction()
+        pattern_config = PATTERN_CONFIG or None
+        # #291: every declared input must reach the constructor on BOTH the
+        # packaged-class import path and the standalone fallback below - a
+        # bare `pattern_config=pattern_config` call silently dropped the
+        # other eight on the import path even though the fallback path
+        # worked (it read the module globals directly).
+        detector = ChangeDetectionAction(
+          project_dir=Path(PROJECT_DIR),
+          reports_dir=Path(REPORTS_DIR),
+          detection_level=DETECTION_LEVEL,
+          base_ref=BASE_REF,
+          head_ref=HEAD_REF,
+          enable_test_optimization=ENABLE_TEST_OPT,
+          enable_job_skipping=ENABLE_JOB_SKIP,
+          monorepo_mode=MONOREPO_MODE,
+          pattern_config=pattern_config,
+        )
         result = detector.execute()
 
         # Set outputs
         print(f"success={str(result['success']).lower()}")
-        print(f"detection-level=$DETECTION_LEVEL")
+        print(f"detection-level={DETECTION_LEVEL}")
         print(f"execution-time={result.get('execution_time', 0):.2f}")
         print(f"changed-files={','.join(result.get('changed_files', []))}")
         print(f"change-categories={result.get('change_categories', '')}")
@@ -547,13 +677,13 @@ runs:
         print(f"time-savings={result.get('time_savings', 0)}")
         print(f"affected-tests={','.join(result.get('affected_tests', []))}")
         print(f"dependency-impact={result.get('dependency_impact', 0)}")
-        print(f"reports-path={result.get('reports_path', '$REPORTS_DIR')}")
+        print(f"reports-path={result.get('reports_path', REPORTS_DIR)}")
         print(f"failure-reason={result.get('failure_reason', '')}")
 
         # Generate GitHub outputs
         with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
           f.write(f"success={str(result['success']).lower()}\n")
-          f.write(f"detection-level=$DETECTION_LEVEL\n")
+          f.write(f"detection-level={DETECTION_LEVEL}\n")
           f.write(f"execution-time={result.get('execution_time', 0):.2f}\n")
           f.write(f"changed-files={','.join(result.get('changed_files', []))}\n")
           f.write(f"change-categories={result.get('change_categories', '')}\n")
@@ -566,7 +696,7 @@ runs:
           f.write(f"time-savings={result.get('time_savings', 0)}\n")
           f.write(f"affected-tests={','.join(result.get('affected_tests', []))}\n")
           f.write(f"dependency-impact={result.get('dependency_impact', 0)}\n")
-          f.write(f"reports-path={result.get('reports_path', '$REPORTS_DIR')}\n")
+          f.write(f"reports-path={result.get('reports_path', REPORTS_DIR)}\n")
           f.write(f"failure-reason={result.get('failure_reason', '')}\n")
 
         # Exit with appropriate code
@@ -576,7 +706,7 @@ runs:
           time_savings = result.get('time_savings', 0)
           print(f"🚀 Optimization Score: {optimization_score}%")
           print(f"⏱️ Estimated Time Savings: {time_savings}s")
-          
+
           if optimization_score > 0:
             print("💡 CI Optimization Recommendations:")
             if result.get('skip_tests'):
@@ -589,13 +719,13 @@ runs:
               print("  - Skip linting (docs-only changes)")
           else:
             print("⚠️ Full CI pipeline required (source/dependency changes detected)")
-          
+
           exit(0)
         else:
           failure_reason = result.get('failure_reason', 'Unknown error')
           print(f"❌ Change detection failed: {failure_reason}")
-          
-          if "$FAIL_FAST".lower() == "true":
+
+          if FAIL_FAST:
             exit(1)
           else:
             print("⚠️ Continuing despite failures (fail-fast disabled)")

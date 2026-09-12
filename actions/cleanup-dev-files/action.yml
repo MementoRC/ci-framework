@@ -90,12 +90,12 @@ runs:
         if [ ${#removed_files[@]} -gt 0 ]; then
           echo "Removed files/directories:"
           printf '%s\n' "${removed_files[@]}"
-          echo "files_removed=${#removed_files[@]}" >> $GITHUB_OUTPUT
-          echo "cleanup_needed=true" >> $GITHUB_OUTPUT
+          echo "files_removed=${#removed_files[@]}" >> "$GITHUB_OUTPUT"
+          echo "cleanup_needed=true" >> "$GITHUB_OUTPUT"
         else
           echo "No dev files found to remove"
-          echo "files_removed=0" >> $GITHUB_OUTPUT
-          echo "cleanup_needed=false" >> $GITHUB_OUTPUT
+          echo "files_removed=0" >> "$GITHUB_OUTPUT"
+          echo "cleanup_needed=false" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Commit cleanup if files were removed
@@ -119,7 +119,7 @@ runs:
           PR: #${{ github.event.pull_request.number }}
           Source: ${{ github.event.pull_request.head.ref }}"
 
-          git push origin ${{ github.event.pull_request.base.ref }}
+          git push origin "${{ github.event.pull_request.base.ref }}"
           echo "✅ Dev files cleanup committed to ${{ github.event.pull_request.base.ref }}"
         else
           echo "✅ No dev files to cleanup"

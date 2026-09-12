@@ -17,21 +17,21 @@ jobs:
       skip-security: ${{ steps.detect.outputs.skip-security }}
       skip-docs: ${{ steps.detect.outputs.skip-docs }}
       skip-lint: ${{ steps.detect.outputs.skip-lint }}
-      
+
       # Analysis results
       optimization-score: ${{ steps.detect.outputs.optimization-score }}
       time-savings: ${{ steps.detect.outputs.time-savings }}
       change-categories: ${{ steps.detect.outputs.change-categories }}
       affected-tests: ${{ steps.detect.outputs.affected-tests }}
       affected-packages: ${{ steps.detect.outputs.affected-packages }}
-      
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           # Required: fetch full history for accurate change detection
           fetch-depth: 0
-      
+
       - name: Detect Changes and Optimize CI
         id: detect
         uses: ./actions/change-detection
@@ -41,14 +41,14 @@ jobs:
           enable-job-skipping: true
           monorepo-mode: false
           timeout: 300
-          
+
       - name: Display Optimization Results
         run: |
           echo "🚀 CI Optimization Results:"
           echo "📊 Optimization Score: ${{ steps.detect.outputs.optimization-score }}%"
           echo "⏱️ Estimated Time Savings: ${{ steps.detect.outputs.time-savings }}s"
           echo "📁 Change Categories: ${{ steps.detect.outputs.change-categories }}"
-          
+
           if [ "${{ steps.detect.outputs.optimization-score }}" -gt "50" ]; then
             echo "✅ Significant optimization possible (>50%)"
           elif [ "${{ steps.detect.outputs.optimization-score }}" -gt "0" ]; then
@@ -67,13 +67,13 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      
+
       - name: Run Quality Gates
         uses: ./actions/quality-gates
         with:
           tier: essential
           timeout: 180
-          
+
       - name: Run Affected Tests Only
         if: needs.change-detection.outputs.affected-tests != ''
         run: |
@@ -82,7 +82,7 @@ jobs:
           affected_tests=$(echo "${{ needs.change-detection.outputs.affected-tests }}" | tr ',' ' ')
           pytest $affected_tests -v
 
-  # Security scans - conditionally run based on change detection  
+  # Security scans - conditionally run based on change detection
   security-scan:
     name: 'Security Scan (Conditional)'
     needs: change-detection
@@ -92,7 +92,7 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      
+
       - name: Run Security Scan
         uses: ./actions/security-scan
         with:
@@ -109,7 +109,7 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      
+
       - name: Build Documentation
         run: |
           echo "📚 Building documentation..."
@@ -128,7 +128,7 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      
+
       - name: Run Linting
         run: |
           echo "🔍 Running linting checks..."
@@ -150,7 +150,7 @@ jobs:
           # Calculate which jobs actually ran vs total possible time
           total_possible_time=480  # 8 minutes for full pipeline (example)
           actual_time=0
-          
+
           # Add time for jobs that actually ran
           if [ "${{ needs.quality-gates.result }}" != "skipped" ]; then
             actual_time=$((actual_time + 120))  # 2 minutes for tests
@@ -164,14 +164,14 @@ jobs:
           if [ "${{ needs.lint-check.result }}" != "skipped" ]; then
             actual_time=$((actual_time + 30))   # 30 seconds for lint
           fi
-          
+
           # Always add change detection overhead
           actual_time=$((actual_time + 60))   # 1 minute for change detection
-          
+
           # Calculate actual optimization
           time_saved=$((total_possible_time - actual_time))
           optimization_percent=$(( (time_saved * 100) / total_possible_time ))
-          
+
           echo "📊 CI Performance Results:"
           echo "⏱️ Total possible time: ${total_possible_time}s"
           echo "⚡ Actual execution time: ${actual_time}s"
@@ -179,14 +179,14 @@ jobs:
           echo "📈 Actual optimization: ${optimization_percent}%"
           echo "🎯 Predicted optimization: ${{ needs.change-detection.outputs.optimization-score }}%"
           echo "🔮 Predicted savings: ${{ needs.change-detection.outputs.time-savings }}s"
-          
+
           # Validate 50%+ optimization target
           if [ "$optimization_percent" -ge "50" ]; then
             echo "✅ SUCCESS: Achieved 50%+ CI optimization target!"
           else
             echo "⚠️ Below 50% target, but still optimized"
           fi
-          
+
           # Add to job summary
           echo "## 🚀 CI Optimization Report" >> $GITHUB_STEP_SUMMARY
           echo "**Predicted Optimization:** ${{ needs.change-detection.outputs.optimization-score }}%" >> $GITHUB_STEP_SUMMARY
@@ -212,11 +212,11 @@ jobs:
           echo ""
           echo "🚦 Job Status:"
           echo "- Quality Gates: ${{ needs.quality-gates.result }}"
-          echo "- Security Scan: ${{ needs.security-scan.result }}" 
+          echo "- Security Scan: ${{ needs.security-scan.result }}"
           echo "- Docs Build: ${{ needs.docs-build.result }}"
           echo "- Lint Check: ${{ needs.lint-check.result }}"
           echo ""
-          
+
           # Count skipped jobs
           skipped_count=0
           if [ "${{ needs.quality-gates.result }}" = "skipped" ]; then
@@ -231,9 +231,9 @@ jobs:
           if [ "${{ needs.lint-check.result }}" = "skipped" ]; then
             skipped_count=$((skipped_count + 1))
           fi
-          
+
           echo "📈 Results: ${skipped_count}/4 jobs optimized"
-          
+
           if [ "$skipped_count" -ge "2" ]; then
             echo "✅ Excellent optimization achieved!"
           elif [ "$skipped_count" -ge "1" ]; then

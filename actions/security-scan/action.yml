@@ -1,3 +1,4 @@
+---
 name: 'Security Scan Action'
 description: 'Comprehensive multi-tool security scanning with SARIF integration and configurable security levels'
 author: 'CI Framework'
@@ -82,6 +83,11 @@ inputs:
     required: false
     default: 'false'
 
+  pixi-version:
+    description: 'Pixi CLI version for setup-pixi (binary version, not the action tag). Must support the consumer lockfile schema: pixi >= v0.68.0 is required for pixi.lock schema v7.'
+    required: false
+    default: 'v0.74.0'
+
 outputs:
   success:
     description: 'Whether all security scans passed'
@@ -150,7 +156,7 @@ runs:
     - name: Install pixi
       uses: prefix-dev/setup-pixi@v0.8.13
       with:
-        pixi-version: v0.74.0
+        pixi-version: ${{ inputs.pixi-version }}
         cache: false
 
     - name: Install Docker (for Trivy)
@@ -161,9 +167,9 @@ runs:
       shell: bash
       run: |
         set -e
-        
+
         echo "📦 Installing security scanning tools..."
-        
+
         # Install Trivy if enabled
         if [[ "${{ inputs.enable-trivy }}" == "true" ]]; then
           echo "Installing Trivy..."
@@ -174,7 +180,7 @@ runs:
           sudo apt-get update
           sudo apt-get install trivy
         fi
-        
+
         # Install Semgrep if enabled
         if [[ "${{ inputs.enable-semgrep }}" == "true" ]]; then
           echo "Installing Semgrep..."
@@ -208,12 +214,28 @@ runs:
         FAIL_FAST="${{ inputs.fail-fast }}"
         REPORTS_DIR="${{ inputs.reports-dir }}"
         PIXI_ENVIRONMENT="${{ inputs.pixi-environment }}"
+        # Passed to the python3 heredoc below via the environment: that
+        # heredoc's delimiter is quoted ('EOF'), so bash performs no
+        # substitution inside it and a literal "$VAR" there would never
+        # resolve (#273). PROJECT_DIR/REPORTS_DIR/SECURITY_LEVEL were
+        # missed by the original #273 fix - they were still spliced as
+        # literal "$VAR" text further down in this same heredoc, which the
+        # quoted delimiter left unresolved (a change-detection-style
+        # follow-up security sweep caught this).
+        export CONFIG_FILE FAIL_FAST PROJECT_DIR REPORTS_DIR SECURITY_LEVEL
 
         echo "🛡️ Security Scan Action v0.0.1"
         echo "🔒 Security Level: $SECURITY_LEVEL"
         echo "⏱️  Timeout: ${TIMEOUT}s"
         echo "🔄 Parallel: $PARALLEL"
         echo "📁 Project: $PROJECT_DIR"
+
+        # config-file must point at a real file when given - silently
+        # ignoring a typo'd path is the exact defect being fixed here (#273).
+        if [[ -n "$CONFIG_FILE" && ! -f "$CONFIG_FILE" ]]; then
+          echo "❌ config-file not found: $CONFIG_FILE" >&2
+          exit 1
+        fi
 
         # Create reports directory
         mkdir -p "$REPORTS_DIR"
@@ -234,6 +256,26 @@ runs:
         import tempfile
         import os
 
+        # Read via the environment rather than shell interpolation - see the
+        # `export` comment above the bash assignment for why (#273).
+        #
+        # `os.environ.get(key, default)` only falls back to `default` when
+        # the key is *absent*. A composite action always exports every
+        # input, so an empty-but-explicitly-set input (e.g. `fail-fast: ''`)
+        # yields "" here, not the declared default - silently flipping a
+        # `true`-by-default flag to False. For FAIL_FAST that means a
+        # failing security scan would exit 0 instead of 1 (the same
+        # silent-disable failure mode as #290). `os.environ.get(key) or
+        # default` treats "" the same as unset for every input below whose
+        # default is non-empty. CONFIG_FILE is intentionally left as a plain
+        # two-arg `.get()`: an empty value there legitimately means "no
+        # custom config file", which is exactly what the "" default means.
+        CONFIG_FILE = os.environ.get("CONFIG_FILE", "")
+        FAIL_FAST = (os.environ.get("FAIL_FAST") or "true").strip().lower() == "true"
+        PROJECT_DIR = os.environ.get("PROJECT_DIR") or "."
+        REPORTS_DIR = os.environ.get("REPORTS_DIR") or "security-reports"
+        SECURITY_LEVEL = os.environ.get("SECURITY_LEVEL") or "medium"
+
         # Configuration based on security level
         SECURITY_CONFIGS = {
             "low": {
@@ -243,7 +285,7 @@ runs:
                 "required_tools": ["bandit"]
             },
             "medium": {
-                "bandit_severity": "medium", 
+                "bandit_severity": "medium",
                 "timeout_per_tool": 120,
                 "fail_on_vulnerabilities": True,
                 "required_tools": ["bandit", "safety", "pip-audit"]
@@ -276,10 +318,10 @@ runs:
             def run_bandit(self) -> Dict[str, Any]:
                 """Run bandit AST-based security analysis."""
                 print("🔍 Running bandit security analysis...")
-                
+
                 output_file = self.reports_dir / "bandit-results.json"
                 sarif_file = self.reports_dir / "bandit.sarif"
-                
+
                 try:
                     # Run bandit with JSON output
                     cmd = [
@@ -289,14 +331,16 @@ runs:
                         "--severity-level", self.config["bandit_severity"],
                         "-x", "**/tests/**,**/test_**"
                     ]
-                    
+                    if CONFIG_FILE:
+                        cmd += ["-c", CONFIG_FILE]
+
                     result = subprocess.run(
-                        cmd, 
+                        cmd,
                         timeout=self.config["timeout_per_tool"],
                         capture_output=True,
                         text=True
                     )
-                    
+
                     # Also generate SARIF format
                     sarif_cmd = [
                         "bandit", "-r", str(self.project_dir),
@@ -305,26 +349,28 @@ runs:
                         "--severity-level", self.config["bandit_severity"],
                         "-x", "**/tests/**,**/test_**"
                     ]
-                    
+                    if CONFIG_FILE:
+                        sarif_cmd += ["-c", CONFIG_FILE]
+
                     subprocess.run(sarif_cmd, timeout=60, capture_output=True)
-                    
+
                     # Parse results
                     if output_file.exists():
                         with open(output_file) as f:
                             data = json.load(f)
-                            
+
                         # Count vulnerabilities by severity
                         for issue in data.get("results", []):
                             severity = issue.get("issue_severity", "").lower()
                             if severity in self.vulnerabilities:
                                 self.vulnerabilities[severity] += 1
-                        
+
                         self.tools_executed.append("bandit")
                         return {"success": True, "data": data}
                     else:
                         self.failed_tools.append("bandit")
                         return {"success": False, "error": "No output file generated"}
-                        
+
                 except subprocess.TimeoutExpired:
                     self.failed_tools.append("bandit")
                     return {"success": False, "error": "Timeout"}
@@ -335,34 +381,34 @@ runs:
             def run_safety(self) -> Dict[str, Any]:
                 """Run safety dependency vulnerability scanning."""
                 print("🔍 Running safety vulnerability scan...")
-                
+
                 output_file = self.reports_dir / "safety-results.json"
-                
+
                 try:
                     cmd = ["safety", "check", "--json", "--output", str(output_file)]
-                    
+
                     result = subprocess.run(
                         cmd,
                         timeout=self.config["timeout_per_tool"],
                         capture_output=True,
                         text=True
                     )
-                    
+
                     # Parse results
                     if output_file.exists():
                         with open(output_file) as f:
                             data = json.load(f)
-                        
+
                         # Count vulnerabilities
                         vuln_count = len(data) if isinstance(data, list) else 0
                         self.vulnerabilities["high"] += vuln_count  # Safety vulnerabilities are typically high
-                        
+
                         self.tools_executed.append("safety")
                         return {"success": True, "data": data}
                     else:
                         self.failed_tools.append("safety")
                         return {"success": False, "error": "No output file generated"}
-                        
+
                 except subprocess.TimeoutExpired:
                     self.failed_tools.append("safety")
                     return {"success": False, "error": "Timeout"}
@@ -373,35 +419,35 @@ runs:
             def run_pip_audit(self) -> Dict[str, Any]:
                 """Run pip-audit package auditing."""
                 print("🔍 Running pip-audit package audit...")
-                
+
                 output_file = self.reports_dir / "pip-audit-results.json"
-                
+
                 try:
                     cmd = ["pip-audit", "--format=json", "--output", str(output_file)]
-                    
+
                     result = subprocess.run(
                         cmd,
                         timeout=self.config["timeout_per_tool"],
                         capture_output=True,
                         text=True
                     )
-                    
+
                     # Parse results
                     if output_file.exists():
                         with open(output_file) as f:
                             data = json.load(f)
-                        
+
                         # Count vulnerabilities
                         for dep in data.get("dependencies", []):
                             vuln_count = len(dep.get("vulnerabilities", []))
                             self.vulnerabilities["medium"] += vuln_count
-                        
+
                         self.tools_executed.append("pip-audit")
                         return {"success": True, "data": data}
                     else:
                         self.failed_tools.append("pip-audit")
                         return {"success": False, "error": "No output file generated"}
-                        
+
                 except subprocess.TimeoutExpired:
                     self.failed_tools.append("pip-audit")
                     return {"success": False, "error": "Timeout"}
@@ -413,52 +459,54 @@ runs:
                 """Run semgrep pattern-based security detection."""
                 if "${{ inputs.enable-semgrep }}" != "true":
                     return {"success": True, "data": {}, "skipped": True}
-                    
+
                 print("🔍 Running semgrep security analysis...")
-                
+
                 output_file = self.reports_dir / "semgrep-results.json"
                 sarif_file = self.reports_dir / "semgrep.sarif"
-                
+
                 try:
-                    # Run with auto config for security rules
+                    # config-file overrides the default "auto" rule config
+                    # when given (#273); otherwise unchanged.
+                    semgrep_config = CONFIG_FILE if CONFIG_FILE else "auto"
                     cmd = [
-                        "semgrep", "--config=auto",
+                        "semgrep", f"--config={semgrep_config}",
                         "--json", "--output", str(output_file),
                         str(self.project_dir)
                     ]
-                    
+
                     result = subprocess.run(
                         cmd,
                         timeout=self.config["timeout_per_tool"],
                         capture_output=True,
                         text=True
                     )
-                    
+
                     # Also generate SARIF
                     sarif_cmd = [
-                        "semgrep", "--config=auto",
+                        "semgrep", f"--config={semgrep_config}",
                         "--sarif", "--output", str(sarif_file),
                         str(self.project_dir)
                     ]
                     subprocess.run(sarif_cmd, timeout=60, capture_output=True)
-                    
+
                     # Parse results
                     if output_file.exists():
                         with open(output_file) as f:
                             data = json.load(f)
-                        
+
                         # Count findings by severity
                         for finding in data.get("results", []):
                             severity = finding.get("extra", {}).get("severity", "").lower()
                             if severity in self.vulnerabilities:
                                 self.vulnerabilities[severity] += 1
-                        
+
                         self.tools_executed.append("semgrep")
                         return {"success": True, "data": data}
                     else:
                         self.failed_tools.append("semgrep")
                         return {"success": False, "error": "No output file generated"}
-                        
+
                 except subprocess.TimeoutExpired:
                     self.failed_tools.append("semgrep")
                     return {"success": False, "error": "Timeout"}
@@ -470,13 +518,13 @@ runs:
                 """Run Trivy container scanning and SBOM generation."""
                 if "${{ inputs.enable-trivy }}" != "true":
                     return {"success": True, "data": {}, "skipped": True}
-                    
+
                 print("🔍 Running Trivy security scan...")
-                
+
                 output_file = self.reports_dir / "trivy-results.json"
                 sarif_file = self.reports_dir / "trivy.sarif"
                 sbom_file = self.reports_dir / "trivy-sbom.json"
-                
+
                 try:
                     # Run filesystem scan
                     cmd = [
@@ -484,14 +532,14 @@ runs:
                         "--output", str(output_file),
                         str(self.project_dir)
                     ]
-                    
+
                     result = subprocess.run(
                         cmd,
                         timeout=self.config["timeout_per_tool"],
                         capture_output=True,
                         text=True
                     )
-                    
+
                     # Generate SARIF
                     sarif_cmd = [
                         "trivy", "fs", "--format", "sarif",
@@ -499,7 +547,7 @@ runs:
                         str(self.project_dir)
                     ]
                     subprocess.run(sarif_cmd, timeout=60, capture_output=True)
-                    
+
                     # Generate SBOM if requested
                     if "${{ inputs.sbom-generation }}" == "true":
                         sbom_cmd = [
@@ -508,25 +556,25 @@ runs:
                             str(self.project_dir)
                         ]
                         subprocess.run(sbom_cmd, timeout=60, capture_output=True)
-                    
+
                     # Parse results
                     if output_file.exists():
                         with open(output_file) as f:
                             data = json.load(f)
-                        
+
                         # Count vulnerabilities
                         for result in data.get("Results", []):
                             for vuln in result.get("Vulnerabilities", []):
                                 severity = vuln.get("Severity", "").lower()
                                 if severity in self.vulnerabilities:
                                     self.vulnerabilities[severity] += 1
-                        
+
                         self.tools_executed.append("trivy")
                         return {"success": True, "data": data}
                     else:
                         self.failed_tools.append("trivy")
                         return {"success": False, "error": "No output file generated"}
-                        
+
                 except subprocess.TimeoutExpired:
                     self.failed_tools.append("trivy")
                     return {"success": False, "error": "Timeout"}
@@ -537,16 +585,16 @@ runs:
             def generate_unified_sarif(self) -> str:
                 """Generate unified SARIF report from all tools."""
                 print("📊 Generating unified SARIF report...")
-                
+
                 unified_sarif = {
                     "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
                     "version": "2.1.0",
                     "runs": []
                 }
-                
+
                 # Collect all SARIF files
                 sarif_files = list(self.reports_dir.glob("*.sarif"))
-                
+
                 for sarif_file in sarif_files:
                     try:
                         with open(sarif_file) as f:
@@ -555,27 +603,27 @@ runs:
                                 unified_sarif["runs"].extend(sarif_data["runs"])
                     except Exception as e:
                         print(f"Warning: Failed to parse {sarif_file}: {e}")
-                
+
                 # Write unified SARIF
                 unified_file = self.reports_dir / "security-unified.sarif"
                 with open(unified_file, 'w') as f:
                     json.dump(unified_sarif, f, indent=2)
-                
+
                 return str(unified_file)
 
             def run_all_scans(self) -> Dict[str, Any]:
                 """Run all configured security scans."""
                 start_time = time.time()
-                
+
                 # Define scan functions
                 scan_functions = {
                     "bandit": self.run_bandit,
-                    "safety": self.run_safety, 
+                    "safety": self.run_safety,
                     "pip-audit": self.run_pip_audit,
                     "semgrep": self.run_semgrep,
                     "trivy": self.run_trivy
                 }
-                
+
                 # Filter based on enabled tools and security level
                 enabled_scans = {}
                 if "${{ inputs.enable-bandit }}" == "true" and "bandit" in self.config["required_tools"]:
@@ -588,13 +636,30 @@ runs:
                     enabled_scans["semgrep"] = scan_functions["semgrep"]
                 if "${{ inputs.enable-trivy }}" == "true" and "trivy" in self.config["required_tools"]:
                     enabled_scans["trivy"] = scan_functions["trivy"]
-                
-                # Execute scans
-                if "${{ inputs.parallel }}" == "true":
+
+                # Execute scans. fail-fast forces sequential execution with an
+                # early stop after the first failing/critical tool, regardless
+                # of the parallel flag: aborting mid-flight is meaningless
+                # once parallel futures are already dispatched (#273).
+                if FAIL_FAST:
+                    for tool, func in enabled_scans.items():
+                        try:
+                            self.results[tool] = func()
+                        except Exception as e:
+                            self.results[tool] = {"success": False, "error": str(e)}
+                            self.failed_tools.append(tool)
+                        tool_failed = not self.results[tool].get("success", True)
+                        critical_found = (
+                            self.vulnerabilities["critical"] + self.vulnerabilities["high"] > 0
+                        )
+                        if tool_failed or critical_found:
+                            print(f"🛑 fail-fast: stopping after '{tool}' (failure or critical/high vulnerability)")
+                            break
+                elif "${{ inputs.parallel }}" == "true":
                     # Parallel execution
                     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
                         future_to_tool = {executor.submit(func): tool for tool, func in enabled_scans.items()}
-                        
+
                         for future in concurrent.futures.as_completed(future_to_tool):
                             tool = future_to_tool[future]
                             try:
@@ -610,21 +675,21 @@ runs:
                         except Exception as e:
                             self.results[tool] = {"success": False, "error": str(e)}
                             self.failed_tools.append(tool)
-                
+
                 execution_time = time.time() - start_time
-                
+
                 # Generate unified reports
                 sarif_file = ""
                 if "${{ inputs.sarif-upload }}" == "true":
                     sarif_file = self.generate_unified_sarif()
-                
+
                 # Determine overall success
                 total_vulns = sum(self.vulnerabilities.values())
                 critical_vulns = self.vulnerabilities["critical"] + self.vulnerabilities["high"]
-                
+
                 success = True
                 failure_reason = ""
-                
+
                 if len(self.failed_tools) > 0:
                     success = False
                     failure_reason = f"Failed tools: {', '.join(self.failed_tools)}"
@@ -634,7 +699,7 @@ runs:
                 elif self.config["fail_on_vulnerabilities"] and total_vulns > 10:
                     success = False
                     failure_reason = f"Found {total_vulns} total vulnerabilities (exceeds threshold)"
-                
+
                 return {
                     "success": success,
                     "execution_time": execution_time,
@@ -648,13 +713,13 @@ runs:
                 }
 
         # Main execution
-        project_dir = Path("$PROJECT_DIR")
-        reports_dir = Path("$REPORTS_DIR")
-        security_level = "$SECURITY_LEVEL"
-        
+        project_dir = Path(PROJECT_DIR)
+        reports_dir = Path(REPORTS_DIR)
+        security_level = SECURITY_LEVEL
+
         scanner = SecurityScanner(security_level, project_dir, reports_dir)
         result = scanner.run_all_scans()
-        
+
         # Set outputs
         print(f"success={str(result['success']).lower()}")
         print(f"security-level={security_level}")
@@ -670,7 +735,7 @@ runs:
         print(f"reports-path={result['reports_path']}")
         print(f"sarif-file={result.get('sarif_file', '')}")
         print(f"sbom-file={result.get('sbom_file', '')}")
-        
+
         # Generate GitHub outputs
         with open(os.environ["GITHUB_OUTPUT"], "a") as f:
             f.write(f"success={str(result['success']).lower()}\n")
@@ -687,14 +752,14 @@ runs:
             f.write(f"reports-path={result['reports_path']}\n")
             f.write(f"sarif-file={result.get('sarif_file', '')}\n")
             f.write(f"sbom-file={result.get('sbom_file', '')}\n")
-        
+
         # Exit with appropriate code
         if result["success"]:
             print("✅ All security scans passed!")
             sys.exit(0)
         else:
             print(f"❌ Security scans failed: {result['failure_reason']}")
-            if "$FAIL_FAST".lower() == "true":
+            if FAIL_FAST:
                 sys.exit(1)
             else:
                 print("⚠️  Continuing despite failures (fail-fast disabled)")
@@ -762,7 +827,7 @@ runs:
 
           if (!success) {
             comment += `**Failure Reason:** ${failureReason}\n\n`;
-            
+
             if (failedTools) {
               comment += `**Failed Tools:** ${failedTools.split(',').filter(t => t).join(', ')}\n\n`;
             }

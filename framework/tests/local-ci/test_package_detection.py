@@ -345,14 +345,18 @@ name = "list-test-project"
         import subprocess
 
         # Create multiple package types
-        (tmp_path / "pyproject.toml").write_text("""
+        (tmp_path / "pyproject.toml").write_text(
+            """
 [tool.pixi.project]
 name = "pixi-project"
-""")
+"""
+        )
 
-        (tmp_path / "package.json").write_text("""
+        (tmp_path / "package.json").write_text(
+            """
 {"name": "npm-project"}
-""")
+"""
+        )
 
         script_path = (
             Path(__file__).parent.parent.parent.parent

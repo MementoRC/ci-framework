@@ -35,7 +35,7 @@ pre-commit install --install-hooks
 
 Our `.pre-commit-config.yaml` includes:
 - **Ruff linting** with `--fix` and `--exit-non-zero-on-fix`
-- **Ruff formatting** 
+- **Ruff formatting**
 - **Standard file checks** (trailing whitespace, yaml, json, etc.)
 
 ### 3. Local Quality Commands Match CI
@@ -95,7 +95,7 @@ The pre-commit hooks will:
 
 All local commands now match CI exactly:
 - `pixi run lint-full` = CI lint command
-- `pixi run typecheck` = CI typecheck command  
+- `pixi run typecheck` = CI typecheck command
 - `pixi run test` = CI test command
 
 ### 3. Developer Education

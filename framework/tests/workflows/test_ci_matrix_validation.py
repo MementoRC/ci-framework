@@ -2,7 +2,7 @@
 CI Matrix Validation Tests
 
 Tests the comprehensive CI workflow template across all matrix combinations
-as specified in subtask 2.7: Python [3.10, 3.11, 3.12] × OS [ubuntu-latest, macos-latest]
+as specified in subtask 2.7: Python [3.11, 3.12] × OS [ubuntu-latest, macos-latest]
 """
 
 import json
@@ -21,7 +21,7 @@ class TestCIMatrixValidation:
     Test CI workflow template matrix combinations
 
     Requirements from Task 2.7:
-    - Test matrix: Python [3.10, 3.11, 3.12] × OS [ubuntu-latest, macos-latest]
+    - Test matrix: Python [3.11, 3.12] × OS [ubuntu-latest, macos-latest]
     - Verify pixi installation on all platforms
     - Test Python-specific features per version
     - Validate OS-specific behaviors
@@ -66,7 +66,9 @@ class TestCIMatrixValidation:
 
         # Verify Python versions
         python_versions = matrix.get("python-version", [])
-        expected_python_versions = ["3.10", "3.11", "3.12"]
+        # 3.10 dropped (#286): composite actions import tomllib bare, which
+        # is stdlib only from Python 3.11 onward.
+        expected_python_versions = ["3.11", "3.12"]
         assert python_versions == expected_python_versions, (
             f"Expected {expected_python_versions}, got {python_versions}"
         )
@@ -83,10 +85,10 @@ class TestCIMatrixValidation:
             "fail-fast should be disabled for comprehensive matrix testing"
         )
 
-        # Calculate total combinations
+        # Calculate total combinations (2 Python versions x 2 OS, post #286)
         total_combinations = len(python_versions) * len(os_platforms)
-        assert total_combinations == 6, (
-            f"Expected 6 matrix combinations, got {total_combinations}"
+        assert total_combinations == 4, (
+            f"Expected 4 matrix combinations, got {total_combinations}"
         )
 
     def test_pixi_installation_cross_platform(self, ci_template_content):
@@ -168,7 +170,7 @@ class TestCIMatrixValidation:
                 f"{job_name} timeout should be {expected_timeout}, got {timeout}"
             )
 
-    @pytest.mark.parametrize("python_version", ["3.10", "3.11", "3.12"])
+    @pytest.mark.parametrize("python_version", ["3.11", "3.12"])  # 3.10 dropped (#286)
     @pytest.mark.parametrize("os_platform", ["ubuntu-latest", "macos-latest"])
     def test_matrix_combination_compatibility(self, python_version, os_platform):
         """Test compatibility of each matrix combination"""
@@ -279,8 +281,6 @@ class TestCIMatrixValidation:
 
         # Simulate performance data from different platforms
         mock_performance_data = {
-            ("3.10", "ubuntu-latest"): {"test_duration": 120.5, "memory_usage": 512.0},
-            ("3.10", "macos-latest"): {"test_duration": 125.2, "memory_usage": 520.0},
             ("3.11", "ubuntu-latest"): {"test_duration": 118.9, "memory_usage": 508.0},
             ("3.11", "macos-latest"): {"test_duration": 122.1, "memory_usage": 515.0},
             ("3.12", "ubuntu-latest"): {"test_duration": 119.8, "memory_usage": 510.0},
@@ -310,9 +310,9 @@ class TestCIMatrixValidation:
         # Mock compatibility data structure
         compatibility_report = {
             "matrix_combinations": [],
-            "python_versions": ["3.10", "3.11", "3.12"],
+            "python_versions": ["3.11", "3.12"],  # 3.10 dropped (#286)
             "platforms": ["ubuntu-latest", "macos-latest"],
-            "total_combinations": 6,
+            "total_combinations": 4,
             "successful_combinations": 0,
             "failed_combinations": 0,
             "performance_variance": {"duration": 0.0, "memory": 0.0},
@@ -332,8 +332,8 @@ class TestCIMatrixValidation:
                 compatibility_report["matrix_combinations"].append(combination)
 
         # Validate report structure
-        assert len(compatibility_report["matrix_combinations"]) == 6
-        assert compatibility_report["total_combinations"] == 6
+        assert len(compatibility_report["matrix_combinations"]) == 4
+        assert compatibility_report["total_combinations"] == 4
 
         # All combinations should be present
         combinations = {
@@ -342,8 +342,6 @@ class TestCIMatrixValidation:
         }
 
         expected_combinations = {
-            ("3.10", "ubuntu-latest"),
-            ("3.10", "macos-latest"),
             ("3.11", "ubuntu-latest"),
             ("3.11", "macos-latest"),
             ("3.12", "ubuntu-latest"),
@@ -398,7 +396,7 @@ channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64", "osx-64"]
 
 [tool.pixi.dependencies]
-python = ">=3.10,<3.13"
+python = ">=3.10,<3.13"  # python-floor-exempt: consumer-project fixture, not a support claim
 pytest = "*"
 
 [tool.pixi.tasks]
@@ -408,40 +406,34 @@ lint = "echo 'lint check'"
             (project_dir / "pyproject.toml").write_text(pyproject_content)
 
             # Test basic pixi functionality
-            try:
-                # This would normally test pixi installation and basic commands
-                # For now, just verify the configuration is valid
-                import tomllib
+            # This would normally test pixi installation and basic commands
+            # For now, just verify the configuration is valid
+            import tomllib
 
-                with open(project_dir / "pyproject.toml", "rb") as f:
-                    config = tomllib.load(f)
+            with open(project_dir / "pyproject.toml", "rb") as f:
+                config = tomllib.load(f)
 
-                assert "tool" in config
-                assert "pixi" in config["tool"]
+            assert "tool" in config
+            assert "pixi" in config["tool"]
 
-                pixi_config = config["tool"]["pixi"]
-                assert "project" in pixi_config
-                assert "dependencies" in pixi_config
-                assert "tasks" in pixi_config
+            pixi_config = config["tool"]["pixi"]
+            assert "project" in pixi_config
+            assert "dependencies" in pixi_config
+            assert "tasks" in pixi_config
 
-                # Verify Python version compatibility
-                python_req = pixi_config["dependencies"]["python"]
-                assert "3.10" in python_req
-
-            except ImportError:
-                # tomllib not available in Python < 3.11, use alternative
-                import configparser
-
-                # Basic validation that file exists and has content
-                assert (project_dir / "pyproject.toml").exists()
-                assert (project_dir / "pyproject.toml").stat().st_size > 0
+            # Round-trips the fixture exactly. The old `assert "3.10" in
+            # python_req` was a substring check against a literal written
+            # three lines above it, so it asserted nothing the fixture
+            # could fail. The fixture models a CONSUMER project, so
+            # ">=3.10,<3.13" is legitimate input here.  # python-floor-exempt: doc comment, not a support claim
+            python_req = pixi_config["dependencies"]["python"]
+            # python-floor-exempt: consumer-project fixture round-trip
+            assert python_req == ">=3.10,<3.13"
 
     def test_matrix_execution_simulation(self):
         """Simulate the execution flow for each matrix combination"""
 
         matrix_combinations = [
-            ("3.10", "ubuntu-latest"),
-            ("3.10", "macos-latest"),
             ("3.11", "ubuntu-latest"),
             ("3.11", "macos-latest"),
             ("3.12", "ubuntu-latest"),
@@ -465,7 +457,7 @@ lint = "echo 'lint check'"
             execution_results.append(result)
 
         # Verify all combinations executed
-        assert len(execution_results) == 6
+        assert len(execution_results) == 4
 
         # Verify all combinations succeeded
         all_successful = all(

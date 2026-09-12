@@ -2,9 +2,14 @@
 extends: default
 
 rules:
+  # Most over-length lines in .github/workflows/ are ::error::/::warning::
+  # GitHub Actions annotation messages, which GitHub renders as a single
+  # line — wrapping them would change the text users actually see in a
+  # failed run. Keep this a warning to preserve visibility without making
+  # it a blocking gate.
   line-length:
     max: 120
-    level: error
+    level: warning
   truthy:
     allowed-values: ['true', 'false', 'on', 'off']
     level: warning

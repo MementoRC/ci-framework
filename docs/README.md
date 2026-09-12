@@ -75,7 +75,7 @@
 ## 📊 Documentation Quality Promise
 
 - **🎯 5-Minute Setup**: Every guide tested for 5-minute completion
-- **📝 90%+ Coverage**: Troubleshooting covers 90%+ of common issues  
+- **📝 90%+ Coverage**: Troubleshooting covers 90%+ of common issues
 - **🔄 Living Docs**: Updated with every framework release
 - **✅ Tested**: All examples validated on real projects
 - **🤝 Community Driven**: Improved based on user feedback
@@ -84,7 +84,7 @@
 
 ## 🤝 Contributing to Documentation
 
-Found an issue? Want to improve our docs? 
+Found an issue? Want to improve our docs?
 - **Report Issues**: [GitHub Issues](https://github.com/MementoRC/ci-framework/issues)
 - **Suggest Improvements**: [Discussions](https://github.com/MementoRC/ci-framework/discussions)
 - **Submit PRs**: [Contributing Guide](../CONTRIBUTING.md)

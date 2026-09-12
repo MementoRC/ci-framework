@@ -20,8 +20,8 @@ Traditional CI approaches treat every change equally, resulting in unnecessary e
 
 #### Level 1: File Pattern Detection (≤30s)
 
-**Purpose**: Rapid change categorization for immediate optimization decisions  
-**Accuracy**: ~90% for common change patterns  
+**Purpose**: Rapid change categorization for immediate optimization decisions
+**Accuracy**: ~90% for common change patterns
 **Use Case**: Pull request optimization, development feedback
 
 ```yaml
@@ -40,8 +40,8 @@ Traditional CI approaches treat every change equally, resulting in unnecessary e
 
 #### Level 2: Standard Analysis (≤2min)
 
-**Purpose**: Comprehensive change analysis with dependency impact  
-**Accuracy**: ~95% for most project types  
+**Purpose**: Comprehensive change analysis with dependency impact
+**Accuracy**: ~95% for most project types
 **Use Case**: Standard CI pipelines, integration validation
 
 ```yaml
@@ -58,8 +58,8 @@ Traditional CI approaches treat every change equally, resulting in unnecessary e
 
 #### Level 3: Comprehensive Analysis (≤5min)
 
-**Purpose**: Deep dependency analysis with cross-package impact (monorepos)  
-**Accuracy**: ~98% with full dependency graph analysis  
+**Purpose**: Deep dependency analysis with cross-package impact (monorepos)
+**Accuracy**: ~98% with full dependency graph analysis
 **Use Case**: Complex monorepos, enterprise environments
 
 ```yaml
@@ -84,7 +84,7 @@ Traditional CI approaches treat every change equally, resulting in unnecessary e
 # Documentation changes (usually safe to optimize)
 docs = [
     "docs/**/*",
-    "*.md", 
+    "*.md",
     "*.rst",
     "*.txt",
     "README*",
@@ -95,7 +95,7 @@ docs = [
 # Source code changes (require full validation)
 source = [
     "src/**/*",
-    "lib/**/*", 
+    "lib/**/*",
     "**/*.py",
     "**/*.js",
     "**/*.ts",
@@ -118,7 +118,7 @@ tests = [
 config = [
     "*.toml",
     "*.yaml",
-    "*.yml", 
+    "*.yml",
     "*.json",
     "*.ini",
     ".github/**/*",
@@ -182,43 +182,43 @@ class ChangeImpact:
 
 class AdvancedChangeClassifier:
     """Advanced change classification with dependency analysis."""
-    
+
     def __init__(self, project_config: Dict):
         self.config = project_config
         self.dependency_graph = self._build_dependency_graph()
-    
+
     def classify_changes(self, changed_files: List[str]) -> Dict[str, ChangeImpact]:
         """Classify changes with impact analysis."""
         impacts = {}
-        
+
         for file_path in changed_files:
             impact = self._analyze_file_impact(file_path)
             impacts[file_path] = impact
-        
+
         # Cross-file impact analysis
         self._analyze_cross_file_impacts(impacts)
-        
+
         return impacts
-    
+
     def _analyze_file_impact(self, file_path: str) -> ChangeImpact:
         """Analyze impact of individual file change."""
         path = Path(file_path)
-        
+
         # Determine categories
         categories = set()
         for category, patterns in self.config["patterns"].items():
             if any(path.match(pattern) for pattern in patterns):
                 categories.add(category)
-        
+
         # Determine risk level
         risk_level = self._calculate_risk_level(file_path, categories)
-        
+
         # Find affected modules
         affected_modules = self._find_affected_modules(file_path)
-        
+
         # Determine test impact
         test_impact = self._find_test_impact(file_path, affected_modules)
-        
+
         return ChangeImpact(
             file_path=file_path,
             change_type="modified",  # Simplified for example
@@ -227,7 +227,7 @@ class AdvancedChangeClassifier:
             affected_modules=affected_modules,
             test_impact=test_impact
         )
-    
+
     def _calculate_risk_level(self, file_path: str, categories: Set[str]) -> str:
         """Calculate risk level based on file characteristics."""
         if "dependencies" in categories:
@@ -244,40 +244,40 @@ class AdvancedChangeClassifier:
             return "low"
         else:
             return "medium"  # Unknown files are medium risk
-    
+
     def _find_affected_modules(self, file_path: str) -> Set[str]:
         """Find modules affected by file change using dependency graph."""
         modules = set()
-        
+
         # Direct module impact
         module_path = self._file_to_module(file_path)
         if module_path:
             modules.add(module_path)
-            
+
             # Transitive dependencies
             if module_path in self.dependency_graph:
                 for dependent in self.dependency_graph[module_path]:
                     modules.add(dependent)
-        
+
         return modules
-    
+
     def _find_test_impact(self, file_path: str, affected_modules: Set[str]) -> Set[str]:
         """Find tests that should run based on change impact."""
         test_files = set()
-        
+
         # Direct test file mapping
         if file_path.startswith("src/"):
             # src/module/file.py -> tests/module/test_file.py
             test_path = file_path.replace("src/", "tests/").replace(".py", "_test.py")
             if Path(test_path).exists():
                 test_files.add(test_path)
-        
+
         # Module-based test discovery
         for module in affected_modules:
             test_pattern = f"tests/**/*{module}*test*.py"
             # In real implementation, use glob to find matching tests
             test_files.update(self._find_matching_tests(test_pattern))
-        
+
         return test_files
 ```
 
@@ -285,7 +285,7 @@ class AdvancedChangeClassifier:
 
 ### Conservative Optimization (Default)
 
-**Philosophy**: High confidence optimizations only  
+**Philosophy**: High confidence optimizations only
 **Trade-off**: Moderate time savings, minimal risk
 
 ```yaml
@@ -295,7 +295,7 @@ class AdvancedChangeClassifier:
   with:
     detection-level: 'standard'
     optimization-strategy: 'conservative'
-    
+
   # Conservative skip conditions
   outputs:
     skip-tests: ${{ steps.detect.outputs.docs-only == 'true' }}
@@ -312,7 +312,7 @@ class AdvancedChangeClassifier:
 
 ### Balanced Optimization (Recommended)
 
-**Philosophy**: Reasonable optimizations with safety checks  
+**Philosophy**: Reasonable optimizations with safety checks
 **Trade-off**: Good time savings, low risk
 
 ```yaml
@@ -332,7 +332,7 @@ class AdvancedChangeClassifier:
 
 ### Aggressive Optimization (High-confidence environments)
 
-**Philosophy**: Maximum optimization with comprehensive analysis  
+**Philosophy**: Maximum optimization with comprehensive analysis
 **Trade-off**: Maximum time savings, requires high confidence in analysis
 
 ```yaml
@@ -364,13 +364,13 @@ from pathlib import Path
 
 class PythonDependencyAnalyzer:
     """Analyze Python project dependencies for change impact."""
-    
+
     def __init__(self, project_root: str):
         self.project_root = Path(project_root)
         self.import_graph = {}
         self.reverse_deps = {}
         self._build_import_graph()
-    
+
     def _build_import_graph(self) -> None:
         """Build import dependency graph for the project."""
         for py_file in self.project_root.rglob("*.py"):
@@ -378,21 +378,21 @@ class PythonDependencyAnalyzer:
                 imports = self._extract_imports(py_file)
                 module_name = self._path_to_module(py_file)
                 self.import_graph[module_name] = imports
-                
+
                 # Build reverse dependency graph
                 for imported_module in imports:
                     if imported_module not in self.reverse_deps:
                         self.reverse_deps[imported_module] = set()
                     self.reverse_deps[imported_module].add(module_name)
-    
+
     def _extract_imports(self, file_path: Path) -> Set[str]:
         """Extract import statements from Python file."""
         imports = set()
-        
+
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 tree = ast.parse(f.read())
-            
+
             for node in ast.walk(tree):
                 if isinstance(node, ast.Import):
                     for alias in node.names:
@@ -403,48 +403,48 @@ class PythonDependencyAnalyzer:
         except (SyntaxError, UnicodeDecodeError):
             # Skip files that can't be parsed
             pass
-        
+
         return imports
-    
+
     def find_affected_modules(self, changed_files: List[str]) -> Set[str]:
         """Find all modules affected by changes to given files."""
         affected = set()
-        
+
         for file_path in changed_files:
             if file_path.endswith('.py'):
                 module_name = self._path_to_module(Path(file_path))
                 affected.add(module_name)
-                
+
                 # Add modules that depend on this one
                 if module_name in self.reverse_deps:
                     affected.update(self.reverse_deps[module_name])
-        
+
         return affected
-    
+
     def find_required_tests(self, affected_modules: Set[str]) -> List[str]:
         """Find test files that should run for affected modules."""
         test_files = []
-        
+
         for module in affected_modules:
             # Direct test file mapping
             test_path = self._module_to_test_path(module)
             if test_path and test_path.exists():
                 test_files.append(str(test_path))
-            
+
             # Integration tests that import this module
             for test_file in self.project_root.rglob("test_*.py"):
                 if self._test_imports_module(test_file, module):
                     test_files.append(str(test_file))
-        
+
         return list(set(test_files))  # Deduplicate
-    
+
     def _path_to_module(self, file_path: Path) -> str:
         """Convert file path to module name."""
         relative_path = file_path.relative_to(self.project_root)
         module_parts = list(relative_path.parts[:-1])  # Remove filename
         module_parts.append(relative_path.stem)  # Add filename without extension
         return ".".join(module_parts)
-    
+
     def _module_to_test_path(self, module_name: str) -> Path:
         """Convert module name to expected test file path."""
         parts = module_name.split(".")
@@ -472,7 +472,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Monorepo Change Detection
         id: detect
         uses: ./actions/change-detection
@@ -492,7 +492,7 @@ jobs:
         working-directory: packages/frontend
 
   package-backend:
-    needs: detect-changes 
+    needs: detect-changes
     if: contains(needs.detect-changes.outputs.affected-packages, 'backend')
     runs-on: ubuntu-latest
     steps:
@@ -521,15 +521,15 @@ packages:
     triggers:
       - "packages/frontend/**/*"
       - "packages/shared/**/*"  # Dependency trigger
-    
+
   backend:
-    path: "packages/backend" 
+    path: "packages/backend"
     dependencies: ["shared", "database-schema"]
     triggers:
       - "packages/backend/**/*"
       - "packages/shared/**/*"
       - "packages/database-schema/**/*"
-    
+
   shared:
     path: "packages/shared"
     dependencies: []
@@ -540,7 +540,7 @@ packages:
 impact_rules:
   - if: "packages/shared/api/**/*"
     then: ["frontend", "backend"]  # API changes affect both
-  
+
   - if: "packages/database-schema/**/*"
     then: ["backend", "data-pipeline"]  # Schema changes
 ```
@@ -564,18 +564,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Change Detection
         if: matrix.task == 'change-detection'
         uses: ./actions/change-detection
         id: detect
-        
+
       - name: Setup Environment
         if: matrix.task == 'setup-environment'
         run: |
           pixi install
           echo "Environment ready"
-      
+
       - name: Cache Dependencies
         if: matrix.task == 'cache-dependencies'
         uses: actions/cache@v3
@@ -609,11 +609,11 @@ from typing import Dict, Optional
 
 class IncrementalChangeCache:
     """Cache change analysis results for faster subsequent runs."""
-    
+
     def __init__(self, cache_dir: str = ".change-cache"):
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(exist_ok=True)
-    
+
     def get_file_hash(self, file_path: str) -> str:
         """Calculate hash of file content."""
         try:
@@ -621,50 +621,50 @@ class IncrementalChangeCache:
                 return hashlib.sha256(f.read()).hexdigest()
         except FileNotFoundError:
             return ""
-    
+
     def get_cached_analysis(self, file_path: str) -> Optional[Dict]:
         """Get cached analysis for file if still valid."""
         cache_file = self.cache_dir / f"{file_path.replace('/', '_')}.json"
-        
+
         if not cache_file.exists():
             return None
-        
+
         try:
             with open(cache_file, 'r') as f:
                 cached_data = json.load(f)
-            
+
             # Check if file hash matches
             current_hash = self.get_file_hash(file_path)
             if cached_data.get("file_hash") == current_hash:
                 return cached_data.get("analysis")
         except (json.JSONDecodeError, FileNotFoundError):
             pass
-        
+
         return None
-    
+
     def cache_analysis(self, file_path: str, analysis: Dict) -> None:
         """Cache analysis result for file."""
         cache_file = self.cache_dir / f"{file_path.replace('/', '_')}.json"
-        
+
         cache_data = {
             "file_hash": self.get_file_hash(file_path),
             "analysis": analysis,
             "cached_at": time.time()
         }
-        
+
         with open(cache_file, 'w') as f:
             json.dump(cache_data, f, indent=2)
-    
+
     def cleanup_stale_cache(self, max_age_days: int = 7) -> None:
         """Remove cache entries older than specified days."""
         max_age_seconds = max_age_days * 24 * 3600
         current_time = time.time()
-        
+
         for cache_file in self.cache_dir.glob("*.json"):
             try:
                 with open(cache_file, 'r') as f:
                     cache_data = json.load(f)
-                
+
                 cached_at = cache_data.get("cached_at", 0)
                 if current_time - cached_at > max_age_seconds:
                     cache_file.unlink()
@@ -724,67 +724,67 @@ class OptimizationDecision:
 
 class OptimizationValidator:
     """Validate optimization decisions for safety."""
-    
+
     def __init__(self, safety_rules: Dict):
         self.safety_rules = safety_rules
-    
-    def validate_optimization(self, changes: Dict, 
+
+    def validate_optimization(self, changes: Dict,
                             decisions: List[OptimizationDecision]) -> Tuple[bool, str]:
         """Validate optimization decisions against safety rules."""
-        
+
         # Critical change checks
         if self._has_critical_changes(changes):
             return False, "Critical changes detected - full CI required"
-        
+
         # Dependency change checks
         if self._has_dependency_changes(changes):
             security_skip = any(d.operation == "security" and d.skip for d in decisions)
             if security_skip:
                 return False, "Dependency changes require security scanning"
-        
+
         # Confidence threshold checks
         low_confidence = [d for d in decisions if d.skip and d.confidence < 0.8]
         if low_confidence:
             return False, f"Low confidence optimizations: {[d.operation for d in low_confidence]}"
-        
+
         # Cross-validation checks
         if self._has_conflicting_decisions(decisions):
             return False, "Conflicting optimization decisions detected"
-        
+
         return True, "Optimization decisions validated"
-    
+
     def _has_critical_changes(self, changes: Dict) -> bool:
         """Check for changes that always require full CI."""
         critical_patterns = [
             "src/security/**/*",
-            "src/auth/**/*", 
+            "src/auth/**/*",
             "src/payment/**/*",
             "**/migrations/**/*"
         ]
-        
+
         changed_files = changes.get("changed_files", [])
         return any(
             any(fnmatch.fnmatch(f, pattern) for pattern in critical_patterns)
             for f in changed_files
         )
-    
+
     def calculate_optimization_score(self, decisions: List[OptimizationDecision]) -> float:
         """Calculate overall optimization confidence score."""
         if not decisions:
             return 0.0
-        
+
         # Weight by operation importance
         weights = {"test": 0.4, "security": 0.3, "lint": 0.2, "build": 0.1}
-        
+
         weighted_confidence = 0.0
         total_weight = 0.0
-        
+
         for decision in decisions:
             weight = weights.get(decision.operation, 0.1)
             confidence = decision.confidence if decision.skip else 1.0
             weighted_confidence += weight * confidence
             total_weight += weight
-        
+
         return weighted_confidence / total_weight if total_weight > 0 else 0.0
 ```
 
@@ -792,8 +792,8 @@ class OptimizationValidator:
 
 ### Case Study 1: Large Monorepo (hb-strategy-sandbox)
 
-**Project**: 18K+ files across multiple packages  
-**Challenge**: Reduce CI time from 45 minutes to under 10 minutes  
+**Project**: 18K+ files across multiple packages
+**Challenge**: Reduce CI time from 45 minutes to under 10 minutes
 **Solution**: Sophisticated package-based change detection
 
 ```yaml
@@ -810,7 +810,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Intelligent Change Detection
         id: detect
         uses: ./actions/change-detection
@@ -861,8 +861,8 @@ jobs:
 
 ### Case Study 2: Documentation-Heavy Project
 
-**Project**: Open source framework with extensive documentation  
-**Challenge**: Documentation changes triggered full 30-minute CI suite  
+**Project**: Open source framework with extensive documentation
+**Challenge**: Documentation changes triggered full 30-minute CI suite
 **Solution**: Aggressive documentation change optimization
 
 ```yaml
@@ -897,8 +897,8 @@ jobs:
 
 ### Case Study 3: Microservices Architecture
 
-**Project**: 12-service microservices platform  
-**Challenge**: Any change triggered all service validations  
+**Project**: 12-service microservices platform
+**Challenge**: Any change triggered all service validations
 **Solution**: Service-specific change detection with dependency mapping
 
 ```yaml
@@ -914,7 +914,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Service Impact Analysis
         id: analyze
         uses: ./actions/change-detection
@@ -958,48 +958,48 @@ import joblib
 
 class MLChangePredictor:
     """Machine learning model for change impact prediction."""
-    
+
     def __init__(self):
         self.model = RandomForestClassifier(n_estimators=100)
         self.vectorizer = TfidfVectorizer(max_features=1000)
         self.is_trained = False
-    
+
     def train(self, historical_data: List[Dict]) -> None:
         """Train model on historical change data."""
         features = []
         labels = []
-        
+
         for change_record in historical_data:
             # Extract features from change
             feature_vector = self._extract_features(change_record)
             features.append(feature_vector)
-            
+
             # Extract label (whether optimization was successful)
             label = change_record["optimization_successful"]
             labels.append(label)
-        
+
         # Fit vectorizer and model
         feature_texts = [self._change_to_text(record) for record in historical_data]
         text_features = self.vectorizer.fit_transform(feature_texts)
-        
+
         combined_features = np.hstack([text_features.toarray(), features])
-        
+
         self.model.fit(combined_features, labels)
         self.is_trained = True
-    
+
     def predict_optimization_safety(self, change_data: Dict) -> float:
         """Predict safety of optimization for given change."""
         if not self.is_trained:
             return 0.5  # Neutral prediction
-        
+
         feature_vector = self._extract_features(change_data)
         text_features = self.vectorizer.transform([self._change_to_text(change_data)])
-        
+
         combined_features = np.hstack([text_features.toarray(), [feature_vector]])
-        
+
         # Return probability of successful optimization
         return self.model.predict_proba(combined_features)[0][1]
-    
+
     def _extract_features(self, change_data: Dict) -> List[float]:
         """Extract numerical features from change data."""
         return [
@@ -1026,14 +1026,14 @@ import time
 
 class PredictiveCache:
     """Cache optimization decisions based on change patterns."""
-    
+
     def __init__(self, cache_file: str = ".optimization-cache.pkl"):
         self.cache_file = cache_file
         self.pattern_cache = defaultdict(list)
         self.success_rates = defaultdict(float)
         self._load_cache()
-    
-    def record_optimization(self, change_pattern: str, decision: Dict, 
+
+    def record_optimization(self, change_pattern: str, decision: Dict,
                           success: bool) -> None:
         """Record optimization decision and outcome."""
         record = {
@@ -1041,41 +1041,41 @@ class PredictiveCache:
             "success": success,
             "timestamp": time.time()
         }
-        
+
         self.pattern_cache[change_pattern].append(record)
         self._update_success_rate(change_pattern)
         self._save_cache()
-    
+
     def predict_optimization(self, change_pattern: str) -> Optional[Dict]:
         """Predict optimization decision based on historical patterns."""
         if change_pattern not in self.pattern_cache:
             return None
-        
+
         # Get recent successful optimizations
         recent_successes = [
             record for record in self.pattern_cache[change_pattern]
-            if record["success"] and 
+            if record["success"] and
             time.time() - record["timestamp"] < 30 * 24 * 3600  # 30 days
         ]
-        
+
         if not recent_successes:
             return None
-        
+
         # Find most common successful decision
         decision_counts = defaultdict(int)
         for record in recent_successes:
             decision_key = str(sorted(record["decision"].items()))
             decision_counts[decision_key] += 1
-        
+
         if decision_counts:
             most_common = max(decision_counts.items(), key=lambda x: x[1])
             success_rate = self.success_rates[change_pattern]
-            
+
             if success_rate > 0.8:  # High confidence threshold
                 return eval(most_common[0])  # Convert back to dict
-        
+
         return None
-    
+
     def _update_success_rate(self, pattern: str) -> None:
         """Update success rate for pattern."""
         records = self.pattern_cache[pattern]
@@ -1107,11 +1107,11 @@ class OptimizationMetrics:
 
 class OptimizationTracker:
     """Track and analyze optimization performance."""
-    
+
     def __init__(self, metrics_file: str = "optimization-metrics.json"):
         self.metrics_file = metrics_file
         self.metrics_data = self._load_metrics()
-    
+
     def record_ci_run(self, run_data: Dict) -> None:
         """Record CI run with optimization data."""
         record = {
@@ -1125,37 +1125,37 @@ class OptimizationTracker:
             "false_positive": run_data.get("false_positive", False),
             "false_negative": run_data.get("false_negative", False)
         }
-        
+
         self.metrics_data.append(record)
         self._save_metrics()
-    
+
     def calculate_metrics(self, days: int = 30) -> OptimizationMetrics:
         """Calculate optimization metrics for specified period."""
         cutoff = time.time() - (days * 24 * 3600)
         recent_data = [r for r in self.metrics_data if r["timestamp"] > cutoff]
-        
+
         if not recent_data:
             return OptimizationMetrics(0, 0, 0.0, 0.0, 0.0, 0.0)
-        
+
         total_runs = len(recent_data)
         optimized_runs = len([r for r in recent_data if r["optimization_used"]])
-        
+
         # Calculate time savings
         time_savings = []
         for record in recent_data:
             if record["optimization_used"] and record.get("baseline_time"):
                 saved = record["baseline_time"] - record["execution_time"]
                 time_savings.append(saved)
-        
+
         avg_time_saved = sum(time_savings) / len(time_savings) if time_savings else 0
-        
+
         # Calculate error rates
         false_positives = len([r for r in recent_data if r.get("false_positive")])
         false_negatives = len([r for r in recent_data if r.get("false_negative")])
-        
+
         fp_rate = false_positives / optimized_runs if optimized_runs > 0 else 0
         fn_rate = false_negatives / total_runs if total_runs > 0 else 0
-        
+
         return OptimizationMetrics(
             total_ci_runs=total_runs,
             optimized_runs=optimized_runs,
@@ -1164,11 +1164,11 @@ class OptimizationTracker:
             false_negative_rate=fn_rate,
             developer_satisfaction=self._calculate_satisfaction(recent_data)
         )
-    
+
     def generate_optimization_report(self) -> str:
         """Generate optimization effectiveness report."""
         metrics = self.calculate_metrics()
-        
+
         report = f"""
 # CI Optimization Report
 
@@ -1187,16 +1187,16 @@ class OptimizationTracker:
 
 ## Recommendations
 """
-        
+
         if metrics.false_positive_rate > 0.05:
             report += "- Consider more conservative optimization thresholds\n"
-        
+
         if metrics.false_negative_rate > 0.02:
             report += "- Review safety rules - may be too restrictive\n"
-        
+
         if metrics.average_time_saved < 60:
             report += "- Explore more aggressive optimization strategies\n"
-        
+
         return report
 ```
 
@@ -1251,8 +1251,8 @@ The result is a CI/CD system that **adapts to changes intelligently** rather tha
 
 ---
 
-**Pattern Version**: 1.0.0  
-**Framework Version**: 1.0.0  
-**Last Updated**: January 2025  
-**Validated across**: 8 production projects with diverse architectures  
+**Pattern Version**: 1.0.0
+**Framework Version**: 1.0.0
+**Last Updated**: January 2025
+**Validated across**: 8 production projects with diverse architectures
 **Optimization Results**: 50%+ time reduction for typical development changes

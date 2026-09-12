@@ -75,7 +75,7 @@ jobs:
         run: |
           # ── Edit these values to customize your CI pipeline ──
           {
-            echo 'python-versions=["3.10", "3.11", "3.12"]'
+            echo 'python-versions=["3.11", "3.12"]'
             echo 'os-matrix=["ubuntu-latest", "macos-latest"]'
             echo 'enable-performance=true'
             echo 'enable-hygiene=true'
@@ -195,7 +195,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: "Setup PIXI Environment"
-        uses: prefix-dev/setup-pixi@v0.10.0
+        uses: prefix-dev/setup-pixi@v0.10.2
         with:
           pixi-version: ${{ env.PIXI_VERSION }}
           cache: false
@@ -230,7 +230,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: "Setup PIXI Environment"
-        uses: prefix-dev/setup-pixi@v0.10.0
+        uses: prefix-dev/setup-pixi@v0.10.2
         with:
           pixi-version: ${{ env.PIXI_VERSION }}
           cache: false
@@ -249,6 +249,8 @@ jobs:
           pixi run -e ${{ env.PIXI_ENVIRONMENT }} pip install -e . --no-deps
       - name: "Run Test Suite"
         working-directory: ${{ env.PACKAGE_PATH }}
+        env:
+          PYTHONNOUSERSITE: "1"  # ignore runner ~/.local so it cannot shadow pixi-pinned deps (issue #235)
         run: |
           pixi run -e ${{ env.PIXI_ENVIRONMENT }} test
 
@@ -266,7 +268,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: "Setup PIXI Environment"
-        uses: prefix-dev/setup-pixi@v0.10.0
+        uses: prefix-dev/setup-pixi@v0.10.2
         with:
           pixi-version: ${{ env.PIXI_VERSION }}
           cache: false
@@ -309,7 +311,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: "Setup PIXI Environment"
-        uses: prefix-dev/setup-pixi@v0.10.0
+        uses: prefix-dev/setup-pixi@v0.10.2
         with:
           pixi-version: ${{ env.PIXI_VERSION }}
           cache: false
@@ -342,7 +344,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: "Setup PIXI Environment"
-        uses: prefix-dev/setup-pixi@v0.10.0
+        uses: prefix-dev/setup-pixi@v0.10.2
         with:
           pixi-version: ${{ env.PIXI_VERSION }}
           cache: false

@@ -6,6 +6,10 @@ build-backend = "hatchling.build"
 name = "ci-framework-tools"
 version = "2.9.9"
 description = "Internal tools and scripts for the CI Framework."
+# 3.11 is the floor because `tomllib` is stdlib only from 3.11, and this repo
+# imports it bare — including in composite actions that run on the consumer's
+# runner. See #281.
+requires-python = ">=3.11"
 authors = [
     { name = "MementoRC", email = "your-email@example.com" }
 ]
@@ -27,7 +31,7 @@ pytest = "*"
 psutil = "*"
 pandas = "*"
 pyyaml = "*"
-requests = "*"
+requests = ">=2.33.0"  # Security floor, issue #301
 hypothesis = "*"
 pytest-workflow = ">=2.1.0,<3"
 pytest-cov = ">=6.2.1,<7"
@@ -67,6 +71,27 @@ vulture = ">=2.7.0"
 # Git Hooks
 pre-commit = ">=3.0.0"
 
+# Security floors - transitive CVE remediation, issue #301
+# Each floor below is the lowest version that clears every known CVE for that
+# package. These are undeclared transitives pulled in by this feature's own
+# tools (pip-audit, pre-commit, bandit) and by other features sharing this
+# solve-group; without them `safety-check` reports findings against the
+# resolved transitive versions even though nothing here depends on them
+# directly. `requests` (base deps) and `filelock` (dev-specialized) are raised
+# in place at their existing declarations instead of being duplicated here.
+# NOTE: conda-forge package names diverge from the PyPI names pip-audit
+# reports for two of these - brotli -> brotli-python, msgpack -> msgpack-python.
+brotli-python = ">=1.2.0"
+click = ">=8.3.3"
+gitpython = ">=3.1.59"
+h2 = ">=4.4.1"
+idna = ">=3.15"
+msgpack-python = ">=1.2.1"
+pygments = ">=2.20.0"
+urllib3 = ">=2.7.0"
+virtualenv = ">=20.36.1"
+wheel = ">=0.46.2"
+
 # TIER 3: CI/CD & Build
 [tool.pixi.feature.quality-ci.dependencies]
 # CI Reporting
@@ -85,10 +110,13 @@ coverage = ">=7.0.0"
 black = "*"
 yamllint = "*"
 actionlint = "*"
+# shellcheck: required for parity with GitHub-hosted runners, which ship shellcheck
+# and thereby cause actionlint to auto-enable its shellcheck integration.
+shellcheck = "*"
 bc-detect-secrets = "*"
 twine = "*"
 cyclonedx-bom = "*"
-filelock = "*"
+filelock = ">=3.20.3"  # Security floor, issue #301
 
 # Performance & Analysis
 memory_profiler = "*"
@@ -137,22 +165,40 @@ lint = "pixi run -e quality lint-impl"
 lint-impl = "ruff check framework/ --select=F,E9"
 lint-full = "pixi run -e quality lint-full-impl"
 lint-full-impl = "ruff check framework/"
-lint-fix = "ruff check --fix framework/"
-format = "ruff format framework/"
-format-check = "ruff format --check framework/"
+lint-fix = "pixi run -e quality lint-fix-impl"
+lint-fix-impl = "ruff check --fix framework/"
+format = "pixi run -e quality format-impl"
+format-impl = "ruff format framework/"
+format-check = "pixi run -e quality format-check-impl"
+format-check-impl = "ruff format --check framework/"
 typecheck = "pixi run -e quality typecheck-impl"
 typecheck-impl = "mypy framework/"
 
 # Combined Quality Check - 🚨 MANDATORY BEFORE COMMIT
-quality = { depends-on = ["test", "lint", "typecheck"] }   # NEVER commit without this passing
+# Depends on `lint-full`, not `lint`: CI runs the full configured ruff ruleset
+# (ci.yml -> `pixi run -e quality lint-full`), so a gate built on `lint`
+# (`--select=F,E9`) is strictly weaker than CI and lets UP/I/B/SIM/RUF
+# violations through to cost a full push cycle (#271). `lint` stays defined as
+# the fast inner-loop check; it is just no longer the mandatory gate.
+quality = { depends-on = ["test", "lint-full", "format-check", "typecheck"] }   # NEVER commit without this passing
 
 # Emergency Quality Fix - USE FOR "Found X errors" CI FAILURES
 emergency-fix = "pixi run lint-fix && pixi run format && pixi run test"
 
 # ===== TIER 2: SECURITY & COMPLIANCE TASKS =====
 # Security Scanning
-security-scan = "bandit -r framework/ --severity-level high -x framework/tests/"
-safety-check = "pip-audit --verbose"
+security-scan = "pixi run -e quality-extended security-scan-impl"
+security-scan-impl = "bandit -r framework/ --severity-level high -x framework/tests/"
+safety-check = "pixi run -e quality-extended safety-check-impl"
+# Deferred major bumps, issue #301: pytest 8.4.1->9.0.3, pip 25.1.1->26.2, and
+# setuptools 80.9.0->83.0.0 are major version bumps of dev/build tooling
+# deferred under this issue, not unfixable vulnerabilities. Revisit and drop
+# the corresponding --ignore-vuln once each bump is scheduled and applied.
+safety-check-impl = "pip-audit --verbose --ignore-vuln PYSEC-2026-1845 --ignore-vuln PYSEC-2026-196 --ignore-vuln PYSEC-2026-1795 --ignore-vuln PYSEC-2026-1796 --ignore-vuln PYSEC-2026-2875 --ignore-vuln PYSEC-2026-2876 --ignore-vuln PYSEC-2026-3721 --ignore-vuln PYSEC-2026-3447"
+# radon and vulture are base [tool.pixi.dependencies] (lines 41-42), so they
+# are available in every environment including `default` — unlike the tasks
+# above, these two deliberately stay bare. There is no env-mismatch bug to
+# fix here (#268); do not add -impl delegation as unneeded churn.
 complexity-check = "radon cc framework/ --min B"
 dead-code-check = "vulture framework/ --min-confidence 80"
 
@@ -163,32 +209,101 @@ static-analysis = { depends-on = ["security-scan", "safety-check", "complexity-c
 check-all = { depends-on = ["quality", "static-analysis"] }
 
 # ===== TIER 3: CI/CD & DEPLOYMENT TASKS =====
-# CI-specific variants
-ci-test = { cmd = "pytest framework/tests/ --cov=framework --cov-report=xml", env = { ENVIRONMENT = "ci" } }
-ci-lint = "ruff check framework/ --output-format=github"
-ci-format-check = "ruff format --check framework/"
+# The `ci-test` / `ci-lint` / `ci-lint-impl` / `ci-format-check` variants used
+# to live here and were removed in #294. No workflow ever invoked any of them:
+# ci.yml lints via `pixi run -e quality lint-full` (ci.yml:34) and runs the
+# suite by invoking pytest inline (ci.yml:163-167), never through a `ci-*`
+# task. So these four were documented commands that nothing ran - the same
+# shape as #250, #251, #255, #261, #268 and #277.
+#
+# `ci-test` was additionally broken: it carried `env = { ENVIRONMENT = "ci" }`,
+# which sets a shell VARIABLE named ci and has nothing to do with pixi
+# environment selection, so it ran in `default` where ruff does not exist and
+# any test shelling out to ruff died with FileNotFoundError.
+#
+# Do not reintroduce these without a workflow that actually calls them. The
+# consumer-facing equivalents still ship in
+# templates/pyproject-tiered-template.toml, where they delegate correctly and
+# are guarded by framework/tests/workflows/test_pixi_quality_tasks.py.
 
 # Build & Deploy
-build = "python -m build"
+build = "pixi run -e dev build-impl"
+build-impl = "python -m build"
 clean = "rm -rf __pycache__ .pytest_cache .coverage htmlcov .ruff_cache dist build"
 
 # Pre-commit Integration - PREVENT CI FAILURES
-pre-commit = "pre-commit run --all-files"
-install-pre-commit = "pre-commit install --install-hooks"   # 🚨 ESSENTIAL: Run once per developer
+pre-commit = "pixi run -e quality-extended pre-commit-impl"
+pre-commit-impl = "pre-commit run --all-files"
+install-pre-commit = "pixi run -e quality-extended install-pre-commit-impl"   # 🚨 ESSENTIAL: Run once per developer
+install-pre-commit-impl = "pre-commit install --install-hooks"
 
 # ===== LEGACY/SPECIALIZED TASKS =====
 # Keep existing specialized tasks for backward compatibility
-yaml-lint = "yamllint .github/workflows/"
-action-lint = "actionlint"
-security-audit = "pip-audit --verbose"
-bandit-scan = "bandit -r framework/ -x framework/tests/ -s B101"
-detect-secrets = "detect-secrets scan --exclude-files '__pycache__' --exclude-files '*.pyc' --exclude-files '*.egg-info' --exclude-files '.git' --exclude-files 'pixi.lock'"
+# Scope covers the workflow tree and both action trees: composite actions
+# are shipped product surface (#261) and were previously linted by nothing.
+# Runs WITHOUT --strict deliberately: .yamllint.yml sets line-length and
+# truthy to level: warning on purpose, because ::error:: annotation messages
+# must stay on one physical line. --strict would promote those accepted
+# warnings to blocking failures - the error-level findings (trailing-spaces,
+# new-line-at-end-of-file) are what gate the job. Scope is guarded by
+# framework/tests/workflows/test_yaml_lint_scope.py so it cannot silently
+# narrow again (#255 lesson).
+yaml-lint = "pixi run -e dev yaml-lint-impl"
+yaml-lint-impl = "yamllint .github/workflows/ .github/actions/ actions/"
+
+# Shellcheck the bash embedded in composite action `runs.steps[].run` bodies.
+# actionlint has no composite-action support, so this is the only thing that
+# checks them (#261).
+action-shellcheck = "pixi run -e dev action-shellcheck-impl"
+action-shellcheck-impl = "python -m framework.action_shellcheck"
+action-lint = "pixi run -e dev action-lint-impl"
+action-lint-impl = "actionlint"
+
+# Custom workflow linter for the anti-patterns actionlint cannot see
+# (double ${{ }} wrapping in job-level if:, undeclared workflow_call
+# inputs, unguarded dependency-review-action, inconsistent pixi pins).
+# Discovery walks .github/workflows/ rather than reading a file list: the
+# prior hand-maintained six-file list in ci.yml covered 6 of 18 workflows
+# and omitted branch-policy.yml, the exact file #255 found a script
+# injection in (#279). Runs in `dev` because ci.yml's lint job already
+# installs that env. Scope is guarded by
+# framework/tests/workflows/test_workflow_lint_scope.py so it cannot
+# silently narrow again.
+workflow-lint = "pixi run -e dev workflow-lint-impl"
+workflow-lint-impl = "python -m framework.workflow_lint"
+security-audit = "pixi run -e quality-extended security-audit-impl"
+security-audit-impl = "pip-audit --verbose"
+bandit-scan = "pixi run -e quality-extended bandit-scan-impl"
+bandit-scan-impl = "bandit -r framework/ -x framework/tests/ -s B101"
+# detect-secrets-impl uses `detect-secrets-hook`, not `detect-secrets scan`:
+# `scan` is a baseline-generation/reporter command that always exits 0
+# regardless of findings (verified empirically for #288 - it exits 0 even
+# when handed a file containing an unbaselined, obviously-real secret). Only
+# `detect-secrets-hook` compares the current tree against the baseline and
+# exits 1 when it finds a secret that isn't already accounted for there,
+# which is what makes this a gate instead of a report. `$(git ls-files)`
+# supplies the file list because detect-secrets-hook takes explicit filenames
+# (no directory-recursion), unlike `scan`, and pixi's task shell does expand
+# `$(...)` (verified empirically). The five `--exclude-files` patterns are
+# real Python regexes, not the shell globs the previous version shipped:
+# those globs made `re.compile` raise `re.error: nothing to repeat` on every
+# invocation, so this task has never actually run to completion before #288.
+detect-secrets = "pixi run -e dev detect-secrets-impl"
+detect-secrets-impl = "detect-secrets-hook --baseline .secrets.baseline --exclude-files '__pycache__' --exclude-files '\\.pyc$' --exclude-files '\\.egg-info' --exclude-files '^\\.git/' --exclude-files '^pixi\\.lock$' $(git ls-files)"
 unit-test = "pytest framework/tests/"
 
 # Performance & Benchmarking
-benchmark = "pytest framework/tests/benchmarks/ --benchmark-only --benchmark-sort=mean"
-benchmark-save = "pytest framework/tests/benchmarks/ --benchmark-only --benchmark-save=baseline"
-benchmark-compare = "pytest framework/tests/benchmarks/ --benchmark-only --benchmark-compare"
+# pytest-benchmark is dev-only. Unlike the exit-127 breakage fixed above, a
+# bare invocation here still resolves `pytest` itself (a base dependency) and
+# fails differently: a pytest usage error on the unrecognized
+# `--benchmark-only` flag, not "command not found" — a failure mode a
+# 127-only check would miss (#268).
+benchmark = "pixi run -e dev benchmark-impl"
+benchmark-impl = "pytest framework/tests/benchmarks/ --benchmark-only --benchmark-sort=mean"
+benchmark-save = "pixi run -e dev benchmark-save-impl"
+benchmark-save-impl = "pytest framework/tests/benchmarks/ --benchmark-only --benchmark-save=baseline"
+benchmark-compare = "pixi run -e dev benchmark-compare-impl"
+benchmark-compare-impl = "pytest framework/tests/benchmarks/ --benchmark-only --benchmark-compare"
 
 # Coverage Analysis
 test-coverage = "pixi run -e quality test-coverage-impl"
@@ -197,10 +312,13 @@ test-coverage-json = "pixi run -e quality test-coverage-json-impl"
 test-coverage-json-impl = "pytest framework/tests/ --cov=framework --cov-branch --cov-report=json --json-report --json-report-file=pytest-report.json"
 
 # Framework-specific tasks
-sbom-generate = "cyclonedx-py -o ci-framework-sbom.json"
+sbom-generate = "pixi run -e dev sbom-generate-impl"
+sbom-generate-impl = "cyclonedx-py -o ci-framework-sbom.json"
 
 [tool.ruff]
-target-version = "py310"
+# Must track `[project] requires-python` (#284). At py310, ruff classified
+# `tomllib` as third-party and would never propose a 3.11+ idiom.
+target-version = "py311"
 line-length = 88
 
 [tool.ruff.lint]
@@ -223,7 +341,10 @@ ignore = [
 "framework/tests/**/*" = ["F401", "F811", "F403"]
 
 [tool.mypy]
-python_version = "3.10"
+# Must track `[project] requires-python` (#284). At 3.10, typeshed marks
+# `tomllib` as unavailable, so mypy was reasoning about a tree whose
+# central assumption (#281) is false under the version it was handed.
+python_version = "3.11"
 check_untyped_defs = false
 disallow_any_generics = false
 disallow_incomplete_defs = false
@@ -236,6 +357,11 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["framework/tests"]
+# The project is intentionally never pip-installed (see `install-editable`),
+# and pytest puts the test file's directory on sys.path rather than the repo
+# root - so `import framework` fails from a test even though
+# `python -m framework.x` works. Put the root on the path explicitly.
+pythonpath = ["."]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

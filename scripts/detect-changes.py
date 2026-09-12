@@ -5,6 +5,7 @@ Minimal implementation for TDD green phase
 
 This script analyzes git changes to determine which CI stages should run.
 """
+
 import json
 import subprocess
 import sys

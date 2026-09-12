@@ -9,7 +9,7 @@ Pixi represents a paradigm shift in Python project management, combining the **s
 ### Core Benefits
 
 - 🚀 **Lightning-fast installs** with conda-forge binary packages
-- 🔒 **Reproducible environments** with platform-specific lockfiles  
+- 🔒 **Reproducible environments** with platform-specific lockfiles
 - 🎯 **Isolated feature environments** for specialized workflows
 - ⚡ **Zero virtual environment overhead** with native activation
 - 🔄 **Cross-platform consistency** from development to production
@@ -118,8 +118,12 @@ coverage = ">=7.0.0"
 sarif-tools = ">=0.1.0"
 
 [tool.pixi.feature.ci-reporting.tasks]
-ci-test = "pytest framework/tests/ --cov=framework --cov-report=xml --json-report"
-ci-lint = "ruff check framework/ --output-format=github"
+# Delegate to an env that actually provides the tool; a bare invocation here
+# exits 127 whenever the caller is not already in the right env (#267, #268).
+ci-test = "pixi run -e ci ci-test-impl"
+ci-test-impl = "pytest framework/tests/ --cov=framework --cov-report=xml --json-report"
+ci-lint = "pixi run -e quality ci-lint-impl"
+ci-lint-impl = "ruff check framework/ --output-format=github"
 ```
 
 **Use Case**: GitHub Actions, GitLab CI, automated reporting
@@ -263,7 +267,7 @@ dev = "echo 'Development environment ready'"
 # Core quality gates (< 5 minutes)
 test = "pixi run -e quality test-impl"
 test-impl = "pytest framework/tests/ -v --timeout=120"
-lint = "pixi run -e quality lint-impl" 
+lint = "pixi run -e quality lint-impl"
 lint-impl = "ruff check framework/ --select=F,E9"
 typecheck = "pixi run -e quality typecheck-impl"
 typecheck-impl = "mypy framework/"
@@ -284,7 +288,7 @@ quality = { depends-on = ["test", "lint", "typecheck"] }
 # TIER 2: Extended Validation
 security = "pixi run -e quality-extended security-impl"
 security-impl = "bandit -r framework/ && safety check"
-complexity = "pixi run -e quality-extended complexity-impl" 
+complexity = "pixi run -e quality-extended complexity-impl"
 complexity-impl = "radon cc framework/ --min B"
 
 # TIER 3: CI Integration
@@ -315,7 +319,7 @@ test-full = { cmd = "pytest framework/tests/", env = { PYTEST_TIMEOUT = "300" } 
 [tool.pixi.target.linux-64.tasks]
 benchmark-linux = "pytest --benchmark-only --benchmark-storage=linux-bench"
 
-[tool.pixi.target.osx-64.tasks]  
+[tool.pixi.target.osx-64.tasks]
 benchmark-macos = "pytest --benchmark-only --benchmark-storage=macos-bench"
 
 # Feature-dependent tasks
@@ -365,7 +369,7 @@ pixi update              # All packages (careful!)
     curl -fsSL https://pixi.sh/install.sh | bash
     echo "$HOME/.pixi/bin" >> $GITHUB_PATH
 
-- name: Cache Pixi Environment  
+- name: Cache Pixi Environment
   uses: actions/cache@v3
   with:
     path: |
@@ -475,7 +479,7 @@ dependencies:
 [tool.pixi.project]
 channels = ["conda-forge"]
 
-[tool.pixi.dependencies] 
+[tool.pixi.dependencies]
 python = ">=3.10"
 requests = ">=2.28.0"
 pytest = ">=8.0.0"  # No more pip section needed
@@ -743,8 +747,8 @@ The result is a development experience that feels fast locally while maintaining
 
 ---
 
-**Pattern Version**: 1.0.0  
-**Framework Version**: 1.0.0  
-**Last Updated**: January 2025  
-**Validated across**: 8 production projects using pixi  
+**Pattern Version**: 1.0.0
+**Framework Version**: 1.0.0
+**Last Updated**: January 2025
+**Validated across**: 8 production projects using pixi
 **Performance**: 10x+ faster installs vs pip, 3x+ faster than poetry

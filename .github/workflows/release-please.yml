@@ -1,3 +1,4 @@
+---
 name: Release Please
 
 on:
@@ -18,13 +19,18 @@ jobs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
+      # gpg-signing-setup is a local composite action, so the repository must be
+      # checked out before it can be resolved. release-please-action itself works
+      # over the API, which is why this workflow had no checkout step before.
+      - uses: actions/checkout@v7
+
       - name: Import GPG key and configure Git
-        run: |
-          echo "${{ secrets.CI_BOT_GPG_KEY }}" | gpg --batch --import
-          git config --global user.name "CIFrameworkBot"
-          git config --global user.email "223036950+CIFrameworkBot@users.noreply.github.com"
-          git config --global user.signingkey ${{ secrets.CI_BOT_GPG_KEY_ID }}
-          git config --global commit.gpgsign true
+        uses: ./.github/actions/gpg-signing-setup
+        with:
+          gpg-private-key: ${{ secrets.CI_BOT_GPG_KEY }}
+          gpg-key-id: ${{ secrets.CI_BOT_GPG_KEY_ID }}
+          git-user-name: CIFrameworkBot
+          git-user-email: 223036950+CIFrameworkBot@users.noreply.github.com
 
       - name: Release Please
         id: release
@@ -63,12 +69,14 @@ jobs:
       - name: Build Documentation
         run: |
           mkdir -p _site
-          echo "# CI Framework v${{ needs.release-please.outputs.tag_name }}" > _site/index.md
-          echo "## Release Notes" >> _site/index.md
-          echo "This release includes:" >> _site/index.md
-          echo "- Self-Healing CI Infrastructure" >> _site/index.md
-          echo "- Automated CHANGELOG generation" >> _site/index.md
-          echo "- Enhanced documentation" >> _site/index.md
+          {
+            echo "# CI Framework v${{ needs.release-please.outputs.tag_name }}"
+            echo "## Release Notes"
+            echo "This release includes:"
+            echo "- Self-Healing CI Infrastructure"
+            echo "- Automated CHANGELOG generation"
+            echo "- Enhanced documentation"
+          } > _site/index.md
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5

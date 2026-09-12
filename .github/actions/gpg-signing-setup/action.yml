@@ -1,0 +1,111 @@
+---
+name: "GPG Signing Setup"
+description: >
+  Import a bot GPG key and configure git for signed commits, without ever
+  putting the key on a shell command line.
+
+# Why this exists (see #258): the same ~6 lines of GPG import + git signing
+# config were hand-rolled in three workflows with three different amounts of
+# ceremony. #255 hardened one copy - moving the secret out of the command line
+# and switching echo to printf - and silently missed the other two, which is
+# exactly the failure mode duplicated secret-handling invites.
+#
+# NOTE ON REFERENCING THIS ACTION: a reusable workflow (one with `workflow_call`)
+# must NOT use the `./`-relative form, because that path resolves against the
+# CALLER's checkout, not this repository's. Reusable workflows need the pinned
+# remote form, as reusable-ci.yml does for setup-codeql-matrix. That form also
+# requires the file to be listed in `extra-files` in
+# .release-please-config.json, or the pinned version is never updated.
+
+inputs:
+  gpg-private-key:
+    description: >
+      ASCII-armored, passphrase-less GPG private key. Pass a secret. When empty,
+      the git identity is still configured and signing is skipped with a warning
+      rather than failing the job.
+    required: true
+  gpg-key-id:
+    description: "GPG key ID, used for user.signingkey and for ownertrust."
+    required: true
+  git-user-name:
+    description: "git user.name to attribute signed commits to."
+    required: true
+  git-user-email:
+    description: "git user.email to attribute signed commits to."
+    required: true
+  config-scope:
+    description: >
+      Write git config globally ('global') or to the current repository only
+      ('local'). Call sites differ, so this is explicit rather than assumed.
+    required: false
+    default: 'global'
+
+outputs:
+  signing-enabled:
+    description: "'true' when a key was imported and commit signing was configured."
+    value: ${{ steps.setup.outputs.signing-enabled }}
+
+runs:
+  using: composite
+  steps:
+    - name: "Import GPG key and configure git signing"
+      id: setup
+      shell: bash
+      # Every secret arrives through env, never through ${{ }} interpolated into
+      # the script body. Interpolation would render the private key into the
+      # script text the runner executes.
+      env:
+        GPG_PRIVATE_KEY: ${{ inputs.gpg-private-key }}
+        GPG_KEY_ID: ${{ inputs.gpg-key-id }}
+        GIT_USER_NAME: ${{ inputs.git-user-name }}
+        GIT_USER_EMAIL: ${{ inputs.git-user-email }}
+        CONFIG_SCOPE: ${{ inputs.config-scope }}
+      run: |
+        set -euo pipefail
+
+        # Built as an array so the 'local' case contributes no argument at all;
+        # an empty "$scope_flag" would need an SC2086 suppression to expand.
+        case "$CONFIG_SCOPE" in
+          global) git_config=(git config --global) ;;
+          local) git_config=(git config) ;;
+          *)
+            echo "::error::config-scope must be 'global' or 'local', got '$CONFIG_SCOPE'"
+            exit 1
+            ;;
+        esac
+
+        "${git_config[@]}" user.name "$GIT_USER_NAME"
+        "${git_config[@]}" user.email "$GIT_USER_EMAIL"
+
+        if [ -z "$GPG_PRIVATE_KEY" ]; then
+          echo "::warning::No GPG key supplied - commits will not be signed."
+          echo "signing-enabled=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        # GnuPG needs a private home with strict permissions and a
+        # non-interactive config, or import and later signing try to prompt.
+        mkdir -p ~/.gnupg
+        chmod 700 ~/.gnupg
+        cat > ~/.gnupg/gpg.conf << 'EOF'
+        use-agent
+        pinentry-mode loopback
+        batch
+        no-tty
+        EOF
+        chmod 600 ~/.gnupg/gpg.conf
+
+        # printf rather than echo: echo's handling of backslashes is
+        # shell-dependent, and an ASCII-armored key is the payload most likely
+        # to suffer for it.
+        printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --import --batch --yes
+
+        # Ultimate trust, or signing fails against a freshly imported key.
+        printf '%s:6:\n' "$GPG_KEY_ID" | gpg --import-ownertrust
+
+        "${git_config[@]}" user.signingkey "$GPG_KEY_ID"
+        "${git_config[@]}" commit.gpgsign true
+        "${git_config[@]}" gpg.program gpg
+
+        echo "signing-enabled=true" >> "$GITHUB_OUTPUT"
+        echo "GPG key imported; commits will be signed as $GIT_USER_NAME <$GIT_USER_EMAIL>"

@@ -12,11 +12,11 @@ This action implements the superior "unlocked pixi" approach for cross-platform 
 
 ## Key Advantages Over Docker-Based Testing
 
-✅ **Authentic Platform Testing**: Uses real Ubuntu, Windows, and macOS runners  
-✅ **Dependency Resolution Validation**: Tests actual conda-forge package resolution per platform  
-✅ **Performance**: No Docker build/pull overhead  
-✅ **Accuracy**: Catches platform-specific dependency conflicts that locked mode misses  
-✅ **Integration**: Native GitHub Actions ecosystem support  
+✅ **Authentic Platform Testing**: Uses real Ubuntu, Windows, and macOS runners
+✅ **Dependency Resolution Validation**: Tests actual conda-forge package resolution per platform
+✅ **Performance**: No Docker build/pull overhead
+✅ **Accuracy**: Catches platform-specific dependency conflicts that locked mode misses
+✅ **Integration**: Native GitHub Actions ecosystem support
 
 ## Usage
 
@@ -34,7 +34,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Cross-Platform Validation
         uses: ./actions/cross-platform-validation
         with:
@@ -56,7 +56,7 @@ jobs:
         include:
           - os: ubuntu-latest
             platform: linux-64
-          - os: windows-latest 
+          - os: windows-latest
             platform: win-64
           - os: macos-latest
             platform: osx-64
@@ -65,7 +65,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Validate Platform Compatibility
         uses: ./actions/cross-platform-validation
         with:
@@ -195,7 +195,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: ./actions/quality-gates
-        
+
   cross-platform:
     needs: quality-gates
     strategy:
@@ -310,7 +310,7 @@ steps:
     run: |
       # Modify pyproject.toml to use matrix python version
       sed -i 's/python = "3\.12\.\*"/python = "${{ matrix.python-version }}.*"/' pyproject.toml
-  
+
   - uses: ./actions/cross-platform-validation
 ```
 

@@ -1,3 +1,4 @@
+---
 name: 'Performance Benchmark Action'
 description: 'Standardized performance monitoring with pytest-benchmark integration and statistical regression detection'
 author: 'CI Framework'
@@ -67,6 +68,11 @@ inputs:
     required: false
     default: 'false'
 
+  pixi-version:
+    description: 'Pixi CLI version for setup-pixi (binary version, not the action tag). Must support the consumer lockfile schema: pixi >= v0.68.0 is required for pixi.lock schema v7.'
+    required: false
+    default: 'v0.74.0'
+
 outputs:
   success:
     description: 'Whether all benchmarks passed without regression'
@@ -119,7 +125,7 @@ runs:
     - name: Install pixi
       uses: prefix-dev/setup-pixi@v0.8.13
       with:
-        pixi-version: v0.74.0
+        pixi-version: ${{ inputs.pixi-version }}
         cache: false
 
     - name: Cache Performance Dependencies
@@ -161,6 +167,17 @@ runs:
         FAIL_ON_REGRESSION="${{ inputs.fail-on-regression }}"
         PARALLEL="${{ inputs.parallel }}"
 
+        # Exported (after all of the assignments above, since none of them
+        # are later reassigned/defaulted) for the python3 heredoc below to
+        # read via os.environ.get(...) rather than being interpolated into
+        # the python source as "$VAR" - the heredoc delimiter is quoted
+        # ('EOF'), so bash performs no substitution inside it. This closes
+        # an arbitrary code injection path where a value containing a quote
+        # and newline could break out of a Python string literal (#292).
+        export SUITE BASELINE_BRANCH REGRESSION_THRESHOLD TIMEOUT PROJECT_DIR \
+          CONFIG_FILE STORE_RESULTS RESULTS_DIR COMPARE_BASELINE \
+          FAIL_ON_REGRESSION PARALLEL
+
         echo "🚀 Performance Benchmark Action v0.0.1"
         echo "📊 Suite: $SUITE"
         echo "🔍 Baseline: $BASELINE_BRANCH"
@@ -176,12 +193,36 @@ runs:
         pixi install -e "$PIXI_ENVIRONMENT"
 
         # Execute performance benchmarks using Python
-        python3 << EOF
+        python3 << 'EOF'
         import sys
         import json
         import time
         import os
         from pathlib import Path
+
+        # Read via the environment rather than shell interpolation - see the
+        # `export` comment above the bash assignment for why (#292).
+        #
+        # `os.environ.get(key, default)` only falls back to `default` when
+        # the key is *absent*. A composite action always exports every
+        # input (see the `export` comment in the bash step above), so an
+        # empty-but-explicitly-set input (e.g. `regression-threshold: ''`)
+        # yields "" here, not the declared default - crashing float()/int()
+        # below, or silently flipping a `true`-by-default flag to False
+        # (the same silent-disable failure mode as #290's fail-fast bug).
+        # `os.environ.get(key) or default` treats "" the same as unset for
+        # every input below whose default is non-empty.
+        SUITE = os.environ.get("SUITE") or "quick"
+        BASELINE_BRANCH = os.environ.get("BASELINE_BRANCH") or "main"
+        REGRESSION_THRESHOLD = os.environ.get("REGRESSION_THRESHOLD") or "10.0"
+        TIMEOUT = os.environ.get("TIMEOUT") or "1800"
+        PROJECT_DIR = os.environ.get("PROJECT_DIR") or "."
+        CONFIG_FILE = os.environ.get("CONFIG_FILE", "")
+        STORE_RESULTS = (os.environ.get("STORE_RESULTS") or "true").strip().lower() == "true"
+        RESULTS_DIR = os.environ.get("RESULTS_DIR") or "benchmark-results"
+        COMPARE_BASELINE = (os.environ.get("COMPARE_BASELINE") or "true").strip().lower() == "true"
+        FAIL_ON_REGRESSION = (os.environ.get("FAIL_ON_REGRESSION") or "true").strip().lower() == "true"
+        PARALLEL = (os.environ.get("PARALLEL") or "false").strip().lower() == "true"
 
         # Add framework to path
         framework_path = Path("${{ github.action_path }}/../../framework")
@@ -197,22 +238,22 @@ runs:
               import subprocess
               import json
               import time
-              
+
               start_time = time.time()
-              
+
               # Run pytest-benchmark
               cmd = ["python", "-m", "pytest", "--benchmark-only", "--benchmark-json=benchmark-results.json"]
-              if "$SUITE" == "quick":
+              if SUITE == "quick":
                 cmd.extend(["--benchmark-max-time=30"])
-              elif "$SUITE" == "full":
+              elif SUITE == "full":
                 cmd.extend(["--benchmark-max-time=300"])
-              elif "$SUITE" == "load":
+              elif SUITE == "load":
                 cmd.extend(["--benchmark-max-time=600"])
-              
+
               try:
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=int("$TIMEOUT"))
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=int(TIMEOUT))
                 execution_time = time.time() - start_time
-                
+
                 # Basic result processing
                 if result.returncode == 0:
                   # Try to read benchmark results
@@ -220,44 +261,44 @@ runs:
                   if Path("benchmark-results.json").exists():
                     with open("benchmark-results.json") as f:
                       benchmark_data = json.load(f)
-                  
+
                   benchmark_count = len(benchmark_data.get("benchmarks", []))
-                  
+
                   return {
                     "success": True,
-                    "suite": "$SUITE",
+                    "suite": SUITE,
                     "execution_time": execution_time,
                     "benchmark_count": benchmark_count,
                     "regression_detected": False,
                     "regression_percentage": 0.0,
                     "baseline_comparison": "No baseline available",
-                    "results_path": "$RESULTS_DIR",
+                    "results_path": RESULTS_DIR,
                     "performance_report": f"Executed {benchmark_count} benchmarks successfully",
                     "trend_analysis": "Baseline needed for trend analysis"
                   }
                 else:
                   return {
                     "success": False,
-                    "suite": "$SUITE",
+                    "suite": SUITE,
                     "execution_time": execution_time,
                     "benchmark_count": 0,
                     "regression_detected": False,
                     "regression_percentage": 0.0,
                     "baseline_comparison": "Benchmark execution failed",
-                    "results_path": "$RESULTS_DIR",
+                    "results_path": RESULTS_DIR,
                     "performance_report": f"Benchmark failed: {result.stderr}",
                     "trend_analysis": "Failed to execute benchmarks"
                   }
               except subprocess.TimeoutExpired:
                 return {
                   "success": False,
-                  "suite": "$SUITE",
-                  "execution_time": int("$TIMEOUT"),
+                  "suite": SUITE,
+                  "execution_time": int(TIMEOUT),
                   "benchmark_count": 0,
                   "regression_detected": False,
                   "regression_percentage": 0.0,
                   "baseline_comparison": "Benchmark timed out",
-                  "results_path": "$RESULTS_DIR",
+                  "results_path": RESULTS_DIR,
                   "performance_report": "Benchmark execution timed out",
                   "trend_analysis": "Timeout prevented trend analysis"
                 }
@@ -267,22 +308,22 @@ runs:
 
         # Parse configuration
         config_overrides = {}
-        if "$CONFIG_FILE" and Path("$CONFIG_FILE").exists():
+        if CONFIG_FILE and Path(CONFIG_FILE).exists():
           import tomllib
-          with open("$CONFIG_FILE", "rb") as f:
+          with open(CONFIG_FILE, "rb") as f:
             config_overrides = tomllib.load(f).get("performance_benchmark", {})
 
         # Execute benchmarks
         result = benchmark_action.execute_benchmarks(
-          project_dir=Path("$PROJECT_DIR"),
-          suite="$SUITE",
-          baseline_branch="$BASELINE_BRANCH",
-          regression_threshold=float("$REGRESSION_THRESHOLD"),
-          timeout=int("$TIMEOUT"),
-          store_results="$STORE_RESULTS".lower() == "true",
-          results_dir=Path("$RESULTS_DIR"),
-          compare_baseline="$COMPARE_BASELINE".lower() == "true",
-          parallel="$PARALLEL".lower() == "true",
+          project_dir=Path(PROJECT_DIR),
+          suite=SUITE,
+          baseline_branch=BASELINE_BRANCH,
+          regression_threshold=float(REGRESSION_THRESHOLD),
+          timeout=int(TIMEOUT),
+          store_results=STORE_RESULTS,
+          results_dir=Path(RESULTS_DIR),
+          compare_baseline=COMPARE_BASELINE,
+          parallel=PARALLEL,
           config_overrides=config_overrides
         )
 
@@ -299,7 +340,7 @@ runs:
         print(f"trend-analysis={result['trend_analysis']}")
 
         # Generate GitHub outputs
-        with open("$GITHUB_OUTPUT", "a") as f:
+        with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
           f.write(f"success={str(result['success']).lower()}\n")
           f.write(f"suite={result['suite']}\n")
           f.write(f"execution-time={result['execution_time']:.2f}\n")
@@ -313,7 +354,7 @@ runs:
 
         # Exit with appropriate code
         if result['success']:
-          if result['regression_detected'] and "$FAIL_ON_REGRESSION".lower() == "true":
+          if result['regression_detected'] and FAIL_ON_REGRESSION:
             print(f"❌ Performance regression detected: {result['regression_percentage']:.2f}%")
             exit(1)
           else:
@@ -373,7 +414,7 @@ runs:
           comment += `### 📊 Performance Analysis\n`;
           comment += `**Baseline Comparison:** ${baselineComparison}\n`;
           comment += `**Report:** ${performanceReport}\n`;
-          
+
           if (trendAnalysis !== 'Baseline needed for trend analysis') {
             comment += `**Trend Analysis:** ${trendAnalysis}\n`;
           }

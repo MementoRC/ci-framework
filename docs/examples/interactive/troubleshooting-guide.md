@@ -36,7 +36,7 @@ Choose the category that best matches your issue:
    ```yaml
    # Check your workflow triggers
    on: [push, pull_request]  # Basic triggers
-   
+
    # OR more specific
    on:
      push:
@@ -49,7 +49,7 @@ Choose the category that best matches your issue:
    ```bash
    # Test locally
    yamllint .github/workflows/ci.yml
-   
+
    # Or use online validator
    # https://www.yamllint.com/
    ```
@@ -105,13 +105,13 @@ Repository Settings → Branches → Branch protection rules
    src/main.py:15:1: F401 'os' imported but unused
    src/main.py:23:80: E501 line too long (82 > 79 characters)
    ```
-   
+
    **🛠️ Solution:**
    ```bash
    # Auto-fix most issues
    ruff check --fix src/ tests/
    ruff format src/ tests/
-   
+
    # Manual fixes for remaining issues
    ruff check src/ tests/  # See remaining issues
    ```
@@ -121,13 +121,13 @@ Repository Settings → Branches → Branch protection rules
    # Error message example:
    FAILED tests/test_main.py::test_function - AssertionError
    ```
-   
+
    **🛠️ Solution:**
    ```bash
    # Run tests locally first
    pytest tests/ -v
    pytest tests/test_main.py::test_function -v  # Specific test
-   
+
    # Common fixes:
    # - Update test expectations
    # - Fix import paths
@@ -139,7 +139,7 @@ Repository Settings → Branches → Branch protection rules
    # Error message example:
    ModuleNotFoundError: No module named 'your_package'
    ```
-   
+
    **🛠️ Solution:**
    ```toml
    # Add to pyproject.toml
@@ -172,7 +172,7 @@ poetry run pytest && poetry run ruff check src/
    Package: requests==2.25.0
    Vulnerability: CVE-2023-32681
    ```
-   
+
    **🛠️ Solution:**
    ```bash
    # Update vulnerable package
@@ -187,7 +187,7 @@ poetry run pytest && poetry run ruff check src/
    B101: Use of assert detected
    B601: paramiko calls with shell=True
    ```
-   
+
    **🛠️ Solution:**
    ```toml
    # Configure bandit to skip false positives
@@ -201,12 +201,12 @@ poetry run pytest && poetry run ruff check src/
    # Error message example:
    Possible hardcoded password found
    ```
-   
+
    **🛠️ Solution:**
    ```python
    # Before (BAD)
    PASSWORD = "my-secret-password"
-   
+
    # After (GOOD)
    PASSWORD = os.environ.get("PASSWORD")
    ```
@@ -235,12 +235,12 @@ pre-commit install
    Performance regression: 45% slower than baseline
    test_api_endpoint: 150ms (baseline: 85ms)
    ```
-   
+
    **🛠️ Analysis & Solutions:**
    ```bash
    # Profile the slow function
    python -m cProfile -s cumulative your_script.py
-   
+
    # Common causes & fixes:
    # - N+1 database queries → Use eager loading
    # - Missing database indexes → Add indexes
@@ -253,7 +253,7 @@ pre-commit install
    # Error message example:
    Benchmark timeout exceeded: 300s
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Increase timeout in CI
@@ -268,7 +268,7 @@ pre-commit install
    # Error message example:
    Benchmark variance too high: 45% std deviation
    ```
-   
+
    **🛠️ Solution:**
    ```toml
    # Increase benchmark stability
@@ -289,7 +289,7 @@ def slow_function(items):
         results.append(result)
     return results
 
-# After  
+# After
 def fast_function(items):
     ids = [item.id for item in items]
     results = database.query_batch(ids)  # Single query
@@ -325,7 +325,7 @@ def fast_function(items):
    ```bash
    # Error: pixi: command not found
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Add to your workflow
@@ -339,14 +339,14 @@ def fast_function(items):
    ```bash
    # Error: Could not solve for environment
    ```
-   
+
    **🛠️ Solution:**
    ```toml
    # Check pyproject.toml
    [tool.pixi.project]
    channels = ["conda-forge"]  # Ensure conda-forge is included
    platforms = ["linux-64"]   # Match your CI platform
-   
+
    [tool.pixi.dependencies]
    python = ">=3.10,<3.13"    # Use version ranges
    ```
@@ -355,7 +355,7 @@ def fast_function(items):
    ```bash
    # Error: Task 'test' not found
    ```
-   
+
    **🛠️ Solution:**
    ```toml
    # Define all required tasks
@@ -385,7 +385,7 @@ pixi run lint
    ```bash
    # Error: poetry: command not found
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Add to workflow
@@ -400,7 +400,7 @@ pixi run lint
    ```bash
    # Error: SolverProblemError
    ```
-   
+
    **🛠️ Solution:**
    ```toml
    # Use looser version constraints
@@ -413,7 +413,7 @@ pixi run lint
    ```bash
    # Error: No module named 'your_package'
    ```
-   
+
    **🛠️ Solution:**
    ```bash
    # Ensure proper installation
@@ -432,13 +432,13 @@ pixi run lint
    ```bash
    # Error: No such file or directory: 'requirements.txt'
    ```
-   
+
    **🛠️ Solution:**
    ```bash
    # Create requirements.txt
    pytest>=7.0.0
    ruff>=0.1.0
-   
+
    # OR use pyproject.toml
    [project]
    dependencies = ["pytest>=7.0.0", "ruff>=0.1.0"]
@@ -448,14 +448,14 @@ pixi run lint
    ```bash
    # Error: pip's dependency resolver does not currently take into account all the packages
    ```
-   
+
    **🛠️ Solution:**
    ```bash
    # Use constraints file
    # constraints.txt
    pytest==7.4.0
    ruff==0.1.5
-   
+
    # Install with constraints
    pip install -r requirements.txt -c constraints.txt
    ```
@@ -464,12 +464,12 @@ pixi run lint
    ```bash
    # Error: No module named 'your_package'
    ```
-   
+
    **🛠️ Solution:**
    ```bash
    # Install in editable mode
    pip install -e .
-   
+
    # OR ensure proper structure
    src/
    └── your_package/
@@ -491,7 +491,7 @@ pixi run lint
    ```bash
    # Error: Can't find 'action.yml', 'action.yaml' or 'Dockerfile'
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Check action path
@@ -504,7 +504,7 @@ pixi run lint
    ```bash
    # Error: Input required and not supplied: tier
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Provide all required inputs
@@ -518,7 +518,7 @@ pixi run lint
    ```bash
    # Error: Resource not accessible by integration
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Add required permissions
@@ -550,7 +550,7 @@ yamllint .github/actions/*/action.yml
    ```bash
    # Error: The system cannot find the path specified
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Use cross-platform paths
@@ -565,7 +565,7 @@ yamllint .github/actions/*/action.yml
    ```bash
    # Error: Version 3.13 with arch x64 not found
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Use supported versions
@@ -578,7 +578,7 @@ yamllint .github/actions/*/action.yml
    ```bash
    # Error: gcc: command not found
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Install system dependencies
@@ -596,18 +596,18 @@ strategy:
   matrix:
     os: [ubuntu-latest, macos-latest, windows-latest]
     python-version: ["3.10", "3.11", "3.12"]
-    
+
 steps:
   - uses: actions/checkout@v4
   - uses: actions/setup-python@v4
     with:
       python-version: ${{ matrix.python-version }}
-      
+
   # Platform-specific steps
   - name: Install deps (Ubuntu/macOS)
     if: matrix.os != 'windows-latest'
     run: make install
-    
+
   - name: Install deps (Windows)
     if: matrix.os == 'windows-latest'
     run: pip install -r requirements.txt
@@ -636,9 +636,9 @@ steps:
    # Check GitHub Actions logs for timing
    # Look for jobs taking > 5 minutes
    ```
-   
+
    **🛠️ Optimization Strategies:**
-   
+
    **Enable Change Detection:**
    ```yaml
    - uses: ./actions/change-detection
@@ -647,13 +647,13 @@ steps:
        enable-job-skipping: 'true'
    # Can save 30-70% execution time
    ```
-   
+
    **Parallel Execution:**
    ```yaml
    jobs:
      quick-checks:
        # Fast validation first
-       
+
      comprehensive-tests:
        needs: quick-checks
        strategy:
@@ -667,7 +667,7 @@ steps:
    # Use pytest-xdist for parallel testing
    pytest tests/ -n auto  # Use all available CPUs
    ```
-   
+
    **🛠️ Test Optimization:**
    ```toml
    [tool.pixi.tasks]
@@ -690,7 +690,7 @@ steps:
 
 **📊 Performance Targets:**
 - **Small projects**: < 5 minutes total
-- **Medium projects**: < 10 minutes total  
+- **Medium projects**: < 10 minutes total
 - **Large projects**: < 20 minutes total
 
 </details>
@@ -706,12 +706,12 @@ steps:
    ```bash
    # Error: The runner has received a shutdown signal
    ```
-   
+
    **🛠️ Solutions:**
    ```yaml
    # Reduce parallel processes
    - run: pytest tests/ -n 2  # Limit to 2 processes
-   
+
    # Use memory-efficient testing
    - run: pytest tests/ --maxfail=1 --tb=short
    ```
@@ -720,7 +720,7 @@ steps:
    ```bash
    # Error: No space left on device
    ```
-   
+
    **🛠️ Solutions:**
    ```yaml
    # Clean up after each step
@@ -735,12 +735,12 @@ steps:
    ```bash
    # Error: The job running on runner has exceeded the maximum execution time
    ```
-   
+
    **🛠️ Solutions:**
    ```yaml
    # Increase timeout
    timeout-minutes: 30  # Default is 6 hours, but set reasonable limits
-   
+
    # OR optimize execution
    - uses: ./actions/quality-gates
      with:
@@ -759,7 +759,7 @@ jobs:
         run: |
           # Run tests with memory limits
           pytest tests/ --memory-profile
-          
+
           # Clean up between test modules
           pytest tests/ --forked
 ```
@@ -777,7 +777,7 @@ jobs:
    ```bash
    # Error: Could not fetch URL https://pypi.org/simple/
    ```
-   
+
    **🛠️ Solutions:**
    ```yaml
    # Retry mechanism
@@ -793,7 +793,7 @@ jobs:
    ```bash
    # Error: The request was aborted: The request was canceled due to the configured HttpClient.Timeout
    ```
-   
+
    **🛠️ Solutions:**
    ```yaml
    - uses: actions/checkout@v4
@@ -806,7 +806,7 @@ jobs:
    ```bash
    # Error: Connection timeout to conda registry
    ```
-   
+
    **🛠️ Solutions:**
    ```toml
    # Use multiple channels/mirrors
@@ -822,7 +822,7 @@ jobs:
     # Set timeouts and retries
     pip config set global.timeout 300
     pip config set global.retries 3
-    
+
     # Use faster mirrors if needed
     pip config set global.index-url https://pypi.org/simple/
 ```
@@ -849,7 +849,7 @@ jobs:
    ```bash
    # Error: Resource not accessible by integration
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Add required permissions to workflow
@@ -865,13 +865,13 @@ jobs:
    ```bash
    # Error: Secret MYAPI_KEY not found
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Check secret configuration
    env:
      API_KEY: ${{ secrets.MYAPI_KEY }}  # Must be configured in repo settings
-   
+
    # For organization secrets
    env:
      API_KEY: ${{ secrets.ORG_API_KEY }}
@@ -881,7 +881,7 @@ jobs:
    ```bash
    # Error: Permission denied when accessing file
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Fix file permissions
@@ -896,7 +896,7 @@ jobs:
 # Minimal permissions principle
 permissions:
   contents: read  # Only what's needed
-  
+
 # Environment-specific secrets
 env:
   PROD_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.PROD_API_KEY || secrets.DEV_API_KEY }}
@@ -915,7 +915,7 @@ env:
    ```bash
    # Error: Invalid SARIF file format
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Ensure SARIF generation is enabled
@@ -923,7 +923,7 @@ env:
      with:
        security-level: 'medium'
        enable-sarif: 'true'  # Required for upload
-   
+
    # Validate SARIF before upload
    - name: Validate SARIF
      run: |
@@ -939,14 +939,14 @@ env:
    ```bash
    # Error: Token does not have the required scopes
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Permissions for SARIF upload (optional)
    permissions:
      security-events: write  # optional — only needed for SARIF upload
      contents: read
-   
+
    # Upload SARIF results
    - uses: github/codeql-action/upload-sarif@v2
      if: always()
@@ -959,13 +959,13 @@ env:
    ```bash
    # SARIF uploads but doesn't appear in Security tab
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Enable GitHub security features
    # Repository Settings → Security → Code security and analysis
    # Enable: Dependency graph, Dependabot alerts, Secret scanning
-   
+
    # Ensure proper SARIF categorization
    - uses: github/codeql-action/upload-sarif@v2
      with:
@@ -986,14 +986,14 @@ env:
    ```bash
    # Warning: Use of assert detected (B101)
    ```
-   
+
    **🛠️ Solution:**
    ```toml
    # Configure bandit exclusions
    [tool.bandit]
    exclude_dirs = ["tests", "test_*"]
    skips = ["B101", "B601"]  # Allow assert, shell=True in tests
-   
+
    # OR use inline comments
    # nosec B101 - assert is acceptable in tests
    assert user.is_authenticated  # nosec
@@ -1003,7 +1003,7 @@ env:
    ```bash
    # Warning: Vulnerability in development dependency
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Ignore development-only vulnerabilities
@@ -1017,7 +1017,7 @@ env:
    ```bash
    # Warning: Potential SQL injection
    ```
-   
+
    **🛠️ Solution:**
    ```yaml
    # Custom semgrep configuration
@@ -1072,7 +1072,7 @@ ignore_ids = ["12345"]  # Specific vulnerability IDs to ignore
    E   AssertionError: assert False is True
    E   +  where False = <bound method User.is_authenticated of <User: test@example.com>>()
    ```
-   
+
    **🤖 AI Analysis:**
    - **Root Cause**: Authentication method returning False unexpectedly
    - **Likely Issue**: Missing user setup or authentication state
@@ -1082,7 +1082,7 @@ ignore_ids = ["12345"]  # Specific vulnerability IDs to ignore
    ```
    ModuleNotFoundError: No module named 'your_package'
    ```
-   
+
    **🤖 AI Analysis:**
    - **Root Cause**: Package not installed in editable mode
    - **Likely Issue**: Missing `pip install -e .` or similar
@@ -1093,7 +1093,7 @@ ignore_ids = ["12345"]  # Specific vulnerability IDs to ignore
    Performance regression detected: 45% slower than baseline
    test_api_endpoint: 150ms (baseline: 85ms)
    ```
-   
+
    **🤖 AI Analysis:**
    - **Root Cause**: Significant performance degradation
    - **Likely Issue**: Database N+1 queries or inefficient algorithm

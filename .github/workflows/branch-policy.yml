@@ -24,8 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check source branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          HEAD_REF="${{ github.head_ref }}"
           echo "PR source branch: $HEAD_REF"
 
           # Allowed patterns for PRs to main

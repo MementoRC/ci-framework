@@ -6,16 +6,41 @@ Catches issues that actionlint misses:
 - Undeclared workflow_call inputs referenced in jobs
 - Hardcoded versions that should be parameterized
 - dependency-review-action without event guard
+- Gate tasks whose exit code is swallowed by `|| echo` / `|| true`
 """
 
 from __future__ import annotations
 
+import functools
 import re
 import sys
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+
+GATE_ROOT_TASK = "quality"
+
+# `pixi run [-e/--environment <env>] <task>` - same shape as the regex in
+# framework/tests/utils/pixi_meta.py, kept separate because the linter must
+# not import from the test tree.
+_PIXI_RUN_TASK_RE = re.compile(
+    r"pixi\s+run\s+(?:(?:-e|--environment)\s+[\w.-]+\s+)?([\w.-]+)"
+)
+
+# `|| echo ...`, `|| true`, `|| :` - the three ways a shell line discards a
+# non-zero exit without saying so anywhere a reviewer can see it. `\s*`
+# accepts `||true` and `||   true` alike. Each alternative ends on a
+# word-boundary-ish assertion rather than requiring whitespace, so a
+# trailing `;` does not hide the swallow: `||:;` is caught, as `|| true;`
+# and `|| echo;` already were via `\b`.
+_SWALLOW_RE = re.compile(r"\|\|\s*(?:echo\b|true\b|:(?![\w.-]))")
+
+# A single- or double-quoted shell argument, and a `#` comment introduced at
+# a word boundary.
+_QUOTED_SPAN_RE = re.compile(r"'[^']*'|\"[^\"]*\"")
+_TRAILING_COMMENT_RE = re.compile(r"(?:^|\s)#")
 
 
 @dataclass
@@ -62,6 +87,107 @@ def _find_line_number_re(raw_lines: list[str], regex: str, start: int = 0) -> in
         if compiled.search(line):
             return i + 1
     return 0
+
+
+def _logical_run_lines(body: str) -> list[str]:
+    """Split a `run:` body into logical (shell-continuation-joined) lines.
+
+    reusable-ci.yml puts the `||` swallow on a different physical line from
+    the `pixi run` invocation whose exit code it discards, so a physical-line
+    scan would miss exactly the case this rule exists to catch (#278).
+    """
+    return body.replace("\\\n", " ").splitlines()
+
+
+def _strip_shell_noise(line: str) -> str:
+    """Blank quoted arguments and any trailing `#` comment before matching.
+
+    Without this, a step that merely *mentions* the anti-pattern would be
+    reported as committing it - `echo "pass || true to skip"`, or one of the
+    explanatory comments this repo's house style puts inside `run:` bodies.
+    ci.yml's own "Run Type Check" step now carries a comment quoting
+    `|| echo`, and is safe today only because that comment happens to sit on
+    a different line from the invocation.
+
+    A real `|| echo "..."` still matches: only the quoted argument is
+    blanked, not the `echo` token that precedes it.
+
+    `#` opens a comment only at a word boundary, so `foo#bar` - not a shell
+    comment - survives. A swallow hidden after a literal `#` in an unquoted
+    URL would be missed, but that is a false negative in a shape that does
+    not occur, and it is the safer direction to err for a rule whose job is
+    to fail CI.
+    """
+    line = _QUOTED_SPAN_RE.sub(" ", line)
+    comment = _TRAILING_COMMENT_RE.search(line)
+    return line[: comment.start()] if comment else line
+
+
+def _find_pyproject(start: Path) -> Path | None:
+    """Walk `start.resolve()` and its parents looking for a pyproject.toml."""
+    current = start.resolve()
+    for directory in (current, *current.parents):
+        candidate = directory / "pyproject.toml"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+@functools.lru_cache
+def gate_tasks(pyproject: Path) -> frozenset[str]:
+    """Transitive closure of pixi tasks that `pixi run quality` depends on.
+
+    Returns `frozenset()` on any failure to read/parse the file, or if
+    `GATE_ROOT_TASK` is not declared, so a consumer repo without this task
+    layout gets no findings from `check_swallowed_gate_exit` rather than
+    spurious ones. Follows both a task's `depends-on` list and a single
+    `pixi run [-e <env>] <target>` delegation (the `typecheck ->
+    typecheck-impl` convention used throughout pyproject.toml).
+    """
+    try:
+        with pyproject.open("rb") as f:
+            data = tomllib.load(f)
+    except (OSError, tomllib.TOMLDecodeError):
+        return frozenset()
+
+    tasks = data.get("tool", {}).get("pixi", {}).get("tasks", {})
+    if not isinstance(tasks, dict) or GATE_ROOT_TASK not in tasks:
+        return frozenset()
+
+    seen: set[str] = set()
+    stack = [GATE_ROOT_TASK]
+    while stack:
+        name = stack.pop()
+        if name in seen:
+            continue
+        entry = tasks.get(name)
+        if entry is None:
+            continue
+        seen.add(name)
+
+        cmd: str | None
+        if isinstance(entry, str):
+            cmd = entry
+            depends_on = []
+        elif isinstance(entry, dict):
+            cmd = entry.get("cmd")
+            depends_on = entry.get("depends-on", [])
+        else:
+            continue
+
+        if isinstance(depends_on, list):
+            for dep in depends_on:
+                if isinstance(dep, str):
+                    stack.append(dep)
+                elif isinstance(dep, dict) and isinstance(dep.get("task"), str):
+                    stack.append(dep["task"])
+
+        if isinstance(cmd, str):
+            delegate = _PIXI_RUN_TASK_RE.match(cmd.strip())
+            if delegate and delegate.group(1) in tasks:
+                stack.append(delegate.group(1))
+
+    return frozenset(seen)
 
 
 def check_double_expression_wrap(
@@ -191,20 +317,36 @@ def check_undeclared_inputs(
     if not isinstance(trigger, dict):
         return errors
 
-    workflow_call = trigger.get("workflow_call", {})
-    if not workflow_call:
-        return errors
+    # `workflow_dispatch` inputs are addressed through the same `inputs.`
+    # context (and through `github.event.inputs.`), so a workflow declaring
+    # them only under `workflow_dispatch:` is not referencing anything
+    # undeclared. Consulting `workflow_call` alone reported
+    # cleanup-dev-files.yml's legitimate `github.event.inputs.target_branch`
+    # as an error the moment #279 widened this linter's scope.
+    declared_inputs: set[str] = set()
+    declares_any = False
+    for trigger_name in ("workflow_call", "workflow_dispatch"):
+        trigger_config = trigger.get(trigger_name)
+        if not isinstance(trigger_config, dict):
+            continue
+        inputs_config = trigger_config.get("inputs")
+        if isinstance(inputs_config, dict):
+            declared_inputs |= set(inputs_config.keys())
+            declares_any = True
 
-    declared_inputs = set()
-    inputs_config = workflow_call.get("inputs", {})
-    if isinstance(inputs_config, dict):
-        declared_inputs = set(inputs_config.keys())
+    if not declares_any:
+        return errors
 
     # Find all inputs.* references in the raw text
     input_refs = re.findall(r"inputs\.([a-zA-Z0-9_-]+)", "\n".join(raw_lines))
     for ref in set(input_refs):
         if ref not in declared_inputs:
-            line = _find_line_number(raw_lines, f"inputs.{ref}")
+            # Anchored on a non-name character so a report for
+            # `inputs.target_branch` does not point at the line holding
+            # `inputs.target_branches`.
+            line = _find_line_number_re(
+                raw_lines, rf"inputs\.{re.escape(ref)}(?![\w-])"
+            )
             errors.append(
                 LintError(
                     file=filepath,
@@ -291,6 +433,84 @@ def check_summary_needs_completeness(
     return errors
 
 
+def check_swallowed_gate_exit(
+    filepath: str, raw_lines: list[str], workflow: dict
+) -> list[LintError]:
+    """Detect a quality-gate task whose exit code is swallowed by `|| echo`/`|| true`.
+
+    `pixi run -e quality typecheck || echo "..."` always exits 0, so a mypy
+    failure could not fail this CI step even though `pixi run quality` --
+    which hard-depends on `typecheck` -- fails locally (#278). CI ends up
+    strictly weaker than the local gate it is supposed to mirror.
+
+    `continue-on-error: true` is the sanctioned way to make a step advisory:
+    it is visible in the workflow file and flagged in the job summary. A
+    shell-level `|| echo`/`|| true`/`|| :` swallow is invisible unless a
+    reviewer reads the embedded shell script.
+    """
+    errors: list[LintError] = []
+    pyproject = _find_pyproject(Path(filepath))
+    if pyproject is None:
+        return errors
+    tasks = gate_tasks(pyproject)
+    if not tasks:
+        return errors
+
+    jobs = workflow.get("jobs", {})
+    for job_name, job_config in jobs.items():
+        if not isinstance(job_config, dict):
+            continue
+        steps = job_config.get("steps", [])
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            run_body = step.get("run")
+            if not isinstance(run_body, str):
+                continue
+            step_name = step.get("name", "<unnamed>")
+            reported: set[str] = set()
+
+            for raw_logical_line in _logical_run_lines(run_body):
+                logical_line = _strip_shell_noise(raw_logical_line)
+                swallow_matches = list(_SWALLOW_RE.finditer(logical_line))
+                for pixi_match in _PIXI_RUN_TASK_RE.finditer(logical_line):
+                    task = pixi_match.group(1)
+                    if task not in tasks or task in reported:
+                        continue
+                    swallow_match = next(
+                        (m for m in swallow_matches if m.start() > pixi_match.end()),
+                        None,
+                    )
+                    if swallow_match is None:
+                        continue
+                    reported.add(task)
+                    swallowed_text = swallow_match.group(0).strip()
+                    line = _find_line_number_re(
+                        raw_lines,
+                        rf"pixi\s+run\s+(?:(?:-e|--environment)\s+[\w.-]+\s+)?"
+                        rf"{re.escape(task)}(?![\w.-])",
+                    )
+                    errors.append(
+                        LintError(
+                            file=filepath,
+                            line=line,
+                            rule="swallowed-gate-exit",
+                            message=(
+                                f"Job '{job_name}' step '{step_name}' runs gate task "
+                                f"'{task}' but discards its "
+                                f"exit code with '{swallowed_text}'. The step can "
+                                "never fail, so this gate cannot "
+                                f"fail CI while 'pixi run {GATE_ROOT_TASK}' fails "
+                                "locally. Delete the swallow, or "
+                                "set 'continue-on-error: true' on the step if it is "
+                                "genuinely advisory."
+                            ),
+                        )
+                    )
+
+    return errors
+
+
 ALL_CHECKS = [
     check_double_expression_wrap,
     check_cross_repo_checkout,
@@ -298,6 +518,7 @@ ALL_CHECKS = [
     check_undeclared_inputs,
     check_hardcoded_versions,
     check_summary_needs_completeness,
+    check_swallowed_gate_exit,
 ]
 
 
@@ -331,13 +552,26 @@ def lint_workflow(filepath: str | Path) -> LintResult:
     return result
 
 
+def discover_workflow_files(
+    workflow_dir: str | Path = ".github/workflows",
+) -> list[Path]:
+    """Every workflow file in `workflow_dir`, discovered rather than listed.
+
+    Both suffixes: GitHub accepts `.yml` and `.yaml`. Exposed separately from
+    `lint_all_workflows` so a test can assert the discovered set covers the
+    whole directory (#279) — the hand-maintained six-file list this replaced
+    covered 6 of 18 files and nothing noticed.
+    """
+    workflow_dir = Path(workflow_dir)
+    return sorted(set(workflow_dir.glob("*.yml")) | set(workflow_dir.glob("*.yaml")))
+
+
 def lint_all_workflows(workflow_dir: str | Path = ".github/workflows") -> LintResult:
     """Run all lint checks on all workflow files in a directory."""
-    workflow_dir = Path(workflow_dir)
     combined = LintResult()
 
-    for yml_file in sorted(workflow_dir.glob("*.yml")):
-        file_result = lint_workflow(yml_file)
+    for workflow_file in discover_workflow_files(workflow_dir):
+        file_result = lint_workflow(workflow_file)
         combined.errors.extend(file_result.errors)
 
     return combined

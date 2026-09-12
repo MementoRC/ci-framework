@@ -150,7 +150,7 @@ jobs:
       matrix:
         tier: [essential, extended]
     steps:
-      - uses: actions/checkout@v4  
+      - uses: actions/checkout@v4
       - uses: ./actions/quality-gates
         with:
           tier: ${{ matrix.tier }}
@@ -278,7 +278,7 @@ Adjust timeouts based on project size:
   with:
     timeout: '300'  # 5 minutes
 
-# Large project (> 10000 files)  
+# Large project (> 10000 files)
 - uses: ./actions/quality-gates
   with:
     timeout: '1800'  # 30 minutes
@@ -407,6 +407,6 @@ Submit enhancement requests with:
 
 ---
 
-**API Version**: 1.0.0  
-**Last Updated**: January 2025  
+**API Version**: 1.0.0
+**Last Updated**: January 2025
 **Compatibility**: GitHub Actions v4+, Python 3.10+

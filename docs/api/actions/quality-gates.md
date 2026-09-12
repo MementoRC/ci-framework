@@ -210,7 +210,7 @@ jobs:
 
 ```yaml
 name: Comprehensive Quality
-on: 
+on:
   push:
     branches: [main]
   pull_request:
@@ -224,12 +224,12 @@ jobs:
         python-version: [3.10, 3.11, 3.12]
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      
+
       - name: Quality Gates - ${{ matrix.tier }}
         uses: ./actions/quality-gates
         with:
@@ -296,13 +296,13 @@ jobs:
   run: |
     echo "Quality gates failed: ${{ steps.quality.outputs.failure-reason }}"
     echo "Failed checks: ${{ steps.quality.outputs.failed-checks }}"
-    
+
     # Parse failed checks
     IFS=',' read -ra CHECKS <<< "${{ steps.quality.outputs.failed-checks }}"
     for check in "${CHECKS[@]}"; do
       echo "Failed check: $check"
     done
-    
+
     # Exit with appropriate code
     exit 1
 ```
@@ -343,13 +343,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Quality Gates
         uses: ./actions/quality-gates
         id: quality
         with:
           tier: 'extended'
-      
+
       - name: Security Scan
         if: steps.quality.outputs.success == 'true'
         uses: ./actions/security-scan
@@ -365,12 +365,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Quality Gates
         uses: ./actions/quality-gates
         with:
           tier: 'full'
-      
+
       - name: Performance Benchmarks
         uses: ./actions/performance-benchmark
         with:
@@ -543,6 +543,6 @@ Quality gates include and extend pre-commit functionality:
 
 ---
 
-**Action Version**: 0.0.1  
-**Last Updated**: January 2025  
+**Action Version**: 0.0.1
+**Last Updated**: January 2025
 **Compatibility**: GitHub Actions v4+, Python 3.10+

@@ -121,7 +121,7 @@ jobs:
             --github-output "$GITHUB_OUTPUT"
       - name: Post summary
         if: always()
-        run: cat policy-report.md >> $GITHUB_STEP_SUMMARY
+        run: cat policy-report.md >> "$GITHUB_STEP_SUMMARY"
       - name: Fail on violations
         if: inputs.fail-on-violation && steps.check.outputs.violations > 0
         run: exit 1

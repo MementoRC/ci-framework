@@ -1,3 +1,4 @@
+---
 name: Deploy GitHub Pages
 
 on:
@@ -41,17 +42,19 @@ jobs:
           if [ "$VERSION" = "latest" ]; then
             VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "dev")
           fi
-          echo "# CI Framework ${VERSION}" > _site/index.md
-          echo "" >> _site/index.md
-          echo "## Release Notes" >> _site/index.md
-          echo "" >> _site/index.md
-          echo "This release includes:" >> _site/index.md
-          echo "- Self-Healing CI Infrastructure" >> _site/index.md
-          echo "- Automated CHANGELOG generation" >> _site/index.md
-          echo "- Enhanced documentation" >> _site/index.md
-          echo "" >> _site/index.md
-          echo "---" >> _site/index.md
-          echo "*Deployed: $(date -u)*" >> _site/index.md
+          {
+            echo "# CI Framework ${VERSION}"
+            echo ""
+            echo "## Release Notes"
+            echo ""
+            echo "This release includes:"
+            echo "- Self-Healing CI Infrastructure"
+            echo "- Automated CHANGELOG generation"
+            echo "- Enhanced documentation"
+            echo ""
+            echo "---"
+            echo "*Deployed: $(date -u)*"
+          } > _site/index.md
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5

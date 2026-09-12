@@ -1,7 +1,7 @@
 # 🔄 Existing Project Integration (3-4 Minutes)
 
-> **For**: Python projects with existing code/CI  
-> **Time**: 3-4 minutes  
+> **For**: Python projects with existing code/CI
+> **Time**: 3-4 minutes
 > **Result**: Enhanced CI/CD with framework integration
 
 ## ⏱️ Integration Strategy

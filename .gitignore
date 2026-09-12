@@ -180,7 +180,11 @@ yarn.lock
 
 # Pixi package manager
 .pixi/
-pixi.lock
+# pixi.lock is deliberately NOT ignored. This framework's hygiene job fails any
+# consumer lacking a pixi manifest or lockfile, and docs/ci-workflow-guide.md
+# recommends `pixi install --locked`. Ignoring our own lock meant every CI run
+# re-solved from pyproject.toml, so this repo could never encounter the
+# lock-schema class of bug it ships fixes for (#250). See #257.
 
 # AI Development tools (for cleanup testing)
 .claude/
@@ -199,7 +203,6 @@ debug/
 .cache/
 
 # Security
-.secrets.baseline
 secrets.json
 .env.local
 .env.*.local

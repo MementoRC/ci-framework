@@ -51,15 +51,15 @@ OPTIONS:
 
 SHELL INTEGRATION:
   The script will add aliases and PATH entries to your shell configuration:
-  
+
   Aliases added:
     local-ci           = local-quality-gates.sh
-    lci                = local-quality-gates.sh  
+    lci                = local-quality-gates.sh
     selective-ci       = selective-ci.sh
     sci                = selective-ci.sh
     monorepo-ci        = monorepo-ci.sh
     mci                = monorepo-ci.sh
-    
+
   PATH addition:
     $SCRIPT_DIR added to PATH for direct script execution
 
@@ -80,7 +80,7 @@ EOF
 parse_script_args() {
     FORCE=0
     UNINSTALL=0
-    
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             -a|--aliases)
@@ -144,10 +144,10 @@ detect_shell_config() {
         echo "$SHELL_CONFIG"
         return 0
     fi
-    
+
     local shell_name
     shell_name=$(basename "${SHELL:-bash}")
-    
+
     case "$shell_name" in
         bash)
             for config in ~/.bashrc ~/.bash_profile ~/.profile; do
@@ -184,67 +184,67 @@ detect_shell_config() {
 # Check if local CI is already configured
 is_already_configured() {
     local config_file="$1"
-    
+
     if [[ ! -f "$config_file" ]]; then
         return 1
     fi
-    
+
     grep -q "# Local CI Setup" "$config_file" 2>/dev/null
 }
 
 # Remove existing configuration
 remove_configuration() {
     local config_file="$1"
-    
+
     if [[ ! -f "$config_file" ]]; then
         log_info "No configuration found in $config_file"
         return 0
     fi
-    
+
     log_info "Removing Local CI configuration from $config_file..."
-    
+
     # Create backup
     local backup_file="${config_file}.backup.$(date +%Y%m%d_%H%M%S)"
     cp "$config_file" "$backup_file"
     log_info "Created backup: $backup_file"
-    
+
     # Remove Local CI configuration block
     sed -i '/# Local CI Setup - Start/,/# Local CI Setup - End/d' "$config_file"
-    
+
     log_success "Configuration removed from $config_file"
 }
 
 # Add configuration to shell
 add_shell_configuration() {
     local config_file="$1"
-    
+
     if is_already_configured "$config_file" && [[ "$FORCE" == "0" ]]; then
         log_warning "Local CI already configured in $config_file (use --force to overwrite)"
         return 0
     fi
-    
+
     log_info "Adding Local CI configuration to $config_file..."
-    
+
     # Create backup if file exists
     if [[ -f "$config_file" ]]; then
         local backup_file="${config_file}.backup.$(date +%Y%m%d_%H%M%S)"
         cp "$config_file" "$backup_file"
         log_debug "Created backup: $backup_file"
     fi
-    
+
     # Remove existing configuration if present
     if is_already_configured "$config_file"; then
         sed -i '/# Local CI Setup - Start/,/# Local CI Setup - End/d' "$config_file"
         log_debug "Removed existing Local CI configuration"
     fi
-    
+
     # Detect shell type for appropriate syntax
     local shell_name
     shell_name=$(basename "${SHELL:-bash}")
-    
+
     # Generate configuration block
     local config_block=""
-    
+
     if [[ "$shell_name" == "fish" ]]; then
         # Fish shell configuration
         config_block="# Local CI Setup - Start
@@ -253,7 +253,7 @@ add_shell_configuration() {
 # Local CI Scripts PATH
 set -gx PATH \"$SCRIPT_DIR\" \$PATH
 "
-        
+
         if [[ "$INSTALL_ALIASES" == "1" ]]; then
             config_block+="
 # Local CI Aliases
@@ -265,7 +265,7 @@ alias monorepo-ci='$SCRIPT_DIR/monorepo-ci.sh'
 alias mci='$SCRIPT_DIR/monorepo-ci.sh'
 "
         fi
-        
+
         config_block+="
 # Local CI Setup - End
 "
@@ -274,14 +274,14 @@ alias mci='$SCRIPT_DIR/monorepo-ci.sh'
         config_block="# Local CI Setup - Start
 # Added by local CI setup script on $(date)
 "
-        
+
         if [[ "$ADD_TO_PATH" == "1" ]]; then
             config_block+="
 # Local CI Scripts PATH
 export PATH=\"$SCRIPT_DIR:\$PATH\"
 "
         fi
-        
+
         if [[ "$INSTALL_ALIASES" == "1" ]]; then
             config_block+="
 # Local CI Aliases
@@ -293,12 +293,12 @@ alias monorepo-ci='$SCRIPT_DIR/monorepo-ci.sh'
 alias mci='$SCRIPT_DIR/monorepo-ci.sh'
 "
         fi
-        
+
         config_block+="
 # Local CI Setup - End
 "
     fi
-    
+
     # Add configuration to file
     if [[ "$DRY_RUN" == "1" ]]; then
         log_info "[DRY RUN] Would add to $config_file:"
@@ -314,9 +314,9 @@ create_symlinks() {
     if [[ "$CREATE_SYMLINKS" == "0" ]]; then
         return 0
     fi
-    
+
     log_info "Creating symlinks in /usr/local/bin..."
-    
+
     local symlink_dir="/usr/local/bin"
     local scripts=(
         "local-quality-gates.sh:local-ci"
@@ -324,18 +324,18 @@ create_symlinks() {
         "monorepo-ci.sh:monorepo-ci"
         "package-detection.py:package-detection"
     )
-    
+
     for script_mapping in "${scripts[@]}"; do
         local script_name="${script_mapping%:*}"
         local symlink_name="${script_mapping#*:}"
         local script_path="$SCRIPT_DIR/$script_name"
         local symlink_path="$symlink_dir/$symlink_name"
-        
+
         if [[ ! -f "$script_path" ]]; then
             log_warning "Script not found: $script_path"
             continue
         fi
-        
+
         if [[ -L "$symlink_path" ]] || [[ -f "$symlink_path" ]]; then
             if [[ "$FORCE" == "1" ]]; then
                 log_info "Removing existing symlink: $symlink_path"
@@ -347,35 +347,35 @@ create_symlinks() {
                 continue
             fi
         fi
-        
+
         log_info "Creating symlink: $symlink_path -> $script_path"
         if [[ "$DRY_RUN" == "0" ]]; then
             sudo ln -s "$script_path" "$symlink_path"
         fi
     done
-    
+
     log_success "Symlinks created in $symlink_dir"
 }
 
 # Remove symlinks
 remove_symlinks() {
     log_info "Removing symlinks from /usr/local/bin..."
-    
+
     local symlink_dir="/usr/local/bin"
     local symlinks=(
         "local-ci"
-        "selective-ci" 
+        "selective-ci"
         "monorepo-ci"
         "package-detection"
     )
-    
+
     for symlink_name in "${symlinks[@]}"; do
         local symlink_path="$symlink_dir/$symlink_name"
-        
+
         if [[ -L "$symlink_path" ]]; then
             local target
             target=$(readlink "$symlink_path")
-            
+
             if [[ "$target" == "$SCRIPT_DIR"* ]]; then
                 log_info "Removing symlink: $symlink_path"
                 if [[ "$DRY_RUN" == "0" ]]; then
@@ -393,11 +393,11 @@ validate_installation() {
     if [[ "$VALIDATE_ENVIRONMENT" == "0" ]]; then
         return 0
     fi
-    
+
     log_info "Validating Local CI installation..."
-    
+
     local validation_errors=()
-    
+
     # Check script permissions
     for script in package-detection.py common.sh local-quality-gates.sh selective-ci.sh monorepo-ci.sh; do
         local script_path="$SCRIPT_DIR/$script"
@@ -407,33 +407,33 @@ validate_installation() {
             validation_errors+=("Script not executable: $script_path")
         fi
     done
-    
+
     # Check Python availability
     if ! command_exists python3; then
         validation_errors+=("python3 not found in PATH")
     fi
-    
+
     # Check jq availability (needed for JSON processing)
     if ! command_exists jq; then
         validation_errors+=("jq not found in PATH (required for package detection)")
     fi
-    
+
     # Test package detection
     local temp_file
     temp_file=$(mktemp)
-    
+
     if python3 "$SCRIPT_DIR/package-detection.py" --root-dir "$PROJECT_ROOT" > "$temp_file" 2>/dev/null; then
         log_debug "Package detection test: PASSED"
     else
         validation_errors+=("Package detection test failed")
     fi
-    
+
     rm -f "$temp_file"
-    
+
     # Report validation results
     if [[ ${#validation_errors[@]} -eq 0 ]]; then
         log_success "Installation validation passed"
-        
+
         # Show usage examples
         echo
         log_info "Local CI is ready! Try these commands:"
@@ -441,14 +441,14 @@ validate_installation() {
         log_info "  selective-ci --changed-only  # Run CI on changed packages only"
         log_info "  monorepo-ci --tier extended  # Run extended tier on all packages"
         log_info "  package-detection --help     # Show package detection options"
-        
+
         return 0
     else
         log_error "Installation validation failed:"
         for error in "${validation_errors[@]}"; do
             log_error "  - $error"
         done
-        
+
         return 2
     fi
 }
@@ -457,10 +457,10 @@ validate_installation() {
 show_post_install() {
     echo
     log_info "=== POST-INSTALLATION INSTRUCTIONS ==="
-    
+
     local config_file
     config_file=$(detect_shell_config)
-    
+
     if [[ "$ADD_TO_PATH" == "1" ]] || [[ "$INSTALL_ALIASES" == "1" ]]; then
         log_info "Shell configuration updated: $config_file"
         log_info "To use Local CI in this session, run:"
@@ -468,12 +468,12 @@ show_post_install() {
         echo
         log_info "Or restart your terminal to automatically load the configuration."
     fi
-    
+
     if [[ "$CREATE_SYMLINKS" == "1" ]]; then
         log_info "System-wide symlinks created in /usr/local/bin"
         log_info "Local CI commands are now available globally."
     fi
-    
+
     echo
     log_info "Quick Start:"
     log_info "  cd your-project-directory"
@@ -485,15 +485,15 @@ show_post_install() {
 # Uninstall local CI
 uninstall_local_ci() {
     log_info "Uninstalling Local CI setup..."
-    
+
     # Remove shell configuration
     local config_file
     config_file=$(detect_shell_config)
     remove_configuration "$config_file"
-    
+
     # Remove symlinks
     remove_symlinks
-    
+
     log_success "Local CI setup removed"
     log_info "Shell configuration backed up with .backup suffix"
     log_info "You may need to restart your terminal for changes to take effect"
@@ -504,16 +504,16 @@ main() {
     # Parse arguments
     parse_args "$(basename "$0")" "$@"
     parse_script_args "$@"
-    
+
     # Show header
     show_header "Local CI Setup" "One-command installation and configuration"
-    
+
     # Handle uninstall
     if [[ "$UNINSTALL" == "1" ]]; then
         uninstall_local_ci
         exit 0
     fi
-    
+
     # Show configuration
     if [[ "$VERBOSE" == "1" ]]; then
         log_info "Setup Configuration:"
@@ -524,31 +524,31 @@ main() {
         log_info "  Force Overwrite: $([[ "$FORCE" == "1" ]] && echo "enabled" || echo "disabled")"
         echo
     fi
-    
+
     # Detect shell configuration
     local config_file
     config_file=$(detect_shell_config)
     log_info "Using shell configuration: $config_file"
-    
+
     # Install shell configuration
     if [[ "$INSTALL_ALIASES" == "1" ]] || [[ "$ADD_TO_PATH" == "1" ]]; then
         add_shell_configuration "$config_file"
     fi
-    
+
     # Create symlinks if requested
     create_symlinks
-    
+
     # Validate installation
     if ! validate_installation; then
         log_error "Installation validation failed"
         exit 2
     fi
-    
+
     # Show post-installation instructions
     if [[ "$DRY_RUN" == "0" ]]; then
         show_post_install
     fi
-    
+
     log_success "Local CI setup completed successfully!"
 }
 

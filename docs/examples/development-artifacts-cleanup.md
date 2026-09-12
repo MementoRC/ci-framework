@@ -119,7 +119,7 @@ Edit the `files_to_remove` array in the workflow:
 ```bash
 files_to_remove=(
   # ... existing patterns ...
-  
+
   # Your custom patterns
   "custom-dev-dir"
   "*.custom-ext"

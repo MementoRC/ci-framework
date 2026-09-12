@@ -38,7 +38,7 @@ updates:
       # Add project-specific ignore patterns here
       {{ ignore_patterns | default('') }}
 
-  # GitHub Actions dependencies  
+  # GitHub Actions dependencies
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

@@ -26,7 +26,8 @@ def test_end_to_end_formatting_fix_ruff(temp_dir):
     """
     # Create a Python file with formatting issues
     test_file = temp_dir / "test_file.py"
-    test_file.write_text("""# File with formatting issues
+    test_file.write_text(
+        """# File with formatting issues
 def hello(  ):
     x=1
     y =  2
@@ -34,7 +35,8 @@ def hello(  ):
 
 def  another_function( a, b ):
     return a+b
-""")
+"""
+    )
 
     # Mock git operations since we can't use real git in this environment
     with patch("subprocess.run") as mock_run:
@@ -102,11 +104,13 @@ def test_end_to_end_formatting_fix_black(temp_dir):
     """
     # Create a Python file with formatting issues
     test_file = temp_dir / "poorly_formatted.py"
-    test_file.write_text("""def hello():
+    test_file.write_text(
+        """def hello():
     x=1+2
     y=3  +4
     return x,y
-""")
+"""
+    )
 
     # Mock git operations
     with patch("subprocess.run") as mock_run:
@@ -169,9 +173,11 @@ def test_end_to_end_formatting_fix_syntax_error_rollback(temp_dir):
     """
     # Create a Python file that will have syntax errors after "fixing"
     test_file = temp_dir / "syntax_error.py"
-    test_file.write_text("""def hello():
+    test_file.write_text(
+        """def hello():
     return "valid syntax"
-""")
+"""
+    )
 
     # Create an invalid file that the formatter would "fix" to be broken
     invalid_file = temp_dir / "broken.py"

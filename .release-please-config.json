@@ -1,27 +1,85 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "release-type": "python",
-  "include-component-in-tag": false,
-  "include-v-in-tag": true,
-  "versioning-strategy": "default",
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
+  "extra-files": [
+    {
+      "path": ".github/workflows/reusable-ci.yml",
+      "type": "generic"
+    },
+    {
+      "path": ".github/workflows/reusable-security.yml",
+      "type": "generic"
+    },
+    {
+      "path": ".github/workflows/self-healing.yml",
+      "type": "generic"
+    }
+  ],
+  "include-component-in-tag": false,
+  "include-v-in-tag": true,
   "packages": {
     ".": {
-      "package-name": "ci-framework",
       "changelog-sections": [
-        {"type": "feat", "section": "🚀 Features", "hidden": false},
-        {"type": "fix", "section": "🐛 Bug Fixes", "hidden": false},
-        {"type": "docs", "section": "📚 Documentation", "hidden": false},
-        {"type": "chore", "section": "🔧 Maintenance", "hidden": false},
-        {"type": "refactor", "section": "♻️ Code Refactoring", "hidden": false},
-        {"type": "perf", "section": "⚡ Performance Improvements", "hidden": false},
-        {"type": "test", "section": "🧪 Tests", "hidden": false},
-        {"type": "ci", "section": "👷 CI/CD", "hidden": false},
-        {"type": "build", "section": "📦 Build System", "hidden": false},
-        {"type": "style", "section": "💄 Styling", "hidden": true},
-        {"type": "revert", "section": "⏪ Reverts", "hidden": false}
-      ]
+        {
+          "hidden": false,
+          "section": "\ud83d\ude80 Features",
+          "type": "feat"
+        },
+        {
+          "hidden": false,
+          "section": "\ud83d\udc1b Bug Fixes",
+          "type": "fix"
+        },
+        {
+          "hidden": false,
+          "section": "\ud83d\udcda Documentation",
+          "type": "docs"
+        },
+        {
+          "hidden": false,
+          "section": "\ud83d\udd27 Maintenance",
+          "type": "chore"
+        },
+        {
+          "hidden": false,
+          "section": "\u267b\ufe0f Code Refactoring",
+          "type": "refactor"
+        },
+        {
+          "hidden": false,
+          "section": "\u26a1 Performance Improvements",
+          "type": "perf"
+        },
+        {
+          "hidden": false,
+          "section": "\ud83e\uddea Tests",
+          "type": "test"
+        },
+        {
+          "hidden": false,
+          "section": "\ud83d\udc77 CI/CD",
+          "type": "ci"
+        },
+        {
+          "hidden": false,
+          "section": "\ud83d\udce6 Build System",
+          "type": "build"
+        },
+        {
+          "hidden": true,
+          "section": "\ud83d\udc84 Styling",
+          "type": "style"
+        },
+        {
+          "hidden": false,
+          "section": "\u23ea Reverts",
+          "type": "revert"
+        }
+      ],
+      "package-name": "ci-framework"
     }
-  }
+  },
+  "release-type": "python",
+  "versioning-strategy": "default"
 }

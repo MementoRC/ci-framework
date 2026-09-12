@@ -586,10 +586,12 @@ class PerformanceBenchmarkAction:
             baseline_results = self.load_baseline_results(baseline_dir)
 
             if baseline_results:
-                regression_detected, regression_analyses, max_regression = (
-                    self.analyze_regression(
-                        benchmark_results, baseline_results, regression_threshold
-                    )
+                (
+                    regression_detected,
+                    regression_analyses,
+                    max_regression,
+                ) = self.analyze_regression(
+                    benchmark_results, baseline_results, regression_threshold
                 )
 
                 regression_percentage = max_regression

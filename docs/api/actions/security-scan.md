@@ -321,7 +321,7 @@ jobs:
         level: [medium, high, critical]
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Security Scan - ${{ matrix.level }}
         uses: ./actions/security-scan
         with:
@@ -342,7 +342,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Basic Security (Bandit + Safety)
         uses: ./actions/security-scan
         with:
@@ -352,7 +352,7 @@ jobs:
           enable-pip-audit: 'false'
           enable-semgrep: 'false'
           enable-trivy: 'false'
-      
+
       - name: Advanced Security (Add Semgrep)
         if: github.ref == 'refs/heads/main'
         uses: ./actions/security-scan
@@ -360,7 +360,7 @@ jobs:
           security-level: 'high'
           enable-semgrep: 'true'
           enable-trivy: 'false'
-      
+
       - name: Enterprise Security (Full Suite)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: ./actions/security-scan
@@ -381,14 +381,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Security Scan
         uses: ./actions/security-scan
         id: security
         with:
           security-level: 'high'
           sarif-upload: 'true'
-      
+
       - name: Upload SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@v2
         if: always() && steps.security.outputs.sarif-file != ''
@@ -415,11 +415,11 @@ jobs:
     echo "High: ${{ steps.security.outputs.high-vulnerabilities }}"
     echo "Medium: ${{ steps.security.outputs.medium-vulnerabilities }}"
     echo "Tools executed: ${{ steps.security.outputs.tools-executed }}"
-    
+
     if [[ "${{ steps.security.outputs.failed-tools }}" != "" ]]; then
       echo "Failed tools: ${{ steps.security.outputs.failed-tools }}"
     fi
-    
+
     # Fail job if critical vulnerabilities found
     if [[ "${{ steps.security.outputs.critical-vulnerabilities }}" -gt "0" ]]; then
       echo "❌ Critical vulnerabilities found - failing job"
@@ -473,13 +473,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Quality Gates
         uses: ./actions/quality-gates
         id: quality
         with:
           tier: 'extended'
-      
+
       - name: Security Scan
         if: steps.quality.outputs.success == 'true'
         uses: ./actions/security-scan
@@ -529,7 +529,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Critical Security Scan
         uses: ./actions/security-scan
         with:
@@ -538,7 +538,7 @@ jobs:
           sbom-generation: 'true'
           sarif-upload: 'true'
           timeout: '1800'  # 30 minutes for comprehensive scan
-      
+
       - name: Upload SBOM for Compliance
         uses: actions/upload-artifact@v3
         with:
@@ -605,7 +605,7 @@ ignore_ids = ["12345", "67890"]  # Ignore specific CVEs
     security-level: 'medium'
     timeout: '300'
     parallel: 'true'
-    
+
     # Large project
     # security-level: 'high'
     # timeout: '1800'
@@ -672,6 +672,6 @@ ignore_ids = ["12345", "67890"]  # Ignore specific CVEs
 
 ---
 
-**Action Version**: 0.0.1  
-**Last Updated**: January 2025  
+**Action Version**: 0.0.1
+**Last Updated**: January 2025
 **Compatibility**: GitHub Actions v4+, Python 3.10+

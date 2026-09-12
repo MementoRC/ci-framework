@@ -11,7 +11,7 @@
 #
 # Tiers:
 #   essential  - Fast critical checks (tests, lint, typecheck) - 5min timeout
-#   extended   - Essential + security scans - 10min timeout  
+#   extended   - Essential + security scans - 10min timeout
 #   full       - Extended + reports and analysis - 15min timeout
 #
 # Exit Codes:
@@ -40,7 +40,7 @@ Execute local quality gates with tier-based validation.
 
 TIERS:
   essential     Fast critical checks (tests, lint, typecheck)
-  extended      Essential + security scans  
+  extended      Essential + security scans
   full          Extended + comprehensive reports and analysis
 
 OPTIONS:
@@ -65,7 +65,7 @@ EXAMPLES:
 
 Exit Codes:
   0   All quality gates passed
-  1   Quality gate failures detected  
+  1   Quality gate failures detected
   2   Configuration or environment error
   130 Interrupted by user
 
@@ -79,7 +79,7 @@ parse_script_args() {
     PACKAGE_PATH=""
     TIMEOUT=""
     NO_COLOR=0
-    
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             -t|--tier)
@@ -137,27 +137,27 @@ parse_script_args() {
                 ;;
         esac
     done
-    
+
     # Disable colors if requested
     if [[ "$NO_COLOR" == "1" ]]; then
         RED="" GREEN="" YELLOW="" BLUE="" PURPLE="" CYAN="" NC=""
     fi
-    
+
     # Validate tier
     if [[ ! "$TIER" =~ ^(essential|extended|full)$ ]]; then
         die "Invalid tier: $TIER. Must be one of: essential, extended, full"
     fi
-    
+
     # Set default timeout if not specified
     if [[ -z "$TIMEOUT" ]]; then
         TIMEOUT=$(get_tier_timeout "$TIER")
     fi
-    
+
     # Set package path to current directory if not specified
     if [[ -z "$PACKAGE_PATH" ]]; then
         PACKAGE_PATH="$PWD"
     fi
-    
+
     # Convert to absolute path
     PACKAGE_PATH="$(cd "$PACKAGE_PATH" && pwd)"
 }
@@ -165,15 +165,15 @@ parse_script_args() {
 # Detect packages to process
 detect_packages() {
     log_info "Detecting packages in $PACKAGE_PATH..."
-    
+
     local temp_file
     temp_file=$(mktemp)
-    
+
     if ! python3 "$SCRIPT_DIR/package-detection.py" --root-dir "$PACKAGE_PATH" > "$temp_file" 2>/dev/null; then
         rm -f "$temp_file"
         die "No packages detected in $PACKAGE_PATH"
     fi
-    
+
     log_debug "Package detection output saved to $temp_file"
     echo "$temp_file"
 }
@@ -182,7 +182,7 @@ detect_packages() {
 get_quality_commands() {
     local pkg_type="$1"
     local tier="$2"
-    
+
     case "$pkg_type" in
         pixi)
             case "$tier" in
@@ -248,9 +248,9 @@ execute_quality_command() {
     local command="$2"
     local package_dir="$3"
     local package_name="$4"
-    
+
     log_step_start="$(date +%s)"
-    
+
     case "$pkg_type" in
         pixi)
             log_info "[$package_name] Running: pixi run $command"
@@ -285,7 +285,7 @@ execute_quality_command() {
             (cd "$package_dir" && run_with_timeout "$TIMEOUT" python -m "$command")
             ;;
     esac
-    
+
     local duration=$(($(date +%s) - log_step_start))
     log_success "[$package_name] Completed $command in ${duration}s"
 }
@@ -294,48 +294,48 @@ execute_quality_command() {
 process_package() {
     local package_info="$1"
     local tier="$2"
-    
+
     local pkg_name pkg_type pkg_path pkg_dir
     pkg_name=$(echo "$package_info" | jq -r '.name')
     pkg_type=$(echo "$package_info" | jq -r '.type')
     pkg_path=$(echo "$package_info" | jq -r '.path')
     pkg_dir=$(echo "$package_info" | jq -r '.absolute_path')
-    
+
     log_info "Processing package: $pkg_name ($pkg_type) at $pkg_path"
-    
+
     # Check if package manager is available
     check_package_manager "$pkg_type"
-    
+
     # Get commands for this tier
     local commands
     commands=$(get_quality_commands "$pkg_type" "$tier")
-    
+
     if [[ -z "$commands" ]]; then
         log_warning "No commands defined for $pkg_type with tier $tier"
         return 0
     fi
-    
+
     # Execute commands
     local failed_commands=()
     local total_commands
     total_commands=$(echo "$commands" | wc -w)
     local current_command=1
-    
+
     for command in $commands; do
         log_step "$current_command" "$total_commands" "Executing $command for $pkg_name"
-        
+
         if ! execute_quality_command "$pkg_type" "$command" "$pkg_dir" "$pkg_name"; then
             failed_commands+=("$command")
             log_error "[$pkg_name] Command failed: $command"
-            
+
             if [[ "$FAIL_FAST" == "1" ]]; then
                 die "Failing fast due to error in $pkg_name:$command"
             fi
         fi
-        
+
         ((current_command++))
     done
-    
+
     if [[ ${#failed_commands[@]} -gt 0 ]]; then
         log_error "[$pkg_name] Failed commands: ${failed_commands[*]}"
         return 1
@@ -349,51 +349,51 @@ process_package() {
 process_packages() {
     local packages_file="$1"
     local tier="$2"
-    
+
     local failed_packages=()
     local processed_packages=0
     local total_packages=0
-    
+
     # Count total packages
     for pkg_type in $(jq -r 'keys[]' "$packages_file"); do
         local count
         count=$(jq -r ".[\"$pkg_type\"] | length" "$packages_file")
         total_packages=$((total_packages + count))
     done
-    
+
     if [[ "$total_packages" -eq 0 ]]; then
         die "No packages found to process"
     fi
-    
+
     log_info "Processing $total_packages package(s) with tier: $tier"
     log_info "Timeout: ${TIMEOUT}s, Parallel: $([[ "$PARALLEL" == "1" ]] && echo "enabled" || echo "disabled"), Fail-fast: $([[ "$FAIL_FAST" == "1" ]] && echo "enabled" || echo "disabled")"
     echo
-    
+
     # Process each package type
     for pkg_type in $(jq -r 'keys[]' "$packages_file"); do
         local packages
         packages=$(jq -c ".[\"$pkg_type\"][]" "$packages_file")
-        
+
         for package in $packages; do
             ((processed_packages++))
-            
+
             local pkg_name
             pkg_name=$(echo "$package" | jq -r '.name')
-            
+
             log_info "=== Package $processed_packages/$total_packages: $pkg_name ==="
-            
+
             if ! process_package "$package" "$tier"; then
                 failed_packages+=("$pkg_name")
-                
+
                 if [[ "$FAIL_FAST" == "1" ]]; then
                     die "Stopping due to failure in package: $pkg_name"
                 fi
             fi
-            
+
             echo
         done
     done
-    
+
     # Report results
     if [[ ${#failed_packages[@]} -gt 0 ]]; then
         log_error "Quality gates failed for ${#failed_packages[@]} package(s): ${failed_packages[*]}"
@@ -409,13 +409,13 @@ main() {
     # Parse arguments
     parse_args "$(basename "$0")" "$@"
     parse_script_args "$@"
-    
+
     # Show header
     show_header "Quality Gates" "Local tier-based quality validation"
-    
+
     # Validate environment
     validate_environment
-    
+
     # Show configuration
     if [[ "$VERBOSE" == "1" ]]; then
         log_info "Configuration:"
@@ -427,18 +427,18 @@ main() {
         log_info "  Dry Run: $([[ "$DRY_RUN" == "1" ]] && echo "enabled" || echo "disabled")"
         echo
     fi
-    
+
     # Detect packages
     local packages_file
     packages_file=$(detect_packages)
-    
+
     # Ensure cleanup
     trap "cleanup_temp_dir $(dirname "$packages_file")" EXIT
-    
+
     # Process packages
     local start_time
     start_time=$(date +%s)
-    
+
     if process_packages "$packages_file" "$TIER"; then
         local duration=$(($(date +%s) - start_time))
         log_success "Local quality gates completed successfully in ${duration}s"

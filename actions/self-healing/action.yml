@@ -1,3 +1,4 @@
+---
 name: "Self-Healing CI Action"
 description: "Analyzes CI failures, applies automated fixes, and safely rolls back if needed."
 
@@ -19,6 +20,11 @@ inputs:
     required: false
     default: "dev"
 
+  pixi-version:
+    description: "Pixi CLI version for setup-pixi (binary version, not the action tag). Must support the consumer lockfile schema: pixi >= v0.68.0 is required for pixi.lock schema v7."
+    required: false
+    default: "v0.74.0"
+
 outputs:
   healed:
     description: "Whether a fix was successfully applied"
@@ -38,17 +44,17 @@ runs:
     - name: Install PIXI
       uses: prefix-dev/setup-pixi@v0.8.13
       with:
-        pixi-version: v0.74.0
+        pixi-version: ${{ inputs.pixi-version }}
         cache: false
-        
+
     - name: Install dependencies
       run: |
-        pixi install -e ${{ inputs.pixi-environment }}
+        pixi install -e "${{ inputs.pixi-environment }}"
       shell: bash
 
     - name: Run Self-Healing Engine
       run: |
-        pixi run -e ${{ inputs.pixi-environment }} python -m framework.self_healing.engine \
+        pixi run -e "${{ inputs.pixi-environment }}" python -m framework.self_healing.engine \
           --config "${{ inputs.config }}" \
           --project-dir "${{ inputs.project-dir }}" \
           --timeout-minutes "${{ inputs.timeout-minutes }}"
@@ -57,8 +63,10 @@ runs:
     - name: Set outputs
       id: set-outputs
       run: |
-        echo "healed=$(cat .self_healing_status | grep healed | cut -d'=' -f2)" >> $GITHUB_OUTPUT
-        echo "rollback=$(cat .self_healing_status | grep rollback | cut -d'=' -f2)" >> $GITHUB_OUTPUT
-        echo "error=$(cat .self_healing_status | grep error | cut -d'=' -f2-)" >> $GITHUB_OUTPUT
+        {
+          echo "healed=$(grep healed .self_healing_status | cut -d'=' -f2)"
+          echo "rollback=$(grep rollback .self_healing_status | cut -d'=' -f2)"
+          echo "error=$(grep error .self_healing_status | cut -d'=' -f2-)"
+        } >> "$GITHUB_OUTPUT"
       shell: bash
       if: always()

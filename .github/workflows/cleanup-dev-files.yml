@@ -105,10 +105,10 @@ jobs:
         id: branch-check
         run: |
           if git ls-remote --heads origin ${{ matrix.branch }} | grep -q ${{ matrix.branch }}; then
-            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "exists=true" >> "$GITHUB_OUTPUT"
             echo "✅ Branch ${{ matrix.branch }} exists"
           else
-            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "⏭️ Branch ${{ matrix.branch }} does not exist, skipping"
           fi
 
@@ -180,47 +180,59 @@ jobs:
 
       - name: Setup GPG for signing
         if: steps.branch-check.outputs.exists == 'true'
+        # Secrets arrive via env:, not interpolated into the script body, which
+        # would render the private key into the executed script text. Not yet
+        # switched to .github/actions/gpg-signing-setup because this is a
+        # reusable workflow: a ./-relative action resolves against the caller's
+        # checkout, and the pinned remote form would dangle until a release cuts
+        # (.release-please-config.json does not track this file). See #258.
+        env:
+          CI_BOT_GPG_KEY: ${{ secrets.CI_BOT_GPG_KEY }}
+          CI_BOT_GPG_KEY_ID: ${{ secrets.CI_BOT_GPG_KEY_ID }}
         run: |
           # Import bot GPG private key for commit signing (passphrase-less key)
-          echo "${{ secrets.CI_BOT_GPG_KEY }}" | gpg --import --batch --yes
+          printf '%s\n' "$CI_BOT_GPG_KEY" | gpg --import --batch --yes
           gpg --list-secret-keys  # Verify import worked
-          
+
           # Configure GPG for non-interactive CI environment
           mkdir -p ~/.gnupg
           chmod 700 ~/.gnupg
-          
+
           # GPG configuration for non-interactive operation
-          cat > ~/.gnupg/gpg.conf << EOF
+          cat > ~/.gnupg/gpg.conf << 'EOF'
           use-agent
           pinentry-mode loopback
           batch
           no-tty
           EOF
-          
+
           # Set proper permissions
           chmod 600 ~/.gnupg/gpg.conf
-          
+
           # Set ultimate trust for the bot key
-          echo "${{ secrets.CI_BOT_GPG_KEY_ID }}:6:" | gpg --import-ownertrust
-          
+          printf '%s:6:\n' "$CI_BOT_GPG_KEY_ID" | gpg --import-ownertrust
+
           echo "Bot GPG key imported and configured for CI signing"
 
       - name: Commit cleanup if files were removed
         if: steps.branch-check.outputs.exists == 'true'
+        env:
+          CI_BOT_GPG_KEY_ID: ${{ secrets.CI_BOT_GPG_KEY_ID }}
+          CI_BOT_TOKEN: ${{ secrets.CI_BOT_TOKEN }}
         run: |
-          # Use CI bot account with GPG signing capability  
+          # Use CI bot account with GPG signing capability
           git config user.name "ci-framework-bot"
           git config user.email "223036950+CIFrameworkBot@users.noreply.github.com"
-          git config user.signingkey "${{ secrets.CI_BOT_GPG_KEY_ID }}"
+          git config user.signingkey "$CI_BOT_GPG_KEY_ID"
           git config commit.gpgsign true
           git config gpg.program gpg
 
           # Configure git to use the bot token for authentication
-          git_token_url="https://x-access-token:${{ secrets.CI_BOT_TOKEN }}@github.com/"
+          git_token_url="https://x-access-token:$CI_BOT_TOKEN@github.com/"
           git config --global url."${git_token_url}".insteadOf "https://github.com/"
 
           # Configure GitHub CLI token
-          export GH_TOKEN="${{ secrets.CI_BOT_TOKEN }}"
+          export GH_TOKEN="$CI_BOT_TOKEN"
 
           # Check if there are any changes
           if [[ -n $(git status --porcelain) ]]; then
@@ -245,7 +257,7 @@ jobs:
               Workflow: ${{ github.event_name == 'workflow_call' && inputs.workflow_name || 'CI Framework Cleanup' }}
 
               Files removed: ${removed_files}
-              
+
               🤖 Automated cleanup by ci-framework-bot with verified signature"
 
             # Push cleanup branch
@@ -307,11 +319,11 @@ jobs:
             fi
 
             # Output summary
-            echo "## Cleanup Summary for ${{ matrix.branch }}" >> $GITHUB_STEP_SUMMARY
-            echo "Removed development artifacts and committed cleanup." >> $GITHUB_STEP_SUMMARY
+            echo "## Cleanup Summary for ${{ matrix.branch }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "Removed development artifacts and committed cleanup." >> "$GITHUB_STEP_SUMMARY"
 
           else
             echo "✅ No development artifacts found to cleanup in ${{ matrix.branch }}"
-            echo "## Cleanup Summary for ${{ matrix.branch }}" >> $GITHUB_STEP_SUMMARY
-            echo "Branch is already clean - no development artifacts found." >> $GITHUB_STEP_SUMMARY
+            echo "## Cleanup Summary for ${{ matrix.branch }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "Branch is already clean - no development artifacts found." >> "$GITHUB_STEP_SUMMARY"
           fi
