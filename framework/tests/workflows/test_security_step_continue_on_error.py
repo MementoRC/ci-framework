@@ -20,15 +20,15 @@ The pixi-manifest and ci.yml parsing primitives live in
 `framework/tests/utils/pixi_meta.py`, shared with `test_yaml_lint_scope.py`
 and `test_workflow_lint_scope.py`.
 
-`_KNOWN_UNFIXED` below is a DOCUMENTED, tracked exception to the rule above:
-the pip-audit and Bandit steps in `security-scan` still carry
-`continue-on-error: true` because, unlike the detect-secrets step #288 fixed,
-they each fail for a real, pre-existing reason today (bandit: one High B602
-finding at `framework/actions/quality_gates.py:250`; pip-audit: transitive
-CVEs in current dependencies) and un-exempting them without fixing those
-findings would just break CI. This is a hole, not a design choice - tracked
-by issue #301. Closing #301 means fixing those findings and deleting the
-`_KNOWN_UNFIXED` entries, not widening them.
+`_KNOWN_UNFIXED` below is a DOCUMENTED, tracked exemption mechanism for this
+guard - currently empty. Issue #301 tracked the pip-audit and Bandit steps in
+`security-scan` carrying `continue-on-error: true` for a real, pre-existing
+reason (bandit: one High B602 finding at
+`framework/actions/quality_gates.py:250`; pip-audit: transitive CVEs in
+current dependencies); both findings were fixed and `continue-on-error: true`
+was removed from both steps, so no entries remain. Keep this set around for
+future holes of the same shape, but any new entry requires its own tracked
+issue - do not add one to silence a new finding without opening one.
 """
 
 from __future__ import annotations
@@ -68,19 +68,16 @@ SECURITY_TOOL_MARKERS = (
 )
 
 # `job::step` identifiers exempted from `test_no_security_step_swallows_its_own_failure`.
-# This is a DOCUMENTED hole, not a silent one: both steps carry
-# `continue-on-error: true` today because the tool each invokes reports a
+# Empty today: issue #301 tracked the pip-audit and Bandit steps in
+# `security-scan` carrying `continue-on-error: true` while each reported a
 # real, pre-existing finding (bandit: one High B602 at
 # framework/actions/quality_gates.py:250; pip-audit: transitive CVEs in
-# current dependencies), and simply removing `continue-on-error: true` would
-# break CI without fixing anything. Tracked by issue #301. Every entry here
-# requires a tracked issue - do not add one to silence a new finding without
-# opening one. Closing #301 means fixing the underlying findings and deleting
-# these two entries, not adding to them.
-_KNOWN_UNFIXED: set[str] = {
-    "security-scan::Run pip-audit (dependency vulnerabilities)",
-    "security-scan::Run Bandit (static analysis)",
-}
+# current dependencies). Both findings were fixed and `continue-on-error:
+# true` was removed from both steps, so no exemption is needed. This set
+# remains as a DOCUMENTED mechanism for future holes of the same shape -
+# every entry added here requires its own tracked issue; do not add one to
+# silence a new finding without opening one.
+_KNOWN_UNFIXED: set[str] = set()
 
 
 def invoked_task_names(run_body: str) -> list[str]:
@@ -160,10 +157,12 @@ def test_security_step_discovery_is_not_vacuous():
 def test_no_security_step_swallows_its_own_failure():
     """No security-relevant step may carry `continue-on-error: true`.
 
-    Skips the `_KNOWN_UNFIXED` entries (tracked by #301) but must still fail
-    on any non-exempted step, so a new step slipping in with
-    `continue-on-error: true` is caught even though the two documented holes
-    are not.
+    Skips any `_KNOWN_UNFIXED` entries but must still fail on any
+    non-exempted step, so a new step slipping in with
+    `continue-on-error: true` is caught. `_KNOWN_UNFIXED` is empty as of
+    #301 (the pip-audit and Bandit steps it used to exempt were fixed and no
+    longer carry `continue-on-error: true`), but the skip logic stays in
+    place for any future documented hole of the same shape.
 
     Collects every violation before asserting once, rather than asserting
     inside the loop, so a failure names every offending step in one run
@@ -189,10 +188,13 @@ def test_known_unfixed_exemptions_are_not_stale():
 
     Guards the exemption list itself against going stale in either
     direction: if a step is renamed, removed, or has its
-    `continue-on-error: true` removed (i.e. #301 gets fixed), the matching
-    entry must be deleted from `_KNOWN_UNFIXED` rather than left to linger
-    and silently over-broaden the exemption for whatever moves into its
-    place.
+    `continue-on-error: true` removed, the matching entry must be deleted
+    from `_KNOWN_UNFIXED` rather than left to linger and silently
+    over-broaden the exemption for whatever moves into its place.
+    `_KNOWN_UNFIXED` is empty as of #301 (both entries it used to hold were
+    deleted once the underlying findings were fixed), so this test
+    vacuously passes today - it stays in place to catch staleness the next
+    time an entry is added.
     """
     tasks = load_tasks()
     doc = yaml.safe_load(CI_WORKFLOW.read_text())
@@ -210,7 +212,8 @@ def test_known_unfixed_exemptions_are_not_stale():
     assert not stale, (
         "_KNOWN_UNFIXED names steps that no longer exist, are no longer "
         "security-relevant, or no longer carry `continue-on-error: true` - "
-        f"delete these stale entries (issue #301 may already be fixed): {stale}"
+        "delete these stale entries; the issue each one cites may already be "
+        f"fixed: {stale}"
     )
 
 

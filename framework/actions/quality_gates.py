@@ -7,6 +7,7 @@ for tiered quality validation across projects.
 
 import json
 import os
+import shlex
 import signal
 import subprocess
 import time
@@ -245,9 +246,12 @@ class QualityGatesAction:
 
         try:
             # Real execution
+            #
+            # (issue #301) The command is tokenized with shlex.split and run without a
+            # shell (shell=False), so no shell metacharacters or interpolation are ever
+            # possible regardless of `cmd`'s contents.
             process = subprocess.Popen(
-                cmd,
-                shell=True,
+                shlex.split(cmd),
                 cwd=project_dir,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
