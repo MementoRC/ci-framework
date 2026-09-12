@@ -7,6 +7,7 @@ for tiered quality validation across projects.
 
 import json
 import os
+import shlex
 import signal
 import subprocess
 import time
@@ -246,35 +247,11 @@ class QualityGatesAction:
         try:
             # Real execution
             #
-            # (issue #301) B602 subprocess_popen_with_shell_equals_true: shell=True is
-            # safe here because `cmd` cannot contain attacker-controlled content.
-            # Verified call chain (traced, not re-derived):
-            #   - `_execute_command` has exactly two call sites: the `executor.submit(...)`
-            #     inside `_execute_commands_parallel` (line ~309) and the direct call at
-            #     line ~343. Both pass `cmd` as a loop variable over the `commands` list
-            #     parameter.
-            #   - `commands` originates only from `commands = self._get_tier_commands(tier,
-            #     manager)` (line ~446).
-            #   - `_get_tier_commands` (lines 185-203) builds `cmd` strings only from a
-            #     hardcoded literal dict whose values are restricted to "test", "lint",
-            #     "typecheck", "security-scan", "check-all", interpolated as
-            #     f"pixi run {cmd}" / f"poetry run {cmd}" / f"hatch run {cmd}" /
-            #     f"python -m {cmd}".
-            #   - `tier` is used only as a dict key via
-            #     base_commands.get(tier, base_commands["essential"]) and is never
-            #     interpolated into the command string, so a hostile `tier` value cannot
-            #     inject; it just falls back to "essential".
-            #   - There is no os.environ read, no CLI/action input, and no
-            #     `custom_commands` anywhere in this file that could reach `cmd`.
-            #
-            # This suppression is valid ONLY while `cmd` continues to be built exclusively
-            # from this hardcoded tier table. If `_execute_command` is ever changed to
-            # accept commands derived from external input (env vars, action inputs,
-            # user-supplied config, `custom_commands`, etc.), this nosec must be removed
-            # and the input properly validated/escaped first.
-            process = subprocess.Popen(  # nosec B602
-                cmd,
-                shell=True,
+            # (issue #301) The command is tokenized with shlex.split and run without a
+            # shell (shell=False), so no shell metacharacters or interpolation are ever
+            # possible regardless of `cmd`'s contents.
+            process = subprocess.Popen(
+                shlex.split(cmd),
                 cwd=project_dir,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
