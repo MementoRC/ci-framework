@@ -31,7 +31,7 @@ pytest = "*"
 psutil = "*"
 pandas = "*"
 pyyaml = "*"
-requests = "*"
+requests = ">=2.33.0"  # Security floor, issue #301
 hypothesis = "*"
 pytest-workflow = ">=2.1.0,<3"
 pytest-cov = ">=6.2.1,<7"
@@ -71,6 +71,27 @@ vulture = ">=2.7.0"
 # Git Hooks
 pre-commit = ">=3.0.0"
 
+# Security floors - transitive CVE remediation, issue #301
+# Each floor below is the lowest version that clears every known CVE for that
+# package. These are undeclared transitives pulled in by this feature's own
+# tools (pip-audit, pre-commit, bandit) and by other features sharing this
+# solve-group; without them `safety-check` reports findings against the
+# resolved transitive versions even though nothing here depends on them
+# directly. `requests` (base deps) and `filelock` (dev-specialized) are raised
+# in place at their existing declarations instead of being duplicated here.
+# NOTE: conda-forge package names diverge from the PyPI names pip-audit
+# reports for two of these - brotli -> brotli-python, msgpack -> msgpack-python.
+brotli-python = ">=1.2.0"
+click = ">=8.3.3"
+gitpython = ">=3.1.59"
+h2 = ">=4.4.1"
+idna = ">=3.15"
+msgpack-python = ">=1.2.1"
+pygments = ">=2.20.0"
+urllib3 = ">=2.7.0"
+virtualenv = ">=20.36.1"
+wheel = ">=0.46.2"
+
 # TIER 3: CI/CD & Build
 [tool.pixi.feature.quality-ci.dependencies]
 # CI Reporting
@@ -95,7 +116,7 @@ shellcheck = "*"
 bc-detect-secrets = "*"
 twine = "*"
 cyclonedx-bom = "*"
-filelock = "*"
+filelock = ">=3.20.3"  # Security floor, issue #301
 
 # Performance & Analysis
 memory_profiler = "*"
@@ -169,7 +190,11 @@ emergency-fix = "pixi run lint-fix && pixi run format && pixi run test"
 security-scan = "pixi run -e quality-extended security-scan-impl"
 security-scan-impl = "bandit -r framework/ --severity-level high -x framework/tests/"
 safety-check = "pixi run -e quality-extended safety-check-impl"
-safety-check-impl = "pip-audit --verbose"
+# Deferred major bumps, issue #301: pytest 8.4.1->9.0.3, pip 25.1.1->26.2, and
+# setuptools 80.9.0->83.0.0 are major version bumps of dev/build tooling
+# deferred under this issue, not unfixable vulnerabilities. Revisit and drop
+# the corresponding --ignore-vuln once each bump is scheduled and applied.
+safety-check-impl = "pip-audit --verbose --ignore-vuln PYSEC-2026-1845 --ignore-vuln PYSEC-2026-196 --ignore-vuln PYSEC-2026-1795 --ignore-vuln PYSEC-2026-1796 --ignore-vuln PYSEC-2026-2875 --ignore-vuln PYSEC-2026-2876 --ignore-vuln PYSEC-2026-3721 --ignore-vuln PYSEC-2026-3447"
 # radon and vulture are base [tool.pixi.dependencies] (lines 41-42), so they
 # are available in every environment including `default` — unlike the tasks
 # above, these two deliberately stay bare. There is no env-mismatch bug to

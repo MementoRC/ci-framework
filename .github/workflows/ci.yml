@@ -123,11 +123,9 @@ jobs:
       - name: "Run pip-audit (dependency vulnerabilities)"
         run: |
           pixi run -e quality-extended safety-check
-        continue-on-error: true
       - name: "Run Bandit (static analysis)"
         run: |
           pixi run -e quality-extended security-scan
-        continue-on-error: true
       - name: "Install Dev Dependencies for detect-secrets"
         run: |
           pixi install --locked -e dev || exit 1
